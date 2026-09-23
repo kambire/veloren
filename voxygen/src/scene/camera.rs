@@ -317,16 +317,16 @@ impl Camera {
         // Make sure aspect is valid
         let aspect = if aspect.is_normal() { aspect } else { 1.0 };
 
-        let dist = match mode {
-            CameraMode::ThirdPerson => 10.0,
-            CameraMode::FirstPerson | CameraMode::Freefly => MIN_ZOOM,
+        let (dist, ori) = match mode {
+            CameraMode::ThirdPerson => (10.0, Vec3::new(0.0, -0.20, 0.0)),
+            CameraMode::FirstPerson | CameraMode::Freefly => (MIN_ZOOM, Vec3::zero()),
         };
 
         Self {
             tgt_focus: None,
             focus: Vec3::unit_z() * 10.0,
-            tgt_ori: Vec3::zero(),
-            ori: Vec3::zero(),
+            tgt_ori: ori,
+            ori,
             tgt_dist: dist,
             dist,
             tgt_fov: 1.1,
@@ -699,6 +699,18 @@ impl Camera {
     /// Get the field of view of the camera in radians, taking into account
     /// fixation.
     pub fn get_effective_fov(&self) -> f32 { self.fov * self.fixate }
+
+    /// Convert a 2D screen coordinate into a normalized 3D ray direction in world space.
+    pub fn screen_to_ray(&self, screen_pos: Vec2<f32>, win_size: Vec2<f32>) -> (Vec3<f32>, Vec3<f32>) {
+        let ndc_x = (screen_pos.x / win_size.x.max(1.0)) * 2.0 - 1.0;
+        let ndc_y = 1.0 - (screen_pos.y / win_size.y.max(1.0)) * 2.0;
+        let p_view = self.dependents.proj_mat_inv * Vec4::new(ndc_x, ndc_y, 0.5, 1.0);
+        let p_view = Vec3::from(p_view) / p_view.w;
+        let p_world = self.dependents.view_mat_inv * Vec4::new(p_view.x, p_view.y, p_view.z, 1.0);
+        let p_world = Vec3::from(p_world) / p_world.w;
+        let world_dir = (p_world - self.dependents.cam_pos).normalized();
+        (self.dependents.cam_pos, world_dir)
+    }
 
     // /// Get the field of view of the camera in radians.
     // pub fn get_fov(&self) -> f32 { self.fov }

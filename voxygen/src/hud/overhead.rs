@@ -44,6 +44,10 @@ widget_ids! {
         name_bg,
         name,
 
+        // Quest marker ('!' o '?' sobre la cabeza estilo WoW)
+        quest_marker,
+        quest_marker_shadow,
+
         // HP
         level,
         level_skull,
@@ -76,6 +80,7 @@ pub struct Info<'a> {
     pub hardcore: bool,
     pub stance: Option<&'a Stance>,
     pub marked: bool,
+    pub quest_marker: Option<common::quest::QuestMarker>,
 }
 
 /// Determines whether to show the healthbar
@@ -167,6 +172,7 @@ impl Widget for Overhead<'_> {
             hardcore,
             stance,
             marked,
+            quest_marker,
         }) = self.info
         {
             // Used to set healthbar colours based on hp_percentage
@@ -276,31 +282,70 @@ impl Widget for Overhead<'_> {
                         .set(timer_id, ui);
                     });
             }
+            // Formato de nombre con Nivel MMORPG estilo WoW: [Nvl X] Nombre
+            let display_name = match (name.as_deref(), combat_rating) {
+                (Some(n), Some(cr)) if cr >= 122.0 => format!("[??] {}", n),
+                (Some(n), Some(cr)) => {
+                    let lvl = ((1.0 + cr * 5.0) as u32).clamp(1, 60);
+                    format!("[Nvl {}] {}", lvl, n)
+                },
+                (Some(n), None) => n.to_string(),
+                (None, _) => String::new(),
+            };
+
             // Name
-            Text::new(name.as_deref().unwrap_or(""))
-                //Text::new(&format!("{} [{:?}]", name, combat_rating)) // <- Uncomment to debug combat ratings
+            Text::new(&display_name)
                 .font_id(self.fonts.cyri.conrod_id)
                 .font_size(font_size)
                 .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
                 .x_y(-1.0, name_y)
                 .parent(id)
                 .set(state.ids.name_bg, ui);
-            Text::new(name.as_deref().unwrap_or(""))
-                //Text::new(&format!("{} [{:?}]", name, combat_rating)) // <- Uncomment to debug combat ratings
+            Text::new(&display_name)
                 .font_id(self.fonts.cyri.conrod_id)
                 .font_size(font_size)
                 .color(if self.in_group {
                     GROUP_MEMBER
-                /*} else if targets player { //TODO: Add a way to see if the entity is trying to attack the player, their pet(s) or a member of their group and recolour their nametag accordingly
-                DEFAULT_NPC*/
                 } else if marked {
                     MARKED_NPC
+                } else if let Some(cr) = combat_rating {
+                    cr_color(cr)
                 } else {
                     DEFAULT_NPC
                 })
                 .x_y(0.0, name_y + 1.0)
                 .parent(id)
                 .set(state.ids.name, ui);
+
+            // Marcador de misión estilo World of Warcraft ('!' o '?')
+            if let Some(marker) = quest_marker {
+                let (r, g, b, a) = marker.color_rgba();
+                let pulse_offset = (self.pulse * 3.5).sin() * 2.0;
+                let marker_y = name_y + 24.0 + f64::from(pulse_offset);
+
+                // Sombra de contraste
+                Text::new(marker.icon())
+                    .font_id(self.fonts.cyri.conrod_id)
+                    .font_size(28)
+                    .color(Color::Rgba(0.0, 0.0, 0.0, 0.85))
+                    .x_y(1.0, marker_y - 1.0)
+                    .parent(id)
+                    .set(state.ids.quest_marker_shadow, ui);
+
+                // Icono visible ('!' o '?')
+                Text::new(marker.icon())
+                    .font_id(self.fonts.cyri.conrod_id)
+                    .font_size(28)
+                    .color(Color::Rgba(
+                        r as f32 / 255.0,
+                        g as f32 / 255.0,
+                        b as f32 / 255.0,
+                        a as f32 / 255.0,
+                    ))
+                    .x_y(0.0, marker_y)
+                    .parent(id)
+                    .set(state.ids.quest_marker, ui);
+            }
 
             match health {
                 Some(health)

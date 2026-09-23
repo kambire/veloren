@@ -38,7 +38,7 @@ use common::{
 };
 use conrod_core::{
     Color, Colorable, Positionable, Sizeable, UiCell, Widget, WidgetCommon, color,
-    widget::{self, Button, Image, Rectangle, Text},
+    widget::{self, Button, Image, Rectangle, RoundedRectangle, Text},
     widget_ids,
 };
 use vek::*;
@@ -52,6 +52,29 @@ widget_ids! {
         death_message_2_bg,
         death_message_3,
         death_message_3_bg,
+        // WoW Player Frame (Arriba a la izquierda)
+        player_frame_border,
+        player_frame_bg,
+        player_portrait_border,
+        player_portrait_bg,
+        player_portrait,
+        player_level_badge_border,
+        player_level_badge_bg,
+        player_level_txt_bg,
+        player_level_txt,
+        player_name_txt_bg,
+        player_name_txt,
+        player_hp_bg,
+        player_hp_fill,
+        player_hp_decay,
+        player_hp_txt_bg,
+        player_hp_txt,
+        player_mana_bg,
+        player_mana_fill,
+        player_mana_txt_bg,
+        player_mana_txt,
+        player_xp_bg,
+        player_xp_fill,
         // Skillbar
         frame,
         bg_health,
@@ -143,6 +166,36 @@ widget_ids! {
         slot10,
         slot10_text,
         slot10_text_bg,
+        slot11,
+        slot11_text,
+        slot11_text_bg,
+        slot12,
+        slot12_text,
+        slot12_text_bg,
+        slot13,
+        slot13_text,
+        slot13_text_bg,
+        slot14,
+        slot14_text,
+        slot14_text_bg,
+        slot15,
+        slot15_text,
+        slot15_text_bg,
+        slot16,
+        slot16_text,
+        slot16_text_bg,
+        slot17,
+        slot17_text,
+        slot17_text_bg,
+        slot18,
+        slot18_text,
+        slot18_text_bg,
+        slot19,
+        slot19_text,
+        slot19_text_bg,
+        slot20,
+        slot20_text,
+        slot20_text_bg,
         slot_highlight,
     }
 }
@@ -152,22 +205,24 @@ struct SlotEntry {
     slot: hotbar::Slot,
     widget_id: widget::Id,
     position: PositionSpecifier,
-    game_input: GameInput,
+    game_input: Option<GameInput>,
+    custom_shortcut: Option<&'static str>,
     shortcut_position: PositionSpecifier,
     shortcut_position_bg: PositionSpecifier,
     shortcut_widget_ids: (widget::Id, widget::Id),
 }
 
-fn slot_entries(state: &State, slot_offset: f64) -> [SlotEntry; 10] {
+fn slot_entries(state: &State, slot_offset: f64) -> [SlotEntry; 20] {
     use PositionSpecifier::*;
 
     [
-        // 1th - 5th slots
+        // 1th - 5th slots (Fila inferior izquierda)
         SlotEntry {
             slot: hotbar::Slot::One,
             widget_id: state.ids.slot1,
             position: BottomLeftWithMarginsOn(state.ids.frame, 0.0, 0.0),
-            game_input: GameInput::Slot1,
+            game_input: Some(GameInput::Slot1),
+            custom_shortcut: None,
             shortcut_position: BottomLeftWithMarginsOn(state.ids.slot1_text_bg, 1.0, 1.0),
             shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot1, 3.0, 5.0),
             shortcut_widget_ids: (state.ids.slot1_text, state.ids.slot1_text_bg),
@@ -176,7 +231,8 @@ fn slot_entries(state: &State, slot_offset: f64) -> [SlotEntry; 10] {
             slot: hotbar::Slot::Two,
             widget_id: state.ids.slot2,
             position: RightFrom(state.ids.slot1, slot_offset),
-            game_input: GameInput::Slot2,
+            game_input: Some(GameInput::Slot2),
+            custom_shortcut: None,
             shortcut_position: BottomLeftWithMarginsOn(state.ids.slot2_text_bg, 1.0, 1.0),
             shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot2, 3.0, 5.0),
             shortcut_widget_ids: (state.ids.slot2_text, state.ids.slot2_text_bg),
@@ -185,7 +241,8 @@ fn slot_entries(state: &State, slot_offset: f64) -> [SlotEntry; 10] {
             slot: hotbar::Slot::Three,
             widget_id: state.ids.slot3,
             position: RightFrom(state.ids.slot2, slot_offset),
-            game_input: GameInput::Slot3,
+            game_input: Some(GameInput::Slot3),
+            custom_shortcut: None,
             shortcut_position: BottomLeftWithMarginsOn(state.ids.slot3_text_bg, 1.0, 1.0),
             shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot3, 3.0, 5.0),
             shortcut_widget_ids: (state.ids.slot3_text, state.ids.slot3_text_bg),
@@ -194,7 +251,8 @@ fn slot_entries(state: &State, slot_offset: f64) -> [SlotEntry; 10] {
             slot: hotbar::Slot::Four,
             widget_id: state.ids.slot4,
             position: RightFrom(state.ids.slot3, slot_offset),
-            game_input: GameInput::Slot4,
+            game_input: Some(GameInput::Slot4),
+            custom_shortcut: None,
             shortcut_position: BottomLeftWithMarginsOn(state.ids.slot4_text_bg, 1.0, 1.0),
             shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot4, 3.0, 5.0),
             shortcut_widget_ids: (state.ids.slot4_text, state.ids.slot4_text_bg),
@@ -203,17 +261,19 @@ fn slot_entries(state: &State, slot_offset: f64) -> [SlotEntry; 10] {
             slot: hotbar::Slot::Five,
             widget_id: state.ids.slot5,
             position: RightFrom(state.ids.slot4, slot_offset),
-            game_input: GameInput::Slot5,
+            game_input: Some(GameInput::Slot5),
+            custom_shortcut: None,
             shortcut_position: BottomLeftWithMarginsOn(state.ids.slot5_text_bg, 1.0, 1.0),
             shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot5, 3.0, 5.0),
             shortcut_widget_ids: (state.ids.slot5_text, state.ids.slot5_text_bg),
         },
-        // 6th - 10th slots
+        // 6th - 10th slots (Fila inferior derecha)
         SlotEntry {
             slot: hotbar::Slot::Six,
             widget_id: state.ids.slot6,
             position: RightFrom(state.ids.m2_slot_bg, slot_offset),
-            game_input: GameInput::Slot6,
+            game_input: Some(GameInput::Slot6),
+            custom_shortcut: None,
             shortcut_position: BottomLeftWithMarginsOn(state.ids.slot6_text_bg, 1.0, 1.0),
             shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot6, 3.0, 5.0),
             shortcut_widget_ids: (state.ids.slot6_text, state.ids.slot6_text_bg),
@@ -222,7 +282,8 @@ fn slot_entries(state: &State, slot_offset: f64) -> [SlotEntry; 10] {
             slot: hotbar::Slot::Seven,
             widget_id: state.ids.slot7,
             position: RightFrom(state.ids.slot6, slot_offset),
-            game_input: GameInput::Slot7,
+            game_input: Some(GameInput::Slot7),
+            custom_shortcut: None,
             shortcut_position: BottomLeftWithMarginsOn(state.ids.slot7_text_bg, 1.0, 1.0),
             shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot7, 3.0, 5.0),
             shortcut_widget_ids: (state.ids.slot7_text, state.ids.slot7_text_bg),
@@ -231,7 +292,8 @@ fn slot_entries(state: &State, slot_offset: f64) -> [SlotEntry; 10] {
             slot: hotbar::Slot::Eight,
             widget_id: state.ids.slot8,
             position: RightFrom(state.ids.slot7, slot_offset),
-            game_input: GameInput::Slot8,
+            game_input: Some(GameInput::Slot8),
+            custom_shortcut: None,
             shortcut_position: BottomLeftWithMarginsOn(state.ids.slot8_text_bg, 1.0, 1.0),
             shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot8, 3.0, 5.0),
             shortcut_widget_ids: (state.ids.slot8_text, state.ids.slot8_text_bg),
@@ -240,7 +302,8 @@ fn slot_entries(state: &State, slot_offset: f64) -> [SlotEntry; 10] {
             slot: hotbar::Slot::Nine,
             widget_id: state.ids.slot9,
             position: RightFrom(state.ids.slot8, slot_offset),
-            game_input: GameInput::Slot9,
+            game_input: Some(GameInput::Slot9),
+            custom_shortcut: None,
             shortcut_position: BottomLeftWithMarginsOn(state.ids.slot9_text_bg, 1.0, 1.0),
             shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot9, 3.0, 5.0),
             shortcut_widget_ids: (state.ids.slot9_text, state.ids.slot9_text_bg),
@@ -249,10 +312,113 @@ fn slot_entries(state: &State, slot_offset: f64) -> [SlotEntry; 10] {
             slot: hotbar::Slot::Ten,
             widget_id: state.ids.slot10,
             position: RightFrom(state.ids.slot9, slot_offset),
-            game_input: GameInput::Slot10,
+            game_input: Some(GameInput::Slot10),
+            custom_shortcut: None,
             shortcut_position: BottomLeftWithMarginsOn(state.ids.slot10_text_bg, 1.0, 1.0),
             shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot10, 3.0, 5.0),
             shortcut_widget_ids: (state.ids.slot10_text, state.ids.slot10_text_bg),
+        },
+        // 11th - 15th slots (Fila superior izquierda estilo WoW)
+        SlotEntry {
+            slot: hotbar::Slot::Eleven,
+            widget_id: state.ids.slot11,
+            position: UpFrom(state.ids.slot1, 4.0),
+            game_input: None,
+            custom_shortcut: Some("S1"),
+            shortcut_position: BottomLeftWithMarginsOn(state.ids.slot11_text_bg, 1.0, 1.0),
+            shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot11, 3.0, 5.0),
+            shortcut_widget_ids: (state.ids.slot11_text, state.ids.slot11_text_bg),
+        },
+        SlotEntry {
+            slot: hotbar::Slot::Twelve,
+            widget_id: state.ids.slot12,
+            position: RightFrom(state.ids.slot11, slot_offset),
+            game_input: None,
+            custom_shortcut: Some("S2"),
+            shortcut_position: BottomLeftWithMarginsOn(state.ids.slot12_text_bg, 1.0, 1.0),
+            shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot12, 3.0, 5.0),
+            shortcut_widget_ids: (state.ids.slot12_text, state.ids.slot12_text_bg),
+        },
+        SlotEntry {
+            slot: hotbar::Slot::Thirteen,
+            widget_id: state.ids.slot13,
+            position: RightFrom(state.ids.slot12, slot_offset),
+            game_input: None,
+            custom_shortcut: Some("S3"),
+            shortcut_position: BottomLeftWithMarginsOn(state.ids.slot13_text_bg, 1.0, 1.0),
+            shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot13, 3.0, 5.0),
+            shortcut_widget_ids: (state.ids.slot13_text, state.ids.slot13_text_bg),
+        },
+        SlotEntry {
+            slot: hotbar::Slot::Fourteen,
+            widget_id: state.ids.slot14,
+            position: RightFrom(state.ids.slot13, slot_offset),
+            game_input: None,
+            custom_shortcut: Some("S4"),
+            shortcut_position: BottomLeftWithMarginsOn(state.ids.slot14_text_bg, 1.0, 1.0),
+            shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot14, 3.0, 5.0),
+            shortcut_widget_ids: (state.ids.slot14_text, state.ids.slot14_text_bg),
+        },
+        SlotEntry {
+            slot: hotbar::Slot::Fifteen,
+            widget_id: state.ids.slot15,
+            position: RightFrom(state.ids.slot14, slot_offset),
+            game_input: None,
+            custom_shortcut: Some("S5"),
+            shortcut_position: BottomLeftWithMarginsOn(state.ids.slot15_text_bg, 1.0, 1.0),
+            shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot15, 3.0, 5.0),
+            shortcut_widget_ids: (state.ids.slot15_text, state.ids.slot15_text_bg),
+        },
+        // 16th - 20th slots (Fila superior derecha estilo WoW)
+        SlotEntry {
+            slot: hotbar::Slot::Sixteen,
+            widget_id: state.ids.slot16,
+            position: UpFrom(state.ids.slot6, 4.0),
+            game_input: None,
+            custom_shortcut: Some("S6"),
+            shortcut_position: BottomLeftWithMarginsOn(state.ids.slot16_text_bg, 1.0, 1.0),
+            shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot16, 3.0, 5.0),
+            shortcut_widget_ids: (state.ids.slot16_text, state.ids.slot16_text_bg),
+        },
+        SlotEntry {
+            slot: hotbar::Slot::Seventeen,
+            widget_id: state.ids.slot17,
+            position: RightFrom(state.ids.slot16, slot_offset),
+            game_input: None,
+            custom_shortcut: Some("S7"),
+            shortcut_position: BottomLeftWithMarginsOn(state.ids.slot17_text_bg, 1.0, 1.0),
+            shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot17, 3.0, 5.0),
+            shortcut_widget_ids: (state.ids.slot17_text, state.ids.slot17_text_bg),
+        },
+        SlotEntry {
+            slot: hotbar::Slot::Eighteen,
+            widget_id: state.ids.slot18,
+            position: RightFrom(state.ids.slot17, slot_offset),
+            game_input: None,
+            custom_shortcut: Some("S8"),
+            shortcut_position: BottomLeftWithMarginsOn(state.ids.slot18_text_bg, 1.0, 1.0),
+            shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot18, 3.0, 5.0),
+            shortcut_widget_ids: (state.ids.slot18_text, state.ids.slot18_text_bg),
+        },
+        SlotEntry {
+            slot: hotbar::Slot::Nineteen,
+            widget_id: state.ids.slot19,
+            position: RightFrom(state.ids.slot18, slot_offset),
+            game_input: None,
+            custom_shortcut: Some("S9"),
+            shortcut_position: BottomLeftWithMarginsOn(state.ids.slot19_text_bg, 1.0, 1.0),
+            shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot19, 3.0, 5.0),
+            shortcut_widget_ids: (state.ids.slot19_text, state.ids.slot19_text_bg),
+        },
+        SlotEntry {
+            slot: hotbar::Slot::Twenty,
+            widget_id: state.ids.slot20,
+            position: RightFrom(state.ids.slot19, slot_offset),
+            game_input: None,
+            custom_shortcut: Some("S0"),
+            shortcut_position: BottomLeftWithMarginsOn(state.ids.slot20_text_bg, 1.0, 1.0),
+            shortcut_position_bg: TopRightWithMarginsOn(state.ids.slot20, 3.0, 5.0),
+            shortcut_widget_ids: (state.ids.slot20_text, state.ids.slot20_text_bg),
         },
     ]
 }
@@ -528,6 +694,202 @@ impl<'a> Skillbar<'a> {
         }
     }
 
+    fn show_wow_player_frame(&self, state: &State, ui: &mut UiCell) {
+        let (hp_percentage, energy_percentage) = if self.health.is_dead {
+            (0.0, 0.0)
+        } else {
+            let max_hp = f64::from(self.health.base_max().max(self.health.maximum()));
+            let current_hp = f64::from(self.health.current());
+            (
+                (current_hp / max_hp * 100.0).clamp(0.0, 100.0),
+                f64::from(self.energy.fraction() * 100.0).clamp(0.0, 100.0),
+            )
+        };
+
+        let hp_ani = (self.pulse * 4.0).cos() * 0.5 + 0.8;
+        let crit_hp_color = Color::Rgba(0.79, 0.19, 0.17, hp_ani);
+        let health_col = match hp_percentage as u8 {
+            0..=20 => crit_hp_color,
+            21..=40 => LOW_HP_COLOR,
+            _ => HP_COLOR,
+        };
+
+        let selected_experience = &self
+            .global_state
+            .settings
+            .interface
+            .xp_bar_skillgroup
+            .unwrap_or(SkillGroupKind::General);
+        let current_exp = self.skillset.available_experience(*selected_experience) as f64;
+        let max_exp = self.skillset.skill_point_cost(*selected_experience) as f64;
+        let exp_percentage = (current_exp / max_exp.max(1.0)).clamp(0.0, 1.0);
+        let level = (1 + self.skillset.earned_sp(*selected_experience) as u32).min(60);
+        let level_txt = level.to_string();
+
+        let char_name = self.stats.map_or_else(
+            || "Aventurero".to_string(),
+            |s| self.localized_strings.get_content(&s.name),
+        );
+
+        let portrait_img = match self.body {
+            comp::Body::Humanoid(h) => {
+                use comp::humanoid::{BodyType, Species};
+                match (h.species, h.body_type) {
+                    (Species::Human, BodyType::Male) => self.imgs.portrait_human_m,
+                    (Species::Human, BodyType::Female) => self.imgs.portrait_human_f,
+                    (Species::Orc, BodyType::Male) => self.imgs.portrait_orc_m,
+                    (Species::Orc, BodyType::Female) => self.imgs.portrait_orc_f,
+                    (Species::Dwarf, BodyType::Male) => self.imgs.portrait_dwarf_m,
+                    (Species::Dwarf, BodyType::Female) => self.imgs.portrait_dwarf_f,
+                    (Species::Draugr, BodyType::Male) => self.imgs.portrait_draugr_m,
+                    (Species::Draugr, BodyType::Female) => self.imgs.portrait_draugr_f,
+                    (Species::Elf, BodyType::Male) => self.imgs.portrait_elf_m,
+                    (Species::Elf, BodyType::Female) => self.imgs.portrait_elf_f,
+                    (Species::Danari, BodyType::Male) => self.imgs.portrait_danari_m,
+                    (Species::Danari, BodyType::Female) => self.imgs.portrait_danari_f,
+                }
+            },
+            _ => self.imgs.portrait_human_m,
+        };
+
+        let hp_txt = if self.health.is_dead {
+            "MUERTO".to_string()
+        } else {
+            format!(
+                "{}/{}",
+                self.health.current().round() as u32,
+                self.health.maximum().round() as u32
+            )
+        };
+        let mana_txt = format!(
+            "{}/{}",
+            self.energy.current().round() as u32,
+            self.energy.maximum().round() as u32
+        );
+
+        // 1. Marco exterior con borde dorado/metálico estilo WoW
+        RoundedRectangle::fill_with([244.0, 70.0], 8.0, Color::Rgba(0.55, 0.45, 0.20, 0.95))
+            .top_left_with_margins_on(ui.window, 16.0, 16.0)
+            .set(state.ids.player_frame_border, ui);
+
+        // Fondo interior oscuro del panel
+        RoundedRectangle::fill_with([240.0, 66.0], 6.0, Color::Rgba(0.07, 0.08, 0.11, 0.90))
+            .middle_of(state.ids.player_frame_border)
+            .set(state.ids.player_frame_bg, ui);
+
+        // 2. Medallón Circular de Retrato
+        RoundedRectangle::fill_with([56.0, 56.0], 28.0, Color::Rgba(0.85, 0.70, 0.22, 1.0))
+            .top_left_with_margins_on(state.ids.player_frame_bg, 5.0, 6.0)
+            .set(state.ids.player_portrait_border, ui);
+
+        RoundedRectangle::fill_with([52.0, 52.0], 26.0, Color::Rgba(0.05, 0.05, 0.07, 1.0))
+            .middle_of(state.ids.player_portrait_border)
+            .set(state.ids.player_portrait_bg, ui);
+
+        Image::new(portrait_img)
+            .w_h(48.0, 48.0)
+            .middle_of(state.ids.player_portrait_bg)
+            .set(state.ids.player_portrait, ui);
+
+        // 3. Insignia Circular de Nivel (Esquina inferior izquierda del retrato)
+        RoundedRectangle::fill_with([22.0, 22.0], 11.0, Color::Rgba(0.95, 0.82, 0.25, 1.0))
+            .bottom_left_with_margins_on(state.ids.player_portrait_border, -3.0, -3.0)
+            .set(state.ids.player_level_badge_border, ui);
+
+        RoundedRectangle::fill_with([18.0, 18.0], 9.0, Color::Rgba(0.12, 0.10, 0.04, 1.0))
+            .middle_of(state.ids.player_level_badge_border)
+            .set(state.ids.player_level_badge_bg, ui);
+
+        Text::new(&level_txt)
+            .middle_of(state.ids.player_level_badge_bg)
+            .font_size(11)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.player_level_txt_bg, ui);
+        Text::new(&level_txt)
+            .bottom_right_with_margins_on(state.ids.player_level_txt_bg, 1.0, 1.0)
+            .font_size(11)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(1.0, 0.95, 0.40, 1.0))
+            .set(state.ids.player_level_txt, ui);
+
+        // 4. Nombre del Personaje
+        Text::new(&char_name)
+            .top_left_with_margins_on(state.ids.player_frame_bg, 5.0, 68.0)
+            .font_size(13)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.player_name_txt_bg, ui);
+        Text::new(&char_name)
+            .bottom_right_with_margins_on(state.ids.player_name_txt_bg, 1.0, 1.0)
+            .font_size(13)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(1.0, 0.95, 0.85, 1.0))
+            .set(state.ids.player_name_txt, ui);
+
+        // 5. Barra de Vida (Health Bar)
+        RoundedRectangle::fill_with([160.0, 15.0], 2.0, Color::Rgba(0.04, 0.04, 0.04, 0.95))
+            .top_left_with_margins_on(state.ids.player_frame_bg, 22.0, 68.0)
+            .set(state.ids.player_hp_bg, ui);
+        Image::new(self.imgs.bar_content)
+            .w_h(158.0 * (hp_percentage / 100.0).clamp(0.0, 1.0), 13.0)
+            .color(Some(health_col))
+            .top_left_with_margins_on(state.ids.player_hp_bg, 1.0, 1.0)
+            .set(state.ids.player_hp_fill, ui);
+        let decayed_health = 1.0 - self.health.maximum() as f64 / self.health.base_max() as f64;
+        if decayed_health > 0.0 {
+            Image::new(self.imgs.bar_content)
+                .w_h(158.0 * decayed_health.clamp(0.0, 1.0), 13.0)
+                .color(Some(QUALITY_EPIC))
+                .top_right_with_margins_on(state.ids.player_hp_bg, 1.0, 1.0)
+                .set(state.ids.player_hp_decay, ui);
+        }
+        Text::new(&hp_txt)
+            .middle_of(state.ids.player_hp_bg)
+            .font_size(10)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.player_hp_txt_bg, ui);
+        Text::new(&hp_txt)
+            .bottom_right_with_margins_on(state.ids.player_hp_txt_bg, 1.0, 1.0)
+            .font_size(10)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(1.0, 1.0, 1.0, 0.95))
+            .set(state.ids.player_hp_txt, ui);
+
+        // 6. Barra de Maná / Energía (Mana Bar)
+        RoundedRectangle::fill_with([160.0, 12.0], 2.0, Color::Rgba(0.04, 0.04, 0.04, 0.95))
+            .top_left_with_margins_on(state.ids.player_frame_bg, 39.0, 68.0)
+            .set(state.ids.player_mana_bg, ui);
+        Image::new(self.imgs.bar_content)
+            .w_h(158.0 * (energy_percentage / 100.0).clamp(0.0, 1.0), 10.0)
+            .color(Some(Color::Rgba(0.18, 0.48, 0.92, 1.0)))
+            .top_left_with_margins_on(state.ids.player_mana_bg, 1.0, 1.0)
+            .set(state.ids.player_mana_fill, ui);
+        Text::new(&mana_txt)
+            .middle_of(state.ids.player_mana_bg)
+            .font_size(9)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.player_mana_txt_bg, ui);
+        Text::new(&mana_txt)
+            .bottom_right_with_margins_on(state.ids.player_mana_txt_bg, 1.0, 1.0)
+            .font_size(9)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(0.9, 0.95, 1.0, 0.95))
+            .set(state.ids.player_mana_txt, ui);
+
+        // 7. Pequeña Barra de Nivel / Exp (Mini XP Bar)
+        RoundedRectangle::fill_with([160.0, 6.0], 1.0, Color::Rgba(0.04, 0.04, 0.04, 0.95))
+            .top_left_with_margins_on(state.ids.player_frame_bg, 53.0, 68.0)
+            .set(state.ids.player_xp_bg, ui);
+        Image::new(self.imgs.bar_content)
+            .w_h(158.0 * exp_percentage, 4.0)
+            .color(Some(Color::Rgba(0.68, 0.32, 0.88, 1.0)))
+            .top_left_with_margins_on(state.ids.player_xp_bg, 1.0, 1.0)
+            .set(state.ids.player_xp_fill, ui);
+    }
+
     fn show_stat_bars(&self, state: &State, ui: &mut UiCell, events: &mut Vec<Event>) {
         let (hp_percentage, energy_percentage, poise_percentage): (f64, f64, f64) =
             if self.health.is_dead {
@@ -800,12 +1162,8 @@ impl<'a> Skillbar<'a> {
             let current_exp = self.skillset.available_experience(*selected_experience) as f64;
             let max_exp = self.skillset.skill_point_cost(*selected_experience) as f64;
             let exp_percentage = current_exp / max_exp.max(1.0);
-            let level = self.skillset.earned_sp(*selected_experience);
-            let level_txt = if level > 0 {
-                self.skillset.earned_sp(*selected_experience).to_string()
-            } else {
-                "".to_string()
-            };
+            let level = (1 + self.skillset.earned_sp(*selected_experience) as u32).min(60);
+            let level_txt = level.to_string();
 
             // Exp Bar
             Image::new(self.imgs.exp_frame_bg)
@@ -1110,6 +1468,30 @@ impl<'a> Skillbar<'a> {
 
                     (title.into(), desc.into())
                 }),
+                hotbar::SlotContents::PrimaryAbility => active_abilities
+                    .and_then(|a| {
+                        Ability::from(a.primary).ability_id(
+                            self.char_state,
+                            Some(inventory),
+                            Some(skill_set),
+                            stance,
+                            combo,
+                            buffs,
+                        )
+                    })
+                    .map(|id| util::ability_description(id, self.localized_strings)),
+                hotbar::SlotContents::SecondaryAbility => active_abilities
+                    .and_then(|a| {
+                        Ability::from(a.secondary).ability_id(
+                            self.char_state,
+                            Some(inventory),
+                            Some(skill_set),
+                            stance,
+                            combo,
+                            buffs,
+                        )
+                    })
+                    .map(|id| util::ability_description(id, self.localized_strings)),
                 hotbar::SlotContents::Ability(i) => active_abilities
                     .and_then(|a| {
                         a.auxiliary_set(Some(inventory), Some(skill_set))
@@ -1211,32 +1593,33 @@ impl<'a> Skillbar<'a> {
             }
 
             // shortcuts
-            if let ShortcutNumbers::On = shortcuts
-                && let Some(key) = &self
-                    .global_state
-                    .settings
-                    .controls
-                    .get_binding(entry.game_input)
-            {
-                let position = entry.shortcut_position;
-                let position_bg = entry.shortcut_position_bg;
-                let (id, id_bg) = entry.shortcut_widget_ids;
+            if let ShortcutNumbers::On = shortcuts {
+                let key_desc = entry
+                    .game_input
+                    .and_then(|input| self.global_state.settings.controls.get_binding(input))
+                    .map(|key| key.display_shortest())
+                    .or_else(|| entry.custom_shortcut.map(|s| s.to_string()));
 
-                let key_desc = key.display_shortest();
-                // shortcut text
-                Text::new(&key_desc)
-                    .position(position)
-                    .font_size(self.fonts.cyri.scale(8))
-                    .font_id(self.fonts.cyri.conrod_id)
-                    .color(TEXT_COLOR)
-                    .set(id, ui);
-                // shortcut background
-                Text::new(&key_desc)
-                    .position(position_bg)
-                    .font_size(self.fonts.cyri.scale(8))
-                    .font_id(self.fonts.cyri.conrod_id)
-                    .color(BLACK)
-                    .set(id_bg, ui);
+                if let Some(key_desc) = key_desc {
+                    let position = entry.shortcut_position;
+                    let position_bg = entry.shortcut_position_bg;
+                    let (id, id_bg) = entry.shortcut_widget_ids;
+
+                    // shortcut text
+                    Text::new(&key_desc)
+                        .position(position)
+                        .font_size(self.fonts.cyri.scale(8))
+                        .font_id(self.fonts.cyri.conrod_id)
+                        .color(TEXT_COLOR)
+                        .set(id, ui);
+                    // shortcut background
+                    Text::new(&key_desc)
+                        .position(position_bg)
+                        .font_size(self.fonts.cyri.scale(8))
+                        .font_id(self.fonts.cyri.conrod_id)
+                        .color(BLACK)
+                        .set(id_bg, ui);
+                }
             }
         }
         // M1 is primary slot on mouse, M2 is primary slot on controller
@@ -1470,9 +1853,12 @@ impl Widget for Skillbar<'_> {
 
         // Alignment and BG
         let alignment_size = 40.0 * 12.0 + slot_offset * 11.0;
-        Rectangle::fill_with([alignment_size, 80.0], color::TRANSPARENT)
+        Rectangle::fill_with([alignment_size, 128.0], color::TRANSPARENT)
             .mid_bottom_with_margin_on(ui.window, 10.0)
             .set(state.ids.frame, ui);
+
+        // WoW Player Frame (Arriba a la izquierda)
+        self.show_wow_player_frame(state, ui);
 
         // Health, Energy and Poise bars
         self.show_stat_bars(state, ui, &mut events);

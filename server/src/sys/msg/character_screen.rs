@@ -187,47 +187,35 @@ impl Sys {
                     )))?;
                 } else if let Some(player) = data.players.get(entity) {
                     #[cfg(feature = "worldgen")]
-                    let waypoint = start_site.and_then(|site_idx| {
-                        // Don't allow starting here if it's not a possible starting site.
-                        if !data
-                            .world_map_msg
-                            .possible_starting_sites
-                            .contains(&site_idx)
-                        {
-                            return None;
-                        }
+                    let waypoint = {
+                        let faction = match body {
+                            common::comp::Body::Humanoid(humanoid_body) => {
+                                common::zone::FactionId::from_species(humanoid_body.species)
+                            },
+                            _ => common::zone::FactionId::Alliance,
+                        };
 
-                        // TODO: This corresponds to the ID generation logic in
-                        // `world/src/lib.rs`. Really, we should have
-                        // a way to consistently refer to sites, but that's a job for rtsim2
-                        // and the site changes that it will require. Until then, this code is
-                        // very hacky.
-                        data.world
-                            .civs()
-                            .sites
-                            .iter()
-                            .find(|(_, site)| site.site_tmp.map(|i| i.id()) == Some(site_idx))
-                            .map(Some)
-                            .unwrap_or_else(|| {
-                                tracing::error!(
-                                    "Tried to create character with starting site index {}, but \
-                                     such a site does not exist",
-                                    site_idx
-                                );
-                                None
+                        let target_wpos2d = start_site
+                            .filter(|site_idx| data.world_map_msg.possible_starting_sites.contains(site_idx))
+                            .and_then(|site_idx| {
+                                data.world
+                                    .civs()
+                                    .sites
+                                    .iter()
+                                    .find(|(_, site)| site.site_tmp.map(|i| i.id()) == Some(site_idx))
+                                    .map(|(_, site)| TerrainChunkSize::center_wpos(site.center))
                             })
-                            .map(|(_, site)| {
-                                let wpos2d = TerrainChunkSize::center_wpos(site.center);
-                                Waypoint::new(
-                                    data.world.find_accessible_pos(
-                                        data.index.as_index_ref(),
-                                        wpos2d,
-                                        false,
-                                    ),
-                                    *data.time,
-                                )
-                            })
-                    });
+                            .unwrap_or_else(|| common::zone::get_faction_spawn_wpos(faction));
+
+                        // Garantizar que el spawn esté en un suelo plano y transitable
+                        let safe_flat_pos = data.world.find_flat_accessible_pos(
+                            data.index.as_index_ref(),
+                            target_wpos2d,
+                            10,
+                        );
+
+                        Some(Waypoint::new(safe_flat_pos, *data.time))
+                    };
                     #[cfg(not(feature = "worldgen"))]
                     let waypoint = Some(Waypoint::new(
                         data.world.get_center().with_z(10).as_(),

@@ -231,7 +231,7 @@ impl Default for Settings {
             calendar_mode: CalendarMode::Auto,
             client_timeout: Duration::from_secs(40),
             max_player_for_kill_broadcast: None,
-            experimental_terrain_persistence: false,
+            experimental_terrain_persistence: true,
             gameplay: GameplaySettings::default(),
             moderation: ModerationSettings::default(),
             world: WorldSettings::default(),

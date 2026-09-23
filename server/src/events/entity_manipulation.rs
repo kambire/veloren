@@ -1543,7 +1543,15 @@ impl ServerEvent for RespawnEvent {
                 let respawn_point = waypoints
                     .get(entity)
                     .map(|wp| wp.get_pos())
-                    .unwrap_or(spawn_point.0);
+                    .unwrap_or_else(|| {
+                        let death_pos = positions.get(entity).map(|p| p.0).unwrap_or(spawn_point.0);
+                        let zone = common::zone::get_zone_at(death_pos.xy());
+                        Vec3::new(
+                            zone.graveyard_wpos.x as f32,
+                            zone.graveyard_wpos.y as f32,
+                            death_pos.z.max(50.0),
+                        )
+                    });
 
                 healths.get_mut(entity).map(|mut health| health.revive());
                 combos.get_mut(entity).map(|mut combo| combo.reset());

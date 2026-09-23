@@ -1,0 +1,21 @@
+(
+    id: "horda_estepas_furia",
+    title: "Furia en las Estepas Áridas",
+    description: "¡Por la Horda! Las bestias carroñeras y trasgos descarriados se han acercado demasiado a los muros del Bastión de Ogron. Demuestra tu valía y aplasta a estos intrusos.",
+    giver_name: "Señor de la Guerra Grom",
+    min_level: 1,
+    faction: Some(Horde),
+    objectives: [
+        Kill(
+            target_name: "goblin",
+            required: 4,
+        ),
+    ],
+    rewards: (
+        xp: 150,
+        copper_coins: 30,
+        items: [
+            "common.items.consumable.potion_minor",
+        ],
+    ),
+)

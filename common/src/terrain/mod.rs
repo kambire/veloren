@@ -395,6 +395,41 @@ impl TerrainChunk {
             .map(|e| e as f32)
             + 0.5
     }
+
+    /// Busca una posición accesible y plana alrededor de `spawn_wpos`.
+    /// Comprueba la variación de altura con los bloques adyacentes para evitar
+    /// aparecer en pendientes pronunciadas, picos o bordes de precipicios.
+    pub fn find_flat_accessible_pos(&self, spawn_wpos: Vec2<i32>, radius: i32) -> Vec3<f32> {
+        let mut best_pos = self.find_accessible_pos(spawn_wpos, false);
+        let mut min_height_diff = f32::MAX;
+
+        for dy in -radius..=radius {
+            for dx in -radius..=radius {
+                let candidate_wpos = spawn_wpos + Vec2::new(dx, dy);
+                let candidate_pos = self.find_accessible_pos(candidate_wpos, false);
+
+                let mut max_diff = 0.0f32;
+                for (adx, ady) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                    let neighbor_wpos = candidate_wpos + Vec2::new(adx, ady);
+                    let neighbor_pos = self.find_accessible_pos(neighbor_wpos, false);
+                    let diff = (neighbor_pos.z - candidate_pos.z).abs();
+                    if diff > max_diff {
+                        max_diff = diff;
+                    }
+                }
+
+                if max_diff < min_height_diff {
+                    min_height_diff = max_diff;
+                    best_pos = candidate_pos;
+                    if max_diff < 0.25 {
+                        return best_pos;
+                    }
+                }
+            }
+        }
+
+        best_pos
+    }
 }
 
 // Terrain helper functions used across multiple crates.

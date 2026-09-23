@@ -143,7 +143,8 @@ impl Pack {
 pub type DensityFn = fn(&SimChunk, &ColumnSample) -> f32;
 
 pub fn spawn_manifest() -> Vec<(&'static str, DensityFn)> {
-    const BASE_DENSITY: f32 = 1.0e-5; // Base wildlife density
+    // Escalado de densidad estilo MMORPG (World of Warcraft)
+    const BASE_DENSITY: f32 = 5.0e-5; // Base wildlife density (5x vanilla)
     // NOTE: Order matters.
     // Entries with more specific requirements
     // and overall scarcity should come first, where possible.

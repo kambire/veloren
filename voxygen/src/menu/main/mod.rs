@@ -485,6 +485,9 @@ impl PlayState for MainMenuState {
                 },
                 #[cfg(feature = "singleplayer")]
                 MainMenuEvent::StartSingleplayer => {
+                    if matches!(global_state.singleplayer, SingleplayerState::None) {
+                        global_state.singleplayer = SingleplayerState::init();
+                    }
                     global_state.singleplayer.run(
                         &global_state.tokio_runtime,
                         &global_state.settings.language.selected_language,

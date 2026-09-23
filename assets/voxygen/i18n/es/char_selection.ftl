@@ -13,6 +13,7 @@ char_selection-eye_color = Color de ojos
 char_selection-skin = Piel
 char_selection-eyeshape = Detalle de los ojos
 char_selection-accessories = Accesorios
+char_selection-height_scale = Estatura
 char_selection-starting_site = Elige la zona donde comenzar
 char_selection-starting_site_next = Siguiente
 char_selection-starting_site_prev = Anterior

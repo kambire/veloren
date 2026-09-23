@@ -33,7 +33,7 @@ pub mod util;
 
 pub use chat::MessageBacklog;
 pub use crafting::CraftingTab;
-pub use hotbar::{SlotContents as HotbarSlotContents, State as HotbarState};
+pub use hotbar::{HOTBAR_SLOT_COUNT, SlotContents as HotbarSlotContents, State as HotbarState};
 pub use item_imgs::animate_by_pulse;
 pub use loot_scroller::LootMessage;
 pub use settings_window::ScaleChange;
@@ -699,6 +699,12 @@ pub enum Event {
         idx: usize,
         state: bool,
     },
+    Primary {
+        state: bool,
+    },
+    Secondary {
+        state: bool,
+    },
     Logout,
     Quit,
 
@@ -973,7 +979,7 @@ impl Show {
             diary_fields: diary::DiaryShow::default(),
             crafting_fields: crafting::CraftingShow::default(),
             social_search_key: None,
-            want_grab: true,
+            want_grab: false,
             stats: false,
             free_look: false,
             auto_walk: false,
@@ -1006,7 +1012,9 @@ impl Show {
                 self.crafting = false;
             }
 
-            self.want_grab = !self.any_window_requires_cursor();
+            if self.any_window_requires_cursor() {
+                self.want_grab = false;
+            }
         }
     }
 
@@ -1017,7 +1025,9 @@ impl Show {
             self.set_bag_state(open);
             self.trade = open;
             self.map = false;
-            self.want_grab = !self.any_window_requires_cursor();
+            if self.any_window_requires_cursor() {
+                self.want_grab = false;
+            }
         }
     }
 
@@ -1030,7 +1040,9 @@ impl Show {
             self.social = false;
             self.quest = false;
             self.diary = false;
-            self.want_grab = !self.any_window_requires_cursor();
+            if self.any_window_requires_cursor() {
+                self.want_grab = false;
+            }
         }
     }
 
@@ -1042,7 +1054,9 @@ impl Show {
             }
             self.social = open;
             self.diary = false;
-            self.want_grab = !self.any_window_requires_cursor();
+            if self.any_window_requires_cursor() {
+                self.want_grab = false;
+            }
         }
     }
 
@@ -1051,7 +1065,9 @@ impl Show {
             self.quest = open;
             self.diary = false;
             self.map = false;
-            self.want_grab = !self.any_window_requires_cursor();
+            if self.any_window_requires_cursor() {
+                self.want_grab = false;
+            }
         }
     }
 
@@ -1066,7 +1082,9 @@ impl Show {
             self.crafting_fields.recipe_inputs = HashMap::new();
             self.set_bag_state(open);
             self.map = false;
-            self.want_grab = !self.any_window_requires_cursor();
+            if self.any_window_requires_cursor() {
+                self.want_grab = false;
+            }
         }
     }
 
@@ -1098,7 +1116,9 @@ impl Show {
             self.map = false;
             self.diary_fields = diary::DiaryShow::default();
             self.diary = open;
-            self.want_grab = !self.any_window_requires_cursor();
+            if self.any_window_requires_cursor() {
+                self.want_grab = false;
+            }
         }
     }
 
@@ -1115,7 +1135,9 @@ impl Show {
             self.crafting = false;
             self.crafting_fields.salvage = false;
             self.diary = false;
-            self.want_grab = !self.any_window_requires_cursor();
+            if self.any_window_requires_cursor() {
+                self.want_grab = false;
+            }
         }
     }
 
@@ -1177,7 +1199,7 @@ impl Show {
             self.diary = false;
             self.crafting = false;
             self.open_windows = Windows::None;
-            self.want_grab = true;
+            self.want_grab = false;
 
             // Unpause the game if we are on singleplayer
             #[cfg(feature = "singleplayer")]
@@ -1635,7 +1657,7 @@ impl Hud {
                         .set(self.ids.death_bg, ui_widgets);
                 }
                 // Crosshair
-                let show_crosshair = (info.is_aiming || info.is_first_person) && !health.is_dead;
+                let show_crosshair = info.is_first_person && !health.is_dead;
                 self.crosshair_opacity = Lerp::lerp(
                     self.crosshair_opacity,
                     if show_crosshair { 1.0 } else { 0.0 },
@@ -2448,6 +2470,16 @@ impl Hud {
 
                         let is_marked = my_stats.is_some_and(|s| s.marked_entities.contains(uid));
 
+                        let quest_marker = entity_interactables
+                            .get(&entity)
+                            .and_then(|interactions| {
+                                if interactions.contains(&interactable::EntityInteraction::Talk) {
+                                    Some(common::quest::QuestMarker::Available)
+                                } else {
+                                    None
+                                }
+                            });
+
                         // Determine whether to display nametag and healthbar based on whether the
                         // entity is mounted, has been damaged, is targeted/selected, or is in your
                         // group
@@ -2462,7 +2494,8 @@ impl Hud {
                                 || info.selected_entity.is_some_and(|s| s.0 == entity)
                                 || health.is_none_or(overhead::should_show_healthbar)
                                 || in_group
-                                || is_marked)
+                                || is_marked
+                                || quest_marker.is_some())
                             && dist_sqr
                                 < (if in_group {
                                     NAMETAG_GROUP_RANGE
@@ -2493,6 +2526,7 @@ impl Hud {
                             hardcore: hardcore.contains(entity),
                             stance,
                             marked: is_marked,
+                            quest_marker,
                         });
                         // Only render bubble if nearby or if its me and setting is on
                         let bubble = if (dist_sqr < SPEECH_BUBBLE_RANGE.powi(2) && !is_me)
@@ -3397,7 +3431,7 @@ impl Hud {
                         self.show.stats = false;
                         self.show.crafting(false);
                         if !self.show.social {
-                            self.show.want_grab = true;
+                            self.show.want_grab = false;
                             self.force_ungrab = false;
                         } else {
                             self.force_ungrab = true
@@ -3553,7 +3587,7 @@ impl Hud {
                         self.show.stats = false;
                         Self::show_bag(&mut self.slot_manager, &mut self.show, false);
                         if !self.show.social {
-                            self.show.want_grab = true;
+                            self.show.want_grab = false;
                             self.force_ungrab = false;
                         } else {
                             self.force_ungrab = true
@@ -3625,7 +3659,7 @@ impl Hud {
                             self.show.stats = false;
                             self.show.trade(false);
                             if !self.show.social {
-                                self.show.want_grab = true;
+                                self.show.want_grab = false;
                                 self.force_ungrab = false;
                             } else {
                                 self.force_ungrab = true
@@ -3765,7 +3799,7 @@ impl Hud {
                         // Unpause the game if we are on singleplayer so that we can logout
                         #[cfg(feature = "singleplayer")]
                         global_state.unpause();
-                        self.show.want_grab = true;
+                        self.show.want_grab = false;
                         self.force_ungrab = false;
 
                         self.show.settings(false)
@@ -3825,7 +3859,7 @@ impl Hud {
                 Some(quest::Event::Close) => {
                     self.show.quest(false);
                     if !self.show.bag {
-                        self.show.want_grab = true;
+                        self.show.want_grab = false;
                         self.force_ungrab = false;
                     } else {
                         self.force_ungrab = true
@@ -3882,7 +3916,7 @@ impl Hud {
                     social::Event::Close => {
                         self.show.social(false);
                         if !self.show.bag {
-                            self.show.want_grab = true;
+                            self.show.want_grab = false;
                             self.force_ungrab = false;
                         } else {
                             self.force_ungrab = true
@@ -3961,7 +3995,7 @@ impl Hud {
                     match event {
                         diary::Event::Close => {
                             self.show.diary(false);
-                            self.show.want_grab = true;
+                            self.show.want_grab = false;
                             self.force_ungrab = false;
                         },
                         diary::Event::ChangeSkillTree(tree_sel) => {
@@ -4000,7 +4034,7 @@ impl Hud {
                 match event {
                     map::Event::Close => {
                         self.show.map(false);
-                        self.show.want_grab = true;
+                        self.show.want_grab = false;
                         self.force_ungrab = false;
                     },
                     map::Event::SettingsChange(settings_change) => {
@@ -4038,7 +4072,7 @@ impl Hud {
                 },
                 Some(esc_menu::Event::Close) => {
                     self.show.esc_menu = false;
-                    self.show.want_grab = true;
+                    self.show.want_grab = false;
                     self.force_ungrab = false;
 
                     // Unpause the game if we are on singleplayer
@@ -4445,7 +4479,9 @@ impl Hud {
                                     }
                                 }
                             },
-                            hotbar::SlotContents::Ability(_) => {},
+                            hotbar::SlotContents::Ability(_)
+                            | hotbar::SlotContents::PrimaryAbility
+                            | hotbar::SlotContents::SecondaryAbility => {},
                         });
                     } else if let Ability(AbilitySlot::Slot(index)) = from {
                         events.push(Event::ChangeAbility(index, AuxiliaryAbility::Empty));
@@ -4615,7 +4651,7 @@ impl Hud {
                         .was_clicked()
                     {
                         self.show.intro = true;
-                        self.show.want_grab = true;
+                        self.show.want_grab = false;
                     }
                     let tutorial_click_msg =
                         i18n.get_msg_ctx("hud-tutorial_click_here", &i18n::fluent_args! {
@@ -4705,7 +4741,7 @@ impl Hud {
                             events.push(Event::SettingsChange(
                                 InterfaceChange::Intro(Intro::Never).into(),
                             ));
-                            self.show.want_grab = true;
+                            self.show.want_grab = false;
                         }
                         if !self.show.crafting && !self.show.bag {
                             Image::new(self.imgs.sp_indicator_arrow)
@@ -4895,6 +4931,12 @@ impl Hud {
                     hotbar::SlotContents::Ability(idx) => {
                         events.push(Event::Ability { idx, state })
                     },
+                    hotbar::SlotContents::PrimaryAbility => {
+                        events.push(Event::Primary { state });
+                    },
+                    hotbar::SlotContents::SecondaryAbility => {
+                        events.push(Event::Secondary { state });
+                    },
                 });
             }
         }
@@ -4974,7 +5016,8 @@ impl Hud {
             // If not showing the ui don't allow keys that change the ui state but do listen for
             // hotbar keys
             WinEvent::InputUpdate(key, state) if !self.show.ui => {
-                if let Some(slot) = try_hotbar_slot_from_input(key) {
+                let is_shift = global_state.window.modifiers().shift_key();
+                if let Some(slot) = try_hotbar_slot_from_input(key, is_shift) {
                     handle_slot(
                         slot,
                         state,
@@ -5170,7 +5213,8 @@ impl Hud {
                     },
                     // Skillbar
                     input => {
-                        if let Some(slot) = try_hotbar_slot_from_input(input) {
+                        let is_shift = global_state.window.modifiers().shift_key();
+                        if let Some(slot) = try_hotbar_slot_from_input(input, is_shift) {
                             handle_slot(
                                 slot,
                                 state,
@@ -5209,6 +5253,25 @@ impl Hud {
             .grab_cursor(!self.force_ungrab && self.show.want_grab);
 
         handled
+    }
+
+    pub fn any_window_requires_cursor(&self) -> bool {
+        self.show.any_window_requires_cursor()
+    }
+
+    pub fn is_camera_dragging(&self) -> bool {
+        self.show.want_grab
+    }
+
+    pub fn set_camera_dragging(&mut self, dragging: bool, global_state: &mut GlobalState) {
+        if self.show.any_window_requires_cursor() {
+            self.show.want_grab = false;
+        } else {
+            self.show.want_grab = dragging;
+        }
+        global_state
+            .window
+            .grab_cursor(!self.force_ungrab && self.show.want_grab);
     }
 
     pub fn maintain(
@@ -5541,8 +5604,19 @@ pub fn get_quality_col(quality: Quality) -> Color {
     }
 }
 
-fn try_hotbar_slot_from_input(input: GameInput) -> Option<hotbar::Slot> {
+fn try_hotbar_slot_from_input(input: GameInput, is_shift: bool) -> Option<hotbar::Slot> {
     Some(match input {
+        GameInput::Slot1 if is_shift => hotbar::Slot::Eleven,
+        GameInput::Slot2 if is_shift => hotbar::Slot::Twelve,
+        GameInput::Slot3 if is_shift => hotbar::Slot::Thirteen,
+        GameInput::Slot4 if is_shift => hotbar::Slot::Fourteen,
+        GameInput::Slot5 if is_shift => hotbar::Slot::Fifteen,
+        GameInput::Slot6 if is_shift => hotbar::Slot::Sixteen,
+        GameInput::Slot7 if is_shift => hotbar::Slot::Seventeen,
+        GameInput::Slot8 if is_shift => hotbar::Slot::Eighteen,
+        GameInput::Slot9 if is_shift => hotbar::Slot::Nineteen,
+        GameInput::Slot10 if is_shift => hotbar::Slot::Twenty,
+
         GameInput::Slot1 => hotbar::Slot::One,
         GameInput::Slot2 => hotbar::Slot::Two,
         GameInput::Slot3 => hotbar::Slot::Three,

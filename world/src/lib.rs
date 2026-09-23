@@ -220,6 +220,8 @@ impl World {
 
                             let site = &index.sites[site_id];
                             let mut score = match site.kind {
+                                // Excluir pueblos en acantilados o montañas empinadas
+                                Some(SiteKind::CliffTown) => return (site_id.id(), 0.0),
                                 Some(SiteKind::Refactor) => 2.0,
                                 Some(kind)
                                     if matches!(
@@ -233,6 +235,16 @@ impl World {
                                 // score of 0
                                 _ => return (site_id.id(), 0.0),
                             };
+
+                            // Descalificar terrenos montañosos o con riscos altos
+                            if let Some(chunk) = self.sim().get(civ_site.center) {
+                                if chunk.alt > 150.0 || chunk.cliff_height > 6.0 {
+                                    return (site_id.id(), 0.0);
+                                }
+                                if chunk.cliff_height < 3.0 && chunk.alt < 120.0 {
+                                    score *= 3.0;
+                                }
+                            }
 
                             /// Optimal number of plots in a starter town
                             const OPTIMAL_STARTER_TOWN_SIZE: f32 = 30.0;
@@ -333,6 +345,22 @@ impl World {
             .unwrap();
 
         tc.find_accessible_pos(spawn_wpos, ascending)
+    }
+
+    /// Busca una posición accesible y plana comprobando la pendiente del terreno.
+    pub fn find_flat_accessible_pos(
+        &self,
+        index: IndexRef,
+        spawn_wpos: Vec2<i32>,
+        radius: i32,
+    ) -> Vec3<f32> {
+        let chunk_pos = TerrainGrid::chunk_key(spawn_wpos);
+
+        let (tc, _cs) = self
+            .generate_chunk(index, chunk_pos, None, || false, None)
+            .unwrap();
+
+        tc.find_flat_accessible_pos(spawn_wpos, radius)
     }
 
     #[expect(clippy::result_unit_err)]

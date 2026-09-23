@@ -159,11 +159,31 @@ impl SingleplayerWorlds {
             &worlds_folder.join("singleplayer"),
         );
 
-        let worlds = load_worlds(&worlds_folder);
+        let mut worlds = load_worlds(&worlds_folder);
+
+        if worlds.is_empty() {
+            let path = worlds_folder.join("world");
+            let new_world = SingleplayerWorld {
+                name: "Mundo de Veloren".to_string(),
+                gen_opts: None,
+                day_length: DAY_LENGTH_DEFAULT,
+                seed: DEFAULT_WORLD_SEED,
+                is_generated: false,
+                map_path: path.join("map.bin"),
+                path,
+            };
+            write_world_meta(&new_world);
+            worlds.push(new_world);
+        }
+
+        if let Some(w) = worlds.get_mut(0) {
+            w.gen_opts = None;
+            w.seed = DEFAULT_WORLD_SEED;
+        }
 
         SingleplayerWorlds {
             worlds,
-            current: None,
+            current: Some(0),
             worlds_folder,
         }
     }

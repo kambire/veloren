@@ -88,6 +88,19 @@ pub fn handle_loaded_character_data(server: &mut Server, ev: UpdateCharacterData
         active_abilities: ev.components.7,
         map_marker: ev.components.8,
     };
+    let faction = match &loaded_components.body {
+        common::comp::Body::Humanoid(h) => Some(common::zone::FactionId::from_species(h.species)),
+        _ => None,
+    };
+    if let Some(mut player) = server
+        .state
+        .ecs()
+        .write_storage::<common::comp::Player>()
+        .get_mut(ev.entity)
+    {
+        player.faction = faction;
+    }
+
     if let Some(marker) = loaded_components.map_marker {
         server.notify_client(
             ev.entity,

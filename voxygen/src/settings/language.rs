@@ -14,7 +14,7 @@ pub struct LanguageSettings {
 impl Default for LanguageSettings {
     fn default() -> Self {
         Self {
-            selected_language: i18n::REFERENCE_LANG.to_string(),
+            selected_language: "es-419".to_string(),
             send_to_server: true,
             use_english_fallback: true,
         }

@@ -690,20 +690,28 @@ impl Scene {
                         viewpoint_eye_height
                     }
                 },
-                CameraMode::ThirdPerson if scene_data.is_aiming && holding_ranged => {
-                    viewpoint_height * 1.05 + settings.gameplay.aim_offset_y
+                CameraMode::ThirdPerson if scene_data.is_aiming => {
+                    // Enfoque elevado y despejado al apuntar (estilo WoW)
+                    viewpoint_height * 1.30 + settings.gameplay.aim_offset_y.max(0.2)
                 },
-                CameraMode::ThirdPerson if scene_data.is_aiming => viewpoint_height * 1.05,
-                CameraMode::ThirdPerson => viewpoint_eye_height,
+                CameraMode::ThirdPerson => {
+                    // Altura elevada para que el avatar se sitúe en el tercio inferior de la pantalla
+                    viewpoint_height * 1.25 + 0.35
+                },
                 CameraMode::Freefly => 0.0,
             };
 
             let right = match self.camera.get_mode() {
                 CameraMode::FirstPerson => 0.0,
-                CameraMode::ThirdPerson if scene_data.is_aiming && holding_ranged => {
-                    settings.gameplay.aim_offset_x
+                CameraMode::ThirdPerson if scene_data.is_aiming => {
+                    // Desplazamiento sobre el hombro para apuntar limpiamente con cualquier arma
+                    if holding_ranged {
+                        settings.gameplay.aim_offset_x.max(0.75)
+                    } else {
+                        settings.gameplay.aim_offset_x.max(0.55)
+                    }
                 },
-                CameraMode::ThirdPerson => 0.0,
+                CameraMode::ThirdPerson => 0.35, // Ligero hombro para visión natural estilo WoW
                 CameraMode::Freefly => 0.0,
             };
 
@@ -711,7 +719,7 @@ impl Scene {
             let tilt = self.camera.get_orientation().y;
             let dist = self.camera.get_distance();
 
-            Vec3::unit_z() * (up - tilt.min(0.0).sin() * dist * 0.6)
+            Vec3::unit_z() * (up - tilt.min(0.25).sin() * dist * 0.5)
                 + self.camera.right() * (right * viewpoint_scale)
         } else {
             self.figure_mgr

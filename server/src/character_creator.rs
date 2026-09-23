@@ -19,6 +19,20 @@ const VALID_STARTER_ITEMS: &[[Option<&str>; 2]] = &[
         Some("common.items.weapons.sword_1h.starter"),
         Some("common.items.weapons.sword_1h.starter"),
     ],
+    // Configuraciones de clases MMORPG estilo WoW
+    [
+        Some("common.items.weapons.sword_1h.starter"),
+        Some("common.items.weapons.shield.starter_shield"),
+    ],
+    [Some("common.items.weapons.sceptre.starter_sceptre"), None],
+    [
+        Some("common.items.weapons.dagger.starter_dagger"),
+        Some("common.items.weapons.dagger.starter_dagger"),
+    ],
+    [
+        Some("common.items.weapons.hammer.starter_hammer"),
+        Some("common.items.weapons.shield.starter_shield"),
+    ],
 ];
 
 #[derive(Debug)]
@@ -55,6 +69,18 @@ pub fn create_character(
         return Err(CreationError::InvalidWeapon);
     };
     // The client sends None if a weapon hand is empty
+    let character_class = common::class::CharacterClass::from_weapons(
+        character_mainhand.as_deref(),
+        character_offhand.as_deref(),
+    );
+
+    tracing::info!(
+        alias = %character_alias,
+        class = character_class.name(),
+        role = character_class.role().name(),
+        "Creando nuevo personaje de clase fija estilo MMORPG"
+    );
+
     let loadout = LoadoutBuilder::empty()
         .defaults()
         .active_mainhand(character_mainhand.map(|x| Item::new_from_asset_expect(&x)))
@@ -64,7 +90,8 @@ pub fn create_character(
 
     let stats = Stats::new(Content::Plain(character_alias.to_string()), body);
     let skill_set = SkillSet::default();
-    // Default items for new characters
+
+    // Objetos y consumibles iniciales según clase
     inventory
         .push(Item::new_from_asset_expect(
             "common.items.consumable.potion_minor",
@@ -73,6 +100,20 @@ pub fn create_character(
     inventory
         .push(Item::new_from_asset_expect("common.items.food.cheese"))
         .expect("Inventory has at least 1 slot left!");
+
+    // Consumible de clase adicional
+    match character_class.role() {
+        common::class::CombatRole::Tank => {
+            let _ = inventory.push(Item::new_from_asset_expect("common.items.consumable.potion_minor"));
+        },
+        common::class::CombatRole::Healer => {
+            let _ = inventory.push(Item::new_from_asset_expect("common.items.food.apple"));
+        },
+        common::class::CombatRole::Dps => {
+            let _ = inventory.push(Item::new_from_asset_expect("common.items.food.cheese"));
+        },
+    }
+
     inventory
         .push_recipe_group(Item::new_from_asset_expect("common.items.recipes.default"))
         .expect("New inventory should not already have default recipe group.");

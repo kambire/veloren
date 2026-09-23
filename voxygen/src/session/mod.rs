@@ -16,7 +16,7 @@ use client::{self, Client};
 use common::{
     CachedSpatialGrid,
     comp::{
-        self, CharacterActivity, CharacterState, ChatType, Content, Fluid, InputKind,
+        self, CharacterActivity, ChatType, Content, Fluid, InputKind,
         InventoryUpdateEvent, Pos, PresenceKind, Stats, UtteranceKind, Vel,
         inventory::slot::{EquipSlot, Slot},
         invite::InviteKind,
@@ -124,6 +124,13 @@ pub struct SessionState {
     lines: PlayerDebugLines,
     tracks: HashMap<Vec2<i32>, Vec<DebugShapeId>>,
     gizmos: Vec<(DebugShapeId, common::resources::Time, bool)>,
+    pub(crate) current_zone_id: Option<common::zone::ZoneId>,
+    pub(crate) auto_charge_kind: Option<InputKind>,
+    pub(crate) auto_charge_start: Option<std::time::Instant>,
+    pub(crate) mouse_left_down: bool,
+    pub(crate) mouse_right_down: bool,
+    pub(crate) mouse_drag_distance: f32,
+    pub(crate) last_left_click: Option<(std::time::Instant, Vec2<f64>)>,
 }
 
 /// Represents an active game session (i.e., the one being played).
@@ -200,6 +207,13 @@ impl SessionState {
             tracks: HashMap::new(),
             lines: Default::default(),
             gizmos: Vec::new(),
+            current_zone_id: None,
+            auto_charge_kind: None,
+            auto_charge_start: None,
+            mouse_left_down: false,
+            mouse_right_down: false,
+            mouse_drag_distance: 0.0,
+            last_left_click: None,
         }
     }
 
@@ -550,8 +564,8 @@ impl SessionState {
 
 impl PlayState for SessionState {
     fn enter(&mut self, global_state: &mut GlobalState, _: Direction) {
-        // Trap the cursor.
-        global_state.window.grab_cursor(true);
+        // Free cursor by default (WoW style)
+        global_state.window.grab_cursor(false);
 
         self.client.borrow_mut().clear_terrain();
 
@@ -620,6 +634,24 @@ impl PlayState for SessionState {
                     .update_location(location_name, client.current_site());
             }
 
+            // Detección de zona MMORPG estilo WoW
+            if let Some(pos) = client.state().read_storage::<comp::Pos>().get(player_entity) {
+                let zone = common::zone::get_zone_at(pos.0.xy());
+                if self.current_zone_id != Some(zone.id) {
+                    self.current_zone_id = Some(zone.id);
+                    let territory_type = match zone.faction {
+                        Some(common::zone::FactionId::Alliance) => "Territorio de la Alianza",
+                        Some(common::zone::FactionId::Horde) => "Territorio de la Horda",
+                        None => "Territorio en Disputa (¡PvP Habilitado!)",
+                    };
+                    let zone_msg = format!(
+                        "🗺 Has entrado a: {} (Nivel {}-{}) — {}",
+                        zone.name, zone.level_min, zone.level_max, territory_type
+                    );
+                    self.hud.new_message(common::comp::ChatType::Meta.into_plain_msg(zone_msg));
+                }
+            }
+
             if global_state.settings.gameplay.bow_zoom {
                 let mut fov_scaling = 1.0;
                 if let Some(comp::CharacterState::ChargedRanged(cr)) = client
@@ -642,7 +674,17 @@ impl PlayState for SessionState {
             } = self.scene.camera().dependents();
             let focus_pos = self.scene.camera().get_focus_pos();
             let focus_off = focus_pos.map(|e| e.trunc());
-            let cam_pos = cam_pos + focus_off;
+            let (cam_pos, cam_dir) = if !global_state.window.is_cursor_grabbed() {
+                let cursor_pos = global_state.window.cursor_position();
+                let win_size = global_state.window.win_size();
+                let (c_pos, c_dir) = self.scene.camera().screen_to_ray(
+                    Vec2::new(cursor_pos.x as f32, cursor_pos.y as f32),
+                    Vec2::new(win_size.x as f32, win_size.y as f32),
+                );
+                (c_pos + focus_off, c_dir)
+            } else {
+                (cam_pos + focus_off, cam_dir)
+            };
 
             let (is_aiming, aim_dir_offset) = {
                 let is_aiming = client
@@ -758,15 +800,37 @@ impl PlayState for SessionState {
             };
 
             // filled block in line of sight
-            let default_select_pos = terrain_target.map(|tt| tt.position);
+            let default_select_pos = terrain_target.map(|tt| tt.position).or_else(|| Some(cam_pos + cam_dir * 50.0));
 
-            // Throw out distance info, it will be useful in the future
-            self.target_entity = entity_target.map(|t| t.kind.0);
+            // Target Lock estilo WoW: mantener el objetivo fijado a menos que muera o desaparezca
+            if let Some(target) = self.target_entity {
+                let client = self.client.borrow();
+                let is_alive = client.state().ecs().is_alive(target)
+                    && client
+                        .state()
+                        .read_storage::<comp::Health>()
+                        .get(target)
+                        .map_or(true, |h| !h.is_dead);
+                drop(client);
+                if !is_alive {
+                    self.target_entity = None;
+                    self.selected_entity = None;
+                }
+            }
 
             let controlling_char = self.controlling_char();
 
             // Handle window events.
             for event in events {
+                // WoW Style: Presionar Escape cancela el objetivo seleccionado antes de abrir menús
+                if let Event::MenuInput(crate::window::MenuInput::Back, true) = &event {
+                    if self.target_entity.is_some() {
+                        self.target_entity = None;
+                        self.selected_entity = None;
+                        continue;
+                    }
+                }
+
                 // Pass all events to the ui first.
                 {
                     let client = self.client.borrow();
@@ -783,6 +847,81 @@ impl PlayState for SessionState {
                     Event::Close => {
                         return PlayStateResult::Shutdown;
                     },
+                    Event::MouseButton(button, state) => {
+                        use crate::window::{MouseButton, PressState};
+                        match (button, state) {
+                            (MouseButton::Left, PressState::Pressed) => {
+                                if !self.hud.any_window_requires_cursor() {
+                                    self.mouse_left_down = true;
+                                    self.mouse_drag_distance = 0.0;
+                                }
+                            },
+                            (MouseButton::Left, PressState::Released) => {
+                                let was_down = self.mouse_left_down;
+                                self.mouse_left_down = false;
+                                let was_dragging = self.hud.is_camera_dragging();
+                                if !self.mouse_right_down && was_dragging {
+                                    self.hud.set_camera_dragging(false, global_state);
+                                }
+                                if was_down && (!was_dragging || self.mouse_drag_distance < 8.0) {
+                                    let now = std::time::Instant::now();
+                                    let cursor_pos = global_state.window.cursor_position();
+                                    let is_double_click = self.last_left_click
+                                        .map(|(t, p)| now.duration_since(t).as_millis() < 450 && (p - cursor_pos).magnitude() < 25.0)
+                                        .unwrap_or(false);
+                                    self.last_left_click = Some((now, cursor_pos));
+
+                                    if can_build {
+                                        if let Some(bt) = build_target {
+                                            self.client.borrow_mut().remove_block(bt.position_int());
+                                        }
+                                    } else if let Some(et) = entity_target {
+                                        self.target_entity = Some(et.kind.0);
+                                        self.selected_entity = Some((et.kind.0, std::time::Instant::now()));
+                                    } else {
+                                        // Clic simple en espacio/terreno vacío -> deseleccionar objetivo
+                                        self.target_entity = None;
+                                        self.selected_entity = None;
+                                    }
+
+                                    // Si hace doble clic y no seleccionó una entidad nueva, deseleccionar objetivo
+                                    if is_double_click && (entity_target.is_none() || entity_target.map(|et| et.kind.0) == self.target_entity) {
+                                        self.target_entity = None;
+                                        self.selected_entity = None;
+                                    }
+                                }
+                            },
+                            (MouseButton::Right, PressState::Pressed) => {
+                                if !self.hud.any_window_requires_cursor() {
+                                    self.mouse_right_down = true;
+                                    self.mouse_drag_distance = 0.0;
+                                }
+                            },
+                            (MouseButton::Right, PressState::Released) => {
+                                let was_down = self.mouse_right_down;
+                                self.mouse_right_down = false;
+                                let was_dragging = self.hud.is_camera_dragging();
+                                if !self.mouse_left_down && was_dragging {
+                                    self.hud.set_camera_dragging(false, global_state);
+                                }
+                                if was_down && (!was_dragging || self.mouse_drag_distance < 8.0) {
+                                    if can_build {
+                                        if let Some(bt) = build_target {
+                                            let selected_pos = bt.kind.0;
+                                            self.client.borrow_mut().place_block(
+                                                selected_pos.map(|p| p.floor() as i32),
+                                                self.selected_block,
+                                            );
+                                        }
+                                    } else if let Some(et) = entity_target {
+                                        self.target_entity = Some(et.kind.0);
+                                        self.selected_entity = Some((et.kind.0, std::time::Instant::now()));
+                                    }
+                                }
+                            },
+                            _ => {},
+                        }
+                    },
                     Event::InputUpdate(input, state)
                         if state != self.inputs_state.contains(&input) =>
                     {
@@ -793,17 +932,8 @@ impl PlayState for SessionState {
                             GameInput::Primary => {
                                 self.walking_speed = false;
                                 let mut client = self.client.borrow_mut();
-                                // Building inputs take precedence... but only if there's an active
-                                // building target.
                                 if let Some(build_target) = build_target.filter(|_| state) {
                                     client.remove_block(build_target.position_int());
-                                } else {
-                                    client.handle_input(
-                                        InputKind::Primary,
-                                        state,
-                                        default_select_pos,
-                                        self.target_entity,
-                                    );
                                 }
                             },
                             GameInput::Secondary => {
@@ -814,13 +944,6 @@ impl PlayState for SessionState {
                                     client.place_block(
                                         selected_pos.map(|p| p.floor() as i32),
                                         self.selected_block,
-                                    );
-                                } else {
-                                    client.handle_input(
-                                        InputKind::Secondary,
-                                        state,
-                                        default_select_pos,
-                                        self.target_entity,
                                     );
                                 }
                             },
@@ -1287,12 +1410,47 @@ impl PlayState for SessionState {
                                         || self.viewpoint_entity.is_some(),
                                 );
                             },
-                            GameInput::Select => {
-                                if !state {
-                                    self.selected_entity =
-                                        self.target_entity.map(|e| (e, std::time::Instant::now()));
+                            GameInput::Select if state => {
+                                if let Some(et) = entity_target {
+                                    self.target_entity = Some(et.kind.0);
+                                    self.selected_entity = Some((et.kind.0, std::time::Instant::now()));
+                                } else {
+                                    use specs::Join;
+                                    let client = self.client.borrow();
+                                    let ecs = client.state().ecs();
+                                    let entities = ecs.entities();
+                                    let positions = ecs.read_storage::<comp::Pos>();
+                                    let healths = ecs.read_storage::<comp::Health>();
+                                    let player_entity = client.entity();
+                                    if let Some(player_pos) = positions.get(player_entity).map(|p| p.0) {
+                                        let mut candidates: Vec<(specs::Entity, f32)> = (&entities, &positions, &healths)
+                                            .join()
+                                            .filter(|(e, _, h)| *e != player_entity && !h.is_dead)
+                                            .map(|(e, pos, _)| (e, pos.0.distance_squared(player_pos)))
+                                            .filter(|(_, d2)| *d2 <= 45.0 * 45.0)
+                                            .collect();
+                                        candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+                                        if let Some(curr) = self.target_entity {
+                                            if let Some(idx) = candidates.iter().position(|(e, _)| *e == curr) {
+                                                if !candidates.is_empty() {
+                                                    let next_idx = (idx + 1) % candidates.len();
+                                                    let next_target = candidates[next_idx].0;
+                                                    self.target_entity = Some(next_target);
+                                                    self.selected_entity = Some((next_target, std::time::Instant::now()));
+                                                }
+                                            } else if let Some((first, _)) = candidates.first() {
+                                                self.target_entity = Some(*first);
+                                                self.selected_entity = Some((*first, std::time::Instant::now()));
+                                            }
+                                        } else if let Some((first, _)) = candidates.first() {
+                                            self.target_entity = Some(*first);
+                                            self.selected_entity = Some((*first, std::time::Instant::now()));
+                                        }
+                                    }
                                 }
                             },
+                            GameInput::Select => {},
                             GameInput::AcceptGroupInvite if state => {
                                 let mut client = self.client.borrow_mut();
                                 if client.invite().is_some() {
@@ -1362,6 +1520,21 @@ impl PlayState for SessionState {
                         if delta.abs() > ZOOM_LOCK_SCROLL_DELTA_INTENT {
                             self.hud.zoom_lock_reminder();
                         }
+                    },
+
+                    Event::CursorMove(delta) => {
+                        if self.mouse_left_down || self.mouse_right_down {
+                            self.mouse_drag_distance += delta.magnitude();
+                            if self.mouse_drag_distance >= 4.0 && !self.hud.is_camera_dragging() {
+                                self.hud.set_camera_dragging(true, global_state);
+                            }
+                        }
+                        self.scene.handle_input_event(Event::CursorMove(delta), &self.client.borrow());
+                    },
+
+                    Event::CursorPan(delta) => {
+                        self.mouse_drag_distance += delta.magnitude();
+                        self.scene.handle_input_event(Event::CursorPan(delta), &self.client.borrow());
                     },
 
                     // Pass all other events to the scene
@@ -1453,45 +1626,49 @@ impl PlayState for SessionState {
                 } else {
                     self.key_state.auto_walk = self.auto_walk;
                     if !self.free_look {
-                        self.walk_forward_dir = self.scene.camera().forward_xy();
-                        self.walk_right_dir = self.scene.camera().right_xy();
+                        let is_left_orbit = self.mouse_left_down && !self.mouse_right_down;
+                        if !is_left_orbit {
+                            self.walk_forward_dir = self.scene.camera().forward_xy();
+                            self.walk_right_dir = self.scene.camera().right_xy();
+                        }
 
                         let client = self.client.borrow();
 
-                        let holding_ranged = client
-                            .inventories()
-                            .get(player_entity)
-                            .and_then(|inv| inv.equipped(EquipSlot::ActiveMainhand))
-                            .and_then(|item| item.tool_info())
-                            .is_some_and(|tool_kind| {
-                                matches!(
-                                    tool_kind,
-                                    ToolKind::Bow
-                                        | ToolKind::Staff
-                                        | ToolKind::Sceptre
-                                        | ToolKind::Throwable
-                                )
-                            })
-                            || client
-                                .current::<CharacterState>()
-                                .is_some_and(|char_state| {
-                                    matches!(char_state, CharacterState::Throw(_))
-                                });
-
-                        let dir = if is_aiming
-                            && holding_ranged
-                            && self.scene.camera().get_mode() == CameraMode::ThirdPerson
+                        let dir = if let Some(target) = self.target_entity
+                            .or_else(|| entity_target.map(|et| et.kind.0))
+                            .filter(|&t| t != player_entity)
+                            && let Some(t_pos) = client.state().read_storage::<Pos>().get(target).copied()
+                            && let Some(p_pos) = client.state().read_storage::<Pos>().get(player_entity).copied()
                         {
-                            // Shoot ray from camera focus forwards and get the point it hits an
-                            // entity or terrain. The ray starts from the camera focus point
-                            // so that the player won't aim at things behind them, in front of the
-                            // camera.
-                            let ray_start = self.scene.camera().get_focus_pos();
+                            let ori = client
+                                .state()
+                                .read_storage::<comp::Ori>()
+                                .get(player_entity)
+                                .copied()
+                                .unwrap_or_default();
+                            let scale = client
+                                .state()
+                                .read_storage::<comp::Scale>()
+                                .get(player_entity)
+                                .copied()
+                                .unwrap_or(comp::Scale(1.0));
+                            let body = client
+                                .state()
+                                .read_storage::<comp::Body>()
+                                .get(player_entity)
+                                .copied();
+                            let body_offsets = body
+                                .map(|b| b.projectile_offsets(ori.look_vec(), scale.0))
+                                .unwrap_or_default();
+
+                            let target_point = t_pos.0 + Vec3::new(0.0, 0.0, 1.0);
+                            target_point - (p_pos.0 + body_offsets)
+                        } else if self.scene.camera().get_mode() == CameraMode::ThirdPerson {
+                            let ray_start = cam_pos;
                             let entity_ray_end = ray_start + cam_dir * 1000.0;
                             let terrain_ray_end = ray_start + cam_dir * 1000.0;
 
                             let aim_point = {
-                                // Get the distance to nearest entity and terrain
                                 let entity_dist =
                                     ray_entities(&client, ray_start, entity_ray_end, 1000.0).0;
                                 let terrain_ray_distance = client
@@ -1503,25 +1680,21 @@ impl PlayState for SessionState {
                                     .cast()
                                     .0;
 
-                                // Return the hit point of whichever was smaller
-                                ray_start + cam_dir * entity_dist.min(terrain_ray_distance)
+                                ray_start + cam_dir * entity_dist.min(terrain_ray_distance).min(1000.0)
                             };
 
-                            // Get player orientation
                             let ori = client
                                 .state()
                                 .read_storage::<comp::Ori>()
                                 .get(player_entity)
                                 .copied()
                                 .unwrap();
-                            // Get player scale
                             let scale = client
                                 .state()
                                 .read_storage::<comp::Scale>()
                                 .get(player_entity)
                                 .copied()
                                 .unwrap_or(comp::Scale(1.0));
-                            // Get player body offsets
                             let body = client
                                 .state()
                                 .read_storage::<comp::Body>()
@@ -1530,7 +1703,6 @@ impl PlayState for SessionState {
                                 .unwrap();
                             let body_offsets = body.projectile_offsets(ori.look_vec(), scale.0);
 
-                            // Get direction from player character to aim point
                             let player_pos = client
                                 .state()
                                 .read_storage::<Pos>()
@@ -1538,13 +1710,16 @@ impl PlayState for SessionState {
                                 .copied()
                                 .unwrap();
 
-                            drop(client);
                             aim_point - (player_pos.0 + body_offsets)
                         } else {
                             cam_dir + aim_dir_offset
                         };
 
-                        self.inputs.look_dir = Dir::from_unnormalized(dir).unwrap();
+                        drop(client);
+                        let is_left_orbit = self.mouse_left_down && !self.mouse_right_down;
+                        if !is_left_orbit {
+                            self.inputs.look_dir = Dir::from_unnormalized(dir).unwrap_or(self.inputs.look_dir);
+                        }
                     }
                 }
                 self.inputs.strafing = matches!(
@@ -1559,6 +1734,7 @@ impl PlayState for SessionState {
                         camera::CameraMode::ThirdPerson | camera::CameraMode::FirstPerson
                     )
                     && input_vec.magnitude_squared() > 0.0
+                    && !self.mouse_left_down
                 {
                     let camera = self.scene.camera_mut();
                     let ori = camera.get_orientation();
@@ -1616,6 +1792,48 @@ impl PlayState for SessionState {
                     self.inputs.move_dir = Vec2::zero();
                 },
             };
+
+            // Auto-charge de habilidades estilo WoW:
+            // Al presionar un poder con casteo/carga (como tecla 2), auto-cargarlo hasta completarlo y liberarlo
+            if let Some(kind) = self.auto_charge_kind {
+                let should_release = {
+                    let client = self.client.borrow();
+                    let char_state = client.current::<comp::CharacterState>();
+                    let reached_full = char_state
+                        .as_ref()
+                        .and_then(|cs| cs.charge_frac())
+                        .is_some_and(|f| f >= 0.95);
+                    let timed_out = self
+                        .auto_charge_start
+                        .is_some_and(|start| start.elapsed().as_millis() > 1100);
+                    let stage_action = char_state.as_ref().is_some_and(|cs| {
+                        cs.stage_section() == Some(common::states::utils::StageSection::Action)
+                    });
+                    reached_full || timed_out || stage_action
+                };
+
+                if should_release {
+                    self.auto_charge_kind = None;
+                    self.auto_charge_start = None;
+                    let target_pos = self.target_entity
+                        .or_else(|| entity_target.map(|et| et.kind.0))
+                        .and_then(|t| {
+                            let client = self.client.borrow();
+                            client
+                                .state()
+                                .read_storage::<comp::Pos>()
+                                .get(t)
+                                .map(|p| p.0 + Vec3::new(0.0, 0.0, 1.0))
+                        });
+                    let select_pos = target_pos.or(default_select_pos);
+                    self.client.borrow_mut().handle_input(
+                        kind,
+                        false,
+                        select_pos,
+                        self.target_entity,
+                    );
+                }
+            }
 
             let mut outcomes = Vec::new();
 
@@ -2049,12 +2267,92 @@ impl PlayState for SessionState {
                         self.client.borrow_mut().perform_trade_action(action);
                     },
                     HudEvent::Ability { idx, state } => {
+                        let target_pos = self.target_entity
+                            .or_else(|| entity_target.map(|et| et.kind.0))
+                            .and_then(|t| {
+                                let client = self.client.borrow();
+                                client
+                                    .state()
+                                    .read_storage::<comp::Pos>()
+                                    .get(t)
+                                    .map(|p| p.0 + Vec3::new(0.0, 0.0, 1.0))
+                            });
+                        let select_pos = target_pos.or(default_select_pos);
+                        let target = self.target_entity.or_else(|| entity_target.map(|et| et.kind.0));
+                        if state {
+                            self.auto_charge_kind = Some(InputKind::Ability(idx));
+                            self.auto_charge_start = Some(std::time::Instant::now());
+                            self.client.borrow_mut().handle_input(
+                                InputKind::Ability(idx),
+                                true,
+                                select_pos,
+                                target,
+                            );
+                        } else {
+                            if self.auto_charge_kind != Some(InputKind::Ability(idx)) {
+                                self.client.borrow_mut().handle_input(
+                                    InputKind::Ability(idx),
+                                    false,
+                                    select_pos,
+                                    target,
+                                );
+                            }
+                        }
+                    },
+                    HudEvent::Primary { state } => {
+                        self.walking_speed = false;
+                        let target_pos = self.target_entity
+                            .or_else(|| entity_target.map(|et| et.kind.0))
+                            .and_then(|t| {
+                                let client = self.client.borrow();
+                                client
+                                    .state()
+                                    .read_storage::<comp::Pos>()
+                                    .get(t)
+                                    .map(|p| p.0 + Vec3::new(0.0, 0.0, 1.0))
+                            });
+                        let select_pos = target_pos.or(default_select_pos);
+                        let target = self.target_entity.or_else(|| entity_target.map(|et| et.kind.0));
                         self.client.borrow_mut().handle_input(
-                            InputKind::Ability(idx),
+                            InputKind::Primary,
                             state,
-                            default_select_pos,
-                            self.target_entity,
+                            select_pos,
+                            target,
                         );
+                    },
+                    HudEvent::Secondary { state } => {
+                        self.walking_speed = false;
+                        let target_pos = self.target_entity
+                            .or_else(|| entity_target.map(|et| et.kind.0))
+                            .and_then(|t| {
+                                let client = self.client.borrow();
+                                client
+                                    .state()
+                                    .read_storage::<comp::Pos>()
+                                    .get(t)
+                                    .map(|p| p.0 + Vec3::new(0.0, 0.0, 1.0))
+                            });
+                        let select_pos = target_pos.or(default_select_pos);
+                        let target = self.target_entity.or_else(|| entity_target.map(|et| et.kind.0));
+                        if state {
+                            self.auto_charge_kind = Some(InputKind::Secondary);
+                            self.auto_charge_start = Some(std::time::Instant::now());
+                            self.client.borrow_mut().handle_input(
+                                InputKind::Secondary,
+                                true,
+                                select_pos,
+                                target,
+                            );
+                        } else {
+                            if self.auto_charge_kind != Some(InputKind::Secondary) {
+                                self.client.borrow_mut().handle_input(
+                                    InputKind::Secondary,
+                                    false,
+                                    select_pos,
+                                    target,
+                                );
+                            }
+                        }
                     },
 
                     HudEvent::RequestSiteInfo(id) => {

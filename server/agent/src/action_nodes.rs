@@ -1383,7 +1383,7 @@ impl AgentData<'_> {
                             "Tursus Claws" => Tactic::RandomAbilities {
                                 primary: 2,
                                 secondary: 1,
-                                abilities: [4, 0, 0, 0, 0],
+                                abilities: [4, 0, 0, 0, 0, 0, 0, 0],
                             },
                             "Adlet Elder" => Tactic::AdletElder,
                             "Haniwa Soldier" => Tactic::HaniwaSoldier,
@@ -2256,15 +2256,31 @@ impl AgentData<'_> {
                 // a specific proportional threshold.
                 const FUZZY_DIST_COMPARISON: f32 = 0.8;
 
-                let is_target_further = target_pos.0.distance(entity_pos.0)
-                    < target_pos.0.distance(entity_pos.0) * FUZZY_DIST_COMPARISON;
+                // Modificador de amenaza MMORPG según clase y rol (Tanques generan x2.5 aggro)
+                let entity_threat = read_data
+                    .inventories
+                    .get(entity)
+                    .map(|inv| common::class::CharacterClass::from_inventory(inv).threat_multiplier())
+                    .unwrap_or(1.0);
+
+                let target_threat = read_data
+                    .inventories
+                    .get(target.target)
+                    .map(|inv| common::class::CharacterClass::from_inventory(inv).threat_multiplier())
+                    .unwrap_or(1.0);
+
+                // La distancia efectiva disminuye con mayor amenaza
+                let entity_effective_dist = target_pos.0.distance(entity_pos.0) / entity_threat.max(0.2);
+                let target_effective_dist = target_pos.0.distance(entity_pos.0) / target_threat.max(0.2);
+
+                let is_target_further = target_effective_dist < entity_effective_dist * FUZZY_DIST_COMPARISON;
                 let is_entity_hostile = read_data
                     .alignments
                     .get(entity)
                     .zip(self.alignment)
                     .is_some_and(|(entity, me)| me.hostile_towards(*entity));
 
-                // Consider entity more dangerous than target if entity is closer or if target
+                // Consider entity more dangerous than target if entity has higher threat/is closer or if target
                 // had not triggered aggro.
                 !target.aggro_on || (is_target_further && is_entity_hostile)
             })

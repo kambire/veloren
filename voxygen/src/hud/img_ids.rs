@@ -43,6 +43,20 @@ image_ids! {
         selection_hover: "voxygen.element.ui.generic.frames.selection_hover",
         selection_press: "voxygen.element.ui.generic.frames.selection_press",
 
+        // Character Portraits (WoW Player Frame)
+        portrait_human_m: "voxygen.element.ui.char_select.portraits.human_m",
+        portrait_human_f: "voxygen.element.ui.char_select.portraits.human_f",
+        portrait_orc_m: "voxygen.element.ui.char_select.portraits.orc_m",
+        portrait_orc_f: "voxygen.element.ui.char_select.portraits.orc_f",
+        portrait_dwarf_m: "voxygen.element.ui.char_select.portraits.dwarf_m",
+        portrait_dwarf_f: "voxygen.element.ui.char_select.portraits.dwarf_f",
+        portrait_draugr_m: "voxygen.element.ui.char_select.portraits.ud_m",
+        portrait_draugr_f: "voxygen.element.ui.char_select.portraits.ud_f",
+        portrait_elf_m: "voxygen.element.ui.char_select.portraits.elf_m",
+        portrait_elf_f: "voxygen.element.ui.char_select.portraits.elf_f",
+        portrait_danari_m: "voxygen.element.ui.char_select.portraits.danari_m",
+        portrait_danari_f: "voxygen.element.ui.char_select.portraits.danari_f",
+
         // Prompt Dialog
         prompt_top: "voxygen.element.ui.generic.frames.prompt_dialog_top",
         prompt_mid: "voxygen.element.ui.generic.frames.prompt_dialog_mid",

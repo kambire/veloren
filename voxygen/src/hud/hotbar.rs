@@ -19,26 +19,41 @@ pub enum Slot {
     Eight = 7,
     Nine = 8,
     Ten = 9,
+    // Fila superior (Barra secundaria WoW)
+    Eleven = 10,
+    Twelve = 11,
+    Thirteen = 12,
+    Fourteen = 13,
+    Fifteen = 14,
+    Sixteen = 15,
+    Seventeen = 16,
+    Eighteen = 17,
+    Nineteen = 18,
+    Twenty = 19,
 }
+
+pub const HOTBAR_SLOT_COUNT: usize = 20;
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum SlotContents {
     Inventory(u64, ItemKey),
     Ability(usize),
+    PrimaryAbility,
+    SecondaryAbility,
 }
 
 #[derive(Clone, Default)]
 pub struct State {
-    pub slots: [Option<SlotContents>; 10],
-    inputs: [bool; 10],
+    pub slots: [Option<SlotContents>; HOTBAR_SLOT_COUNT],
+    inputs: [bool; HOTBAR_SLOT_COUNT],
     pub currently_selected_slot: Slot,
 }
 
 impl State {
-    pub fn new(slots: [Option<SlotContents>; 10]) -> Self {
+    pub fn new(slots: [Option<SlotContents>; HOTBAR_SLOT_COUNT]) -> Self {
         Self {
             slots,
-            inputs: [false; 10],
+            inputs: [false; HOTBAR_SLOT_COUNT],
             currently_selected_slot: Slot::default(),
         }
     }
@@ -64,7 +79,6 @@ impl State {
         ));
     }
 
-    // TODO: remove pending UI
     // Adds ability slots if missing and should be present
     // Removes ability slots if not there and shouldn't be present
     pub fn maintain_abilities(&mut self, client: &client::Client, info: &HudInfo) {
@@ -75,27 +89,36 @@ impl State {
             .read_storage::<comp::ActiveAbilities>()
             .get(info.viewpoint_entity)
         {
+            // Casilla 1 por defecto al poder de Click Izquierdo (Primario)
+            if self.slots[0].is_none() {
+                self.slots[0] = Some(SlotContents::PrimaryAbility);
+            }
+            // Casilla 2 por defecto al poder de Click Derecho (Secundario)
+            if self.slots[1].is_none() {
+                self.slots[1] = Some(SlotContents::SecondaryAbility);
+            }
+
             use common::comp::ability::AuxiliaryAbility;
-            for ((i, ability), hotbar_slot) in active_abilities
-                .auxiliary_set(
-                    client.inventories().get(info.viewpoint_entity),
-                    client
-                        .state()
-                        .read_storage::<comp::SkillSet>()
-                        .get(info.viewpoint_entity),
-                )
-                .iter()
-                .enumerate()
-                .zip(self.slots.iter_mut())
-            {
-                if matches!(ability, AuxiliaryAbility::Empty) {
-                    if matches!(hotbar_slot, Some(SlotContents::Ability(_))) {
-                        // If ability is empty but hotbar shows an ability, clear it
-                        *hotbar_slot = None;
+            let aux = active_abilities.auxiliary_set(
+                client.inventories().get(info.viewpoint_entity),
+                client
+                    .state()
+                    .read_storage::<comp::SkillSet>()
+                    .get(info.viewpoint_entity),
+            );
+
+            // Casillas 3 en adelante (índice 2..) para poderes auxiliares
+            for (i, ability) in aux.iter().enumerate() {
+                let slot_idx = i + 2;
+                if slot_idx < 10 {
+                    let hotbar_slot = &mut self.slots[slot_idx];
+                    if matches!(ability, AuxiliaryAbility::Empty) {
+                        if matches!(hotbar_slot, Some(SlotContents::Ability(_))) {
+                            *hotbar_slot = None;
+                        }
+                    } else if hotbar_slot.is_none() || matches!(hotbar_slot, Some(SlotContents::Ability(_))) {
+                        *hotbar_slot = Some(SlotContents::Ability(i));
                     }
-                } else {
-                    // If an ability is not empty show it on the hotbar
-                    *hotbar_slot = Some(SlotContents::Ability(i));
                 }
             }
         } else {
@@ -108,7 +131,7 @@ impl State {
 }
 
 impl Slot {
-    const SLOTS: [Slot; 10] = [
+    const SLOTS: [Slot; HOTBAR_SLOT_COUNT] = [
         Slot::One,
         Slot::Two,
         Slot::Three,
@@ -119,17 +142,27 @@ impl Slot {
         Slot::Eight,
         Slot::Nine,
         Slot::Ten,
+        Slot::Eleven,
+        Slot::Twelve,
+        Slot::Thirteen,
+        Slot::Fourteen,
+        Slot::Fifteen,
+        Slot::Sixteen,
+        Slot::Seventeen,
+        Slot::Eighteen,
+        Slot::Nineteen,
+        Slot::Twenty,
     ];
 
     pub fn next_slot(&mut self) {
         let current_slot = *self as usize;
-        let next_slot = (current_slot + 1) % 10;
+        let next_slot = (current_slot + 1) % Self::SLOTS.len();
         *self = Self::SLOTS[next_slot];
     }
 
     pub fn previous_slot(&mut self) {
         let current_slot = *self as usize;
-        let previous_slot = (current_slot + 10 - 1) % 10;
+        let previous_slot = (current_slot + Self::SLOTS.len() - 1) % Self::SLOTS.len();
         *self = Self::SLOTS[previous_slot];
     }
 }

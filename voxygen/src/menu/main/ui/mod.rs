@@ -167,6 +167,7 @@ pub enum Event {
     #[cfg(feature = "singleplayer")]
     StartSingleplayer,
     #[cfg(feature = "singleplayer")]
+    #[allow(dead_code)]
     InitSingleplayer,
     #[cfg(feature = "singleplayer")]
     SinglePlayerChange(WorldsChange),
@@ -212,6 +213,7 @@ enum Screen {
         init_stage: DetailedInitializationStage,
     },
     #[cfg(feature = "singleplayer")]
+    #[allow(dead_code)]
     WorldSelector {
         screen: world_selector::Screen,
     },
@@ -487,10 +489,12 @@ impl Controls {
             },
             #[cfg(feature = "singleplayer")]
             Message::Singleplayer => {
-                self.screen = Screen::WorldSelector {
-                    screen: world_selector::Screen::default(),
+                self.screen = Screen::Connecting {
+                    screen: connecting::Screen::new(ui),
+                    connection_state: ConnectionState::InProgress,
+                    init_stage: DetailedInitializationStage::Singleplayer,
                 };
-                events.push(Event::InitSingleplayer);
+                events.push(Event::StartSingleplayer);
             },
             #[cfg(feature = "singleplayer")]
             Message::SingleplayerPlay => {

@@ -21,6 +21,8 @@ pub struct Player {
     pub alias: String,
     pub battle_mode: BattleMode,
     pub last_battlemode_change: Option<Time>,
+    #[serde(default)]
+    pub faction: Option<crate::zone::FactionId>,
     uuid: Uuid,
 }
 
@@ -41,16 +43,33 @@ impl Player {
             alias,
             battle_mode,
             last_battlemode_change,
+            faction: None,
             uuid,
         }
     }
 
-    /// Currently we allow attacking only if both players are opt-in to PvP.
-    ///
-    /// Simple as tea, if they don't want the tea, don't make them drink the
-    /// tea.
-    /// You can make tea for yourself though.
-    pub fn may_harm(&self, other: &Player) -> bool { self.battle_mode.may_harm(other.battle_mode) }
+    pub fn with_faction(mut self, faction: Option<crate::zone::FactionId>) -> Self {
+        self.faction = faction;
+        self
+    }
+
+    /// Reglas de combate MMORPG entre jugadores:
+    /// - Miembros de la misma facción (Alianza con Alianza, Horda con Horda) son aliados y NUNCA pueden dañarse.
+    /// - Miembros de facciones rivales (Alianza vs Horda) pueden entrar en combate abierto.
+    /// - Si no tienen facciones asignadas, aplica el consentimiento mutuo de BattleMode::PvP.
+    pub fn may_harm(&self, other: &Player) -> bool {
+        if let (Some(f1), Some(f2)) = (self.faction, other.faction) {
+            if f1 == f2 {
+                // Mismo bando: Fuego amigo deshabilitado
+                return false;
+            } else {
+                // Bando rival: Combate entre facciones habilitado
+                return true;
+            }
+        }
+
+        self.battle_mode.may_harm(other.battle_mode)
+    }
 
     pub fn is_valid(&self) -> bool { Self::alias_validate(&self.alias).is_ok() }
 

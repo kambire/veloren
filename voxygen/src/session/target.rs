@@ -187,13 +187,9 @@ pub(super) fn targets_under_cursor(
     let entity_target = nearby
         .iter()
         .map(|(e, p, r, _, _)| (e, *p, r))
-        // Find first one that intersects the ray segment, allow for entities nearby to the camera ray when wielding a weapon (as some abilities target an entity)
+        // Find first one that intersects the ray segment
         .find(|(_, p, r)| {
-            if player_wielding {
-                seg_ray.projected_point(*p).distance_squared(*p) < (*r + cam_pos.distance(*p) / 10.0).powi(2)
-            } else {
-                seg_ray.projected_point(*p).distance_squared(*p) < r.powi(2)
-            }
+            seg_ray.projected_point(*p).distance_squared(*p) < r.powi(2)
         })
         .and_then(|(e, p, _)| {
             // Get the entity's cylinder

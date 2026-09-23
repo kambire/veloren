@@ -165,6 +165,102 @@ impl<'a> SlotKey<HotbarSource<'a>, HotbarImageSource<'a>> for HotbarSlot {
                     None => Some((HotbarImage::Item(item_key), Some(GREYED_OUT))),
                 }
             },
+            hotbar::SlotContents::PrimaryAbility => {
+                let ability_id = active_abilities.and_then(|a| {
+                    Ability::from(a.primary).ability_id(
+                        *char_state,
+                        Some(inventory),
+                        Some(skillset),
+                        *stance,
+                        *combo,
+                        *buffs,
+                    )
+                });
+
+                ability_id
+                    .map(|id| HotbarImage::Ability(id.to_string()))
+                    .and_then(|image| {
+                        active_abilities
+                            .and_then(|a| {
+                                a.activate_ability(
+                                    AbilityInput::Primary,
+                                    Some(inventory),
+                                    skillset,
+                                    Some(body),
+                                    *char_state,
+                                    *stance,
+                                    *combo,
+                                    *stats,
+                                    *buffs,
+                                )
+                            })
+                            .map(|(ability, _, _)| {
+                                (
+                                    image,
+                                    if energy.current() >= ability.energy_cost()
+                                        && combo
+                                            .is_some_and(|c| c.counter() >= ability.combo_cost())
+                                        && ability
+                                            .ability_meta()
+                                            .requirements
+                                            .requirements_met(*stance, Some(*inventory))
+                                    {
+                                        Some(Color::Rgba(1.0, 1.0, 1.0, 1.0))
+                                    } else {
+                                        Some(GREYED_OUT)
+                                    },
+                                )
+                            })
+                    })
+            },
+            hotbar::SlotContents::SecondaryAbility => {
+                let ability_id = active_abilities.and_then(|a| {
+                    Ability::from(a.secondary).ability_id(
+                        *char_state,
+                        Some(inventory),
+                        Some(skillset),
+                        *stance,
+                        *combo,
+                        *buffs,
+                    )
+                });
+
+                ability_id
+                    .map(|id| HotbarImage::Ability(id.to_string()))
+                    .and_then(|image| {
+                        active_abilities
+                            .and_then(|a| {
+                                a.activate_ability(
+                                    AbilityInput::Secondary,
+                                    Some(inventory),
+                                    skillset,
+                                    Some(body),
+                                    *char_state,
+                                    *stance,
+                                    *combo,
+                                    *stats,
+                                    *buffs,
+                                )
+                            })
+                            .map(|(ability, _, _)| {
+                                (
+                                    image,
+                                    if energy.current() >= ability.energy_cost()
+                                        && combo
+                                            .is_some_and(|c| c.counter() >= ability.combo_cost())
+                                        && ability
+                                            .ability_meta()
+                                            .requirements
+                                            .requirements_met(*stance, Some(*inventory))
+                                    {
+                                        Some(Color::Rgba(1.0, 1.0, 1.0, 1.0))
+                                    } else {
+                                        Some(GREYED_OUT)
+                                    },
+                                )
+                            })
+                    })
+            },
             hotbar::SlotContents::Ability(i) => {
                 let ability_id = active_abilities.and_then(|a| {
                     a.auxiliary_set(Some(inventory), Some(skillset))
@@ -225,7 +321,9 @@ impl<'a> SlotKey<HotbarSource<'a>, HotbarImageSource<'a>> for HotbarSlot {
             .get(*self)
             .and_then(|content| match content {
                 hotbar::SlotContents::Inventory(item_hash, _) => inventory.get_by_hash(item_hash),
-                hotbar::SlotContents::Ability(_) => None,
+                hotbar::SlotContents::Ability(_)
+                | hotbar::SlotContents::PrimaryAbility
+                | hotbar::SlotContents::SecondaryAbility => None,
             })
             .map(|item| item.amount())
             .filter(|amount| *amount > 1)

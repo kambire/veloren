@@ -899,8 +899,7 @@ impl Widget for Diary<'_> {
                         )
                     };
 
-                    let image_size = 80.0;
-                    let image_offsets = 92.0 * i as f64;
+                    let image_size = 54.0;
 
                     let slot = AbilitySlot::Slot(i);
                     let mut ability_slot =
@@ -909,8 +908,8 @@ impl Widget for Diary<'_> {
                     if i == 0 {
                         ability_slot = ability_slot.top_left_with_margins_on(
                             state.ids.spellbook_skills_bg,
-                            0.0,
-                            32.0 + image_offsets,
+                            13.0,
+                            12.0,
                         );
                     } else {
                         ability_slot =
@@ -934,6 +933,9 @@ impl Widget for Diary<'_> {
                         GameInput::Slot3,
                         GameInput::Slot4,
                         GameInput::Slot5,
+                        GameInput::Slot6,
+                        GameInput::Slot7,
+                        GameInput::Slot8,
                     ]
                     .get(i)
                     .and_then(|input| keys.get_binding(*input))
@@ -943,7 +945,7 @@ impl Widget for Diary<'_> {
                     Text::new(&ability_key)
                         .top_left_with_margins_on(state.ids.active_abilities[i], 0.0, 4.0)
                         .font_id(self.fonts.cyri.conrod_id)
-                        .font_size(self.fonts.cyri.scale(20))
+                        .font_size(self.fonts.cyri.scale(14))
                         .color(TEXT_COLOR)
                         .graphics_for(state.ids.active_abilities[i])
                         .set(state.ids.active_abilities_keys[i], ui);

@@ -290,6 +290,12 @@ impl Window {
         #[expect(deprecated)]
         let window = Arc::new(event_loop.create_window(attributes).unwrap());
 
+        let (rgba, w, h, hx, hy) = create_fantasy_cursor();
+        if let Ok(source) = winit::window::CustomCursor::from_rgba(rgba, w, h, hx, hy) {
+            let cursor = event_loop.create_custom_cursor(source);
+            window.set_cursor(cursor);
+        }
+
         let renderer = Renderer::new(
             Arc::clone(&window),
             settings.graphics.render_mode.clone(),
@@ -886,7 +892,7 @@ impl Window {
                     self.cursor_position = position;
                 }
             },
-            WindowEvent::MouseWheel { delta, .. } if self.cursor_grabbed && self.focused => {
+            WindowEvent::MouseWheel { delta, .. } if self.focused => {
                 const DIFFERENCE_FROM_DEVICE_EVENT_ON_X11: f32 = -15.0;
                 self.events.push(Event::Zoom({
                     let y = match delta {
@@ -926,6 +932,15 @@ impl Window {
     }
 
     pub fn is_cursor_grabbed(&self) -> bool { self.cursor_grabbed }
+
+    pub fn cursor_position(&self) -> Vec2<f64> {
+        Vec2::new(self.cursor_position.x, self.cursor_position.y)
+    }
+
+    pub fn win_size(&self) -> Vec2<f64> {
+        let size = self.window.inner_size();
+        Vec2::new(size.width as f64, size.height as f64)
+    }
 
     pub fn grab_cursor(&mut self, grab: bool) {
         use winit::window::CursorGrabMode;
@@ -1488,3 +1503,62 @@ impl Default for FullScreenSettings {
         }
     }
 }
+
+fn create_fantasy_cursor() -> (Vec<u8>, u16, u16, u16, u16) {
+    const W: usize = 32;
+    const H: usize = 32;
+    let pattern: [&str; 32] = [
+        ".#..............................",
+        "#W#.............................",
+        "#WY#............................",
+        "#WYY#...........................",
+        "#WYYY#..........................",
+        "#WYWWY#.........................",
+        "#WYWWYY#........................",
+        "#WYWSRYY#.......................",
+        "#WYWRLRYY#......................",
+        "#WYWSRDYYY#.....................",
+        "#WYWWSDYYYY#....................",
+        "#WYYYSDDDYYY#...................",
+        "#WYYYY#DDDDYY#..................",
+        "#WYY#..#DDDDYY#.................",
+        "#WY#....#DDDDYY#................",
+        "#W#......#D###DYY#..............",
+        "##........#...#DYY#.............",
+        "...............#DYY#............",
+        "................#DYY#...........",
+        ".................#DYY#..........",
+        "..................#DYY#.........",
+        "...................#DYY#........",
+        "....................#DYY#.......",
+        ".....................#DYY#......",
+        "......................#D#.......",
+        ".......................#........",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+    ];
+
+    let mut rgba = Vec::with_capacity(W * H * 4);
+    for row in pattern.iter() {
+        for ch in row.chars() {
+            let pixel = match ch {
+                '#' => [20, 15, 10, 255],
+                'G' => [235, 185, 45, 255],
+                'Y' => [255, 225, 90, 255],
+                'W' => [250, 250, 255, 255],
+                'S' => [180, 195, 215, 255],
+                'D' => [100, 115, 135, 255],
+                'R' => [225, 35, 55, 255],
+                'L' => [255, 130, 150, 255],
+                _ => [0, 0, 0, 0],
+            };
+            rgba.extend_from_slice(&pixel);
+        }
+    }
+    (rgba, W as u16, H as u16, 1, 1)
+}
+
