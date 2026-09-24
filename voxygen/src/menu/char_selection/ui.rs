@@ -63,9 +63,7 @@ const STARTER_AXE: &str = "common.items.weapons.axe.starter_axe";
 const STARTER_STAFF: &str = "common.items.weapons.staff.starter_staff";
 const STARTER_SWORD: &str = "common.items.weapons.sword.starter";
 const STARTER_SWORDS: &str = "common.items.weapons.sword_1h.starter";
-
-// TODO: what does this comment mean?
-// // Use in future MR to make this a starter weapon
+const STARTER_SCEPTRE: &str = "common.items.weapons.sceptre.starter_sceptre";
 
 // TODO: use for info popup frame/background
 const UI_MAIN: Rgba<u8> = Rgba::new(156, 179, 179, 255); // Greenish Blue
@@ -99,6 +97,7 @@ image_ids_ice! {
         hammer: "voxygen.element.weapons.hammer",
         bow: "voxygen.element.weapons.bow",
         staff: "voxygen.element.weapons.staff",
+        sceptre: "voxygen.element.weapons.sceptre",
 
         // Hardcore icon
         hardcore: "voxygen.element.ui.map.icons.dif_map_icon",
@@ -187,7 +186,7 @@ enum Mode {
 
         body_type_buttons: [button::State; 2],
         species_buttons: [button::State; 6],
-        tool_buttons: [button::State; 6],
+        tool_buttons: [button::State; 7],
         sliders: Sliders,
         hardcore_enabled: bool,
         left_scroll: scrollable::State,
@@ -1127,6 +1126,7 @@ impl Controls {
                         hammer_button,
                         bow_button,
                         staff_button,
+                        sceptre_button,
                     ] = tool_buttons;
                     let tool = Column::with_children(vec![
                         Row::with_children(vec![
@@ -1154,10 +1154,6 @@ impl Controls {
                                 "common-weapons-axe",
                             )
                             .into(),
-                        ])
-                        .spacing(1)
-                        .into(),
-                        Row::with_children(vec![
                             icon_button_tooltip(
                                 swords_button,
                                 *mainhand == Some(STARTER_SWORDS),
@@ -1166,6 +1162,10 @@ impl Controls {
                                 "common-weapons-shortswords",
                             )
                             .into(),
+                        ])
+                        .spacing(1)
+                        .into(),
+                        Row::with_children(vec![
                             icon_button_tooltip(
                                 bow_button,
                                 *mainhand == Some(STARTER_BOW),
@@ -1180,6 +1180,14 @@ impl Controls {
                                 Message::Tool((Some(STARTER_STAFF), None)),
                                 imgs.staff,
                                 "common-weapons-staff",
+                            )
+                            .into(),
+                            icon_button_tooltip(
+                                sceptre_button,
+                                *mainhand == Some(STARTER_SCEPTRE),
+                                Message::Tool((Some(STARTER_SCEPTRE), None)),
+                                imgs.sceptre,
+                                "common-weapons-sceptre",
                             )
                             .into(),
                         ])

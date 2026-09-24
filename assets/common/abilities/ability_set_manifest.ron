@@ -309,6 +309,7 @@
             Simple(Some(Staff(FireDash)), "common.abilities.staff.fire_dash"),
             Simple(Some(Staff(FireBreath)), "common.abilities.staff.fire_breath"),
             Simple(Some(Staff(Pyroclasm)), "common.abilities.staff.pyroclasm"),
+            Simple(None, "common.abilities.sceptre.healingaura"),
         ],
     )),
     Tool(Sceptre): AbilitySet((
