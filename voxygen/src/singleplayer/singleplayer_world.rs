@@ -164,7 +164,7 @@ impl SingleplayerWorlds {
         if worlds.is_empty() {
             let path = worlds_folder.join("world");
             let new_world = SingleplayerWorld {
-                name: "Mundo de Veloren".to_string(),
+                name: "World of Azeria".to_string(),
                 gen_opts: None,
                 day_length: DAY_LENGTH_DEFAULT,
                 seed: DEFAULT_WORLD_SEED,

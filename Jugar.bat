@@ -1,6 +1,11 @@
 @echo off
-title Veloren MMORPG - Launcher & Updater
+title World of Azeria - Launcher & Updater
 cd /d "%~dp0"
+
+if exist "AzeriaLauncher.exe" (
+    start "" "AzeriaLauncher.exe"
+    exit
+)
 
 if exist "VelorenLauncher.exe" (
     start "" "VelorenLauncher.exe"
@@ -17,6 +22,6 @@ if exist "target\debug\veloren-voxygen.exe" (
     exit
 )
 
-echo No se encontro VelorenLauncher.exe ni el binario del juego.
-echo Compilalo con cargo build o ejecuta VelorenLauncher.
+echo No se encontro el lanzador ni el binario del juego World of Azeria.
+echo Compilalo con cargo build o ejecuta el Launcher.
 pause

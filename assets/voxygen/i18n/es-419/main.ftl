@@ -6,20 +6,17 @@ main-creating_world = Creando mundo
 main-tip = Consejo:
 main-unbound_key_tip = sin definir
 main-notice =
-    ¡Bienvenido a la versión alfa de Veloren!
+    ¡Bienvenido a World of Azeria!
 
-    Antes de lanzarte a la diversión, por favor ten en cuenta un par de cosas:
+    Prepárate para adentrarte en un mundo persistente de fantasía y aventuras MMORPG:
 
-    - Esto es un alfa muy temprano. Espera errores, mecánicas de juego inacabadas, mecánicas sin pulir, y funcionalidades faltantes.
+    - Explora mazmorras, derrota jefes de banda, completa misiones y lucha por tu facción.
 
-    - Si tienes críticas constructivas o reportes de errores, puedes contactar con nosotros en nuestro repositorio de GitLab, o en nuestro servidor de Discord o de Matrix.
+    - Sube de nivel del 1 al 60, obtén monedas de oro, plata y cobre, y domina las habilidades de tu clase.
 
-    - Veloren es un juego de código abierto. Eres libre de jugar, modificar y redistribuir el juego en acuerdo con los términos y condiciones de la versión 3 de la licencia "GNU General Public License".
+    - Únete a otros aventureros para conquistar los desafíos más peligrosos de Azeria.
 
-    - Veloren es un proyecto comunitario sin ánimo de lucro, y todo aquél que trabaja en él es un voluntario.
-    Si te gusta lo que ves, ¡eres bienvenido a unirte a nuestros grupos de trabajo!
-
-    Gracias por dedicar tu tiempo para leer esta noticia, ¡esperamos que disfrutes del juego!
+    Gracias por jugar, ¡esperamos que disfrutes de World of Azeria!
 
     ~ El equipo de desarrollo
 main-login_process =
@@ -81,7 +78,7 @@ loading-tips =
     .a11 = ¡Jugar con otros jugadores es divertido! Pulsa '{ $gameinput-social }' para ver quien esta en línea.
     .a12 = Pulsa '{ $gameinput-dance }' para bailar. ¡Fiesta!
     .a13 = Pulsa '{ $gameinput-glide }' para utilizar tu paravela y conquistar los cielos.
-    .a14 = Veloren está todavia en pre-alfa. ¡Hacemos lo posible para mejorarlo día a día!
+    .a14 = World of Azeria está en constante desarrollo. ¡Hacemos lo posible para mejorarlo día a día!
     .a15 = Si quieres unirte al equipo de desarrollo o conversar con nosotros, únete a nuestro servidor de Discord.
     .a16 = Puedes mostrar u ocultar tu total de salud en la barra de salud en los ajustes.
     .a17 = Siéntate cerca de una hoguera (con la tecla '{ $gameinput-sit }') para recuperarte lentamente de tus heridas.

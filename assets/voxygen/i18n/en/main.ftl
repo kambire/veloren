@@ -6,20 +6,17 @@ main-creating_world = Creating world
 main-tip = Tip:
 main-unbound_key_tip = unbound
 main-notice =
-    Welcome to the alpha version of Veloren!
+    Welcome to World of Azeria!
 
-    Before you dive into the fun, please keep a few things in mind:
+    Prepare to step into a persistent MMORPG world of fantasy and adventure:
 
-    - This is a very early alpha. Expect bugs, extremely unfinished gameplay, unpolished mechanics, and missing features.
+    - Explore dungeons, defeat raid bosses, complete quests, and fight for your faction.
 
-    - If you have constructive feedback or bug reports, you can contact us on our GitLab repository and on our Discord or Matrix server.
+    - Level up from 1 to 60, gather copper, silver, and gold coins, and master your class abilities.
 
-    - Veloren is open source. You are free to play, modify, and redistribute the game in accordance to version 3 of the GNU General Public license.
+    - Team up with other adventurers to conquer Azeria's greatest challenges.
 
-    - Veloren is a non-profit community project, and everybody working on it is a volunteer.
-    If you like what you see, you are welcome to join any of our working groups!
-
-    Thanks for taking the time to read this notice, we hope you enjoy the game!
+    Thanks for playing, and we hope you enjoy World of Azeria!
 
     ~ The development team
 main-login_process =
@@ -107,7 +104,7 @@ loading-tips =
     .a11 = Playing with others is fun! Press '{ $gameinput-social }' to see who is online.
     .a12 = Press '{ $gameinput-dance }' to dance. Party!
     .a13 = Press '{ $gameinput-glide }' to open your Glider and conquer the skies.
-    .a14 = Veloren is still in Pre-Alpha. We do our best to improve it every day!
+    .a14 = World of Azeria is constantly improving. We do our best to make it better every day!
     .a15 = If you want to join the dev team or just have a chat with us, join our Discord server.
     .a16 = You can toggle showing your amount of health on the health bar in the settings.
     .a17 = Sit near a campfire (with the '{ $gameinput-sit }' key) to slowly recover from your injuries.

@@ -222,7 +222,7 @@ impl Default for Settings {
             auth_server_address: Some("https://auth.veloren.net".into()),
             query_address: Some(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 14006))),
             world_seed: DEFAULT_WORLD_SEED,
-            server_name: "Veloren Server".into(),
+            server_name: "World of Azeria Server".into(),
             max_players: 100,
             day_length: DAY_LENGTH_DEFAULT,
             map_file: None,

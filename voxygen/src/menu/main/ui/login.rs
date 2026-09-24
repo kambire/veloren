@@ -186,7 +186,7 @@ impl Screen {
 
         let v_logo = Container::new(Image::new(imgs.v_logo).fix_aspect_ratio())
             .padding(3)
-            .width(Length::Units(230));
+            .width(Length::Units(280));
 
         let version_stage =
             Text::new(common::util::VELOREN_VERSION_STAGE).size(fonts.cyri.scale(22));

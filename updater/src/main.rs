@@ -44,7 +44,7 @@ struct GitHubAsset {
 fn print_banner() {
     println!();
     println!("  ========================================================");
-    println!("          VELOREN MMORPG - LAUNCHER & AUTO-UPDATER        ");
+    println!("          WORLD OF AZERIA - LAUNCHER & AUTO-UPDATER       ");
     println!("  ========================================================");
     println!("   Repositorio: https://github.com/{}", GITHUB_REPO);
     println!("  ========================================================");
@@ -213,7 +213,7 @@ fn extract_zip(zip_path: &Path, target_dir: &Path) -> Result<(), String> {
 fn launch_game(game_path: &Path) {
     println!();
     println!("========================================================");
-    println!("  Iniciando Veloren MMORPG...");
+    println!("  Iniciando World of Azeria...");
     println!("  Ejecutable: {:?}", game_path);
     println!("========================================================");
     println!();

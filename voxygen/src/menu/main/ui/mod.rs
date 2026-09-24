@@ -302,7 +302,7 @@ impl Controls {
         settings: &Settings,
         server: Option<String>,
     ) -> Self {
-        let version = format!("Veloren {}", *common::util::DISPLAY_VERSION);
+        let version = format!("World of Azeria {}", *common::util::DISPLAY_VERSION);
 
         let credits = Ron::<Credits>::load_expect_cloned("credits").into_inner();
 
