@@ -1183,13 +1183,13 @@ impl Controls {
                         ))
                         .size(fonts.cyri.scale(22))
                         .color(role_color(selected_class.role()))
-                        .width(Length::Units(185))
+                        .width(Length::Units(240))
                         .horizontal_alignment(HorizontalAlignment::Center)
                         .into(),
                         Text::new(selected_class.description())
                             .size(fonts.cyri.scale(15))
                             .color(TEXT_COLOR)
-                            .width(Length::Units(185))
+                            .width(Length::Units(240))
                             .horizontal_alignment(HorizontalAlignment::Center)
                             .into(),
                     ])
