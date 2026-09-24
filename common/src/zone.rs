@@ -303,3 +303,75 @@ pub fn nearest_safe_zone_center(wpos2d: Vec2<i32>) -> Option<(Vec2<i32>, f32)> {
     nearest_safe_zone_with_margin(wpos2d, 0.0)
 }
 
+/// Devuelve la distancia al centro de la zona segura o ciudad de inicio más cercana
+pub fn distance_to_nearest_safe_zone(wpos2d: Vec2<i32>) -> f32 {
+    let wpos_f = wpos2d.map(|e| e as f32);
+    let mut min_dist = f32::MAX;
+
+    // 1. Zonas de spawn de cada raza
+    for info in &RACE_STARTING_INFOS {
+        let dist = wpos_f.distance(info.spawn_wpos.map(|e| e as f32));
+        if dist < min_dist {
+            min_dist = dist;
+        }
+    }
+
+    // 2. Capitales de facción
+    for capital in &[ALLIANCE_CAPITAL_WPOS, HORDE_CAPITAL_WPOS] {
+        let dist = wpos_f.distance(capital.map(|e| e as f32));
+        if dist < min_dist {
+            min_dist = dist;
+        }
+    }
+
+    // 3. Asentamientos y pueblos dinámicos
+    if let Ok(dyn_zones) = DYNAMIC_SAFE_ZONES.read() {
+        for &center in dyn_zones.iter() {
+            let dist = wpos_f.distance(center.map(|e| e as f32));
+            if dist < min_dist {
+                min_dist = dist;
+            }
+        }
+    }
+
+    min_dist
+}
+
+/// Calcula el factor de escala de dificultad y poder (0.25 a 1.0+) para mobs hostiles
+/// según la distancia a la ciudad o zona segura más cercana.
+///
+/// Progresión de niveles alrededor de ciudades:
+/// - Inmediaciones (0m a 300m del límite de la ciudad):
+///   Nivel 1 a 2 (factor ~0.25 - 0.35): vida y daño muy reducidos para no morir de un golpe.
+/// - Alrededores cercanos (300m a 700m del límite):
+///   Nivel 2 a 4 (factor ~0.35 - 0.55).
+/// - Zona intermedia (700m a 1200m del límite):
+///   Nivel 4 a 6 (factor ~0.55 - 0.75).
+/// - Tierras salvajes lejanas (> 1200m del límite):
+///   Nivel 7+ hasta el nivel estándar del área (factor 0.85 - 1.0+).
+pub fn mob_difficulty_scaling_at(wpos2d: Vec2<i32>) -> f32 {
+    let dist = distance_to_nearest_safe_zone(wpos2d);
+    if dist <= SAFE_ZONE_RADIUS {
+        return 0.25;
+    }
+
+    let dist_from_border = dist - SAFE_ZONE_RADIUS;
+
+    if dist_from_border < 300.0 {
+        // Inmediaciones de la ciudad: Nivel 1 a 2
+        0.25 + (dist_from_border / 300.0) * 0.10
+    } else if dist_from_border < 700.0 {
+        // Alrededores cercanos: Nivel 2 a 4
+        0.35 + ((dist_from_border - 300.0) / 400.0) * 0.20
+    } else if dist_from_border < 1200.0 {
+        // Zona intermedia: Nivel 4 a 6
+        0.55 + ((dist_from_border - 700.0) / 500.0) * 0.20
+    } else if dist_from_border < 1800.0 {
+        // Transición a tierras salvajes: Nivel 6 a 7
+        0.75 + ((dist_from_border - 1200.0) / 600.0) * 0.25
+    } else {
+        // Tierras salvajes: poder normal 1.0
+        1.0
+    }
+}
+

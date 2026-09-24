@@ -490,7 +490,28 @@ impl SpawnEntityData {
         }
 
         let name = name.unwrap_or_else(Content::dummy);
-        let stats = comp::Stats::new(name, body);
+        let mut stats = comp::Stats::new(name, body);
+
+        // Escalado progresivo de dificultad MMORPG según distancia a ciudades / zonas seguras:
+        // Los mobs cerca de las ciudades son de bajo nivel (Lv 1-2) con vida y daño reducidos
+        // para que un jugador novato no muera de un solo golpe al salir.
+        let diff_factor = if matches!(alignment, comp::Alignment::Enemy) {
+            common::zone::mob_difficulty_scaling_at(pos.xy().as_::<i32>())
+        } else {
+            1.0
+        };
+
+        if diff_factor < 0.999 {
+            stats.attack_damage_modifier *= diff_factor;
+            stats.poise_damage_modifier *= diff_factor;
+        }
+
+        let scale = if diff_factor < 0.95 {
+            let size_factor = (0.75 + diff_factor * 0.25).clamp(0.75, 1.0);
+            scale * size_factor
+        } else {
+            scale
+        };
 
         let skill_set = {
             let skillset_builder = SkillSetBuilder::default();
@@ -527,8 +548,8 @@ impl SpawnEntityData {
             inventory
         };
 
-        let health = Some(comp::Health::new(body));
-        let poise = comp::Poise::new(body);
+        let health = Some(comp::Health::new_scaled(body, diff_factor));
+        let poise = comp::Poise::new_scaled(body, diff_factor);
 
         // Allow Humanoid, BirdMedium, and Parrot to speak
         let can_speak = match body {

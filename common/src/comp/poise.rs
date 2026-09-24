@@ -217,6 +217,20 @@ impl Poise {
         }
     }
 
+    pub fn new_scaled(body: comp::Body, factor: f32) -> Self {
+        let base = ((body.base_poise() as f32 * factor).round() as u32).max(1);
+        let poise = base * Self::SCALING_FACTOR_INT;
+        Poise {
+            current: poise,
+            base_max: poise,
+            maximum: poise,
+            last_change: Dir::default(),
+            regen_rate: 0.0,
+            last_stun_time: None,
+            previous_state: PoiseState::Normal,
+        }
+    }
+
     pub fn change(&mut self, change: PoiseChange) {
         match self.last_stun_time {
             Some(last_time) if last_time.0 + Poise::POISE_BUFFER_TIME > change.time.0 => {},

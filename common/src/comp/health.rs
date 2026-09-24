@@ -154,6 +154,29 @@ impl Health {
         }
     }
 
+    pub fn new_scaled(body: comp::Body, factor: f32) -> Self {
+        let base = ((body.base_health() as f32 * factor).round() as u32).max(1);
+        let health = base * Self::SCALING_FACTOR_INT;
+        let death_protection = body.has_death_protection();
+        Health {
+            current: health,
+            base_max: health,
+            maximum: health,
+            last_change: HealthChange {
+                amount: 0.0,
+                by: None,
+                cause: None,
+                precise: false,
+                time: Time(0.0),
+                instance: rand::random(),
+            },
+            is_dead: false,
+            can_have_death_protection: death_protection,
+            death_protection,
+            damage_contributors: HashMap::new(),
+        }
+    }
+
     /// Returns a boolean if the delta was not zero.
     pub fn change_by(&mut self, change: HealthChange) -> bool {
         let prev_health = i64::from(self.current);

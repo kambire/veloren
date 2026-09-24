@@ -2200,7 +2200,14 @@ pub fn combat_rating(
 
     // Body multiplier meant to account for an enemy being harder than equipment and
     // skills would account for. It should only not be 1.0 for non-humanoids
-    combined_rating * body.combat_multiplier()
+    let body_base_hp = body.base_health() as f32;
+    let power_scale = if body_base_hp > 0.0 && health.base_max() < body_base_hp {
+        (health.base_max() / body_base_hp).clamp(0.1, 1.0)
+    } else {
+        1.0
+    };
+
+    combined_rating * body.combat_multiplier() * power_scale
 }
 
 pub fn compute_precision_mult(inventory: Option<&Inventory>, msm: &MaterialStatManifest) -> f32 {
