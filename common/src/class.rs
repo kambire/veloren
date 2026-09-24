@@ -36,20 +36,29 @@ pub enum CharacterClass {
     Hunter,
     Rogue,
     Paladin,
+    Tamer,
 }
 
 impl Component for CharacterClass {
     type Storage = VecStorage<Self>;
 }
 
+/// Arma inicial exclusiva del Entrenador. Es un cetro, así que su id también
+/// contiene "sceptre" y debe comprobarse antes que el del Sacerdote.
+pub const TAMER_WEAPON: &str = "common.items.weapons.sceptre.cayado_entrenador";
+
+/// Fracción del daño que hacen las mascotas de las clases que no son Entrenador
+pub const NON_TAMER_PET_DAMAGE: f32 = 0.2;
+
 impl CharacterClass {
-    pub const ALL: [CharacterClass; 6] = [
+    pub const ALL: [CharacterClass; 7] = [
         CharacterClass::Warrior,
         CharacterClass::Priest,
         CharacterClass::Mage,
         CharacterClass::Hunter,
         CharacterClass::Rogue,
         CharacterClass::Paladin,
+        CharacterClass::Tamer,
     ];
 
     pub fn name(&self) -> &'static str {
@@ -60,6 +69,7 @@ impl CharacterClass {
             CharacterClass::Hunter => "Cazador",
             CharacterClass::Rogue => "Pícaro",
             CharacterClass::Paladin => "Paladín",
+            CharacterClass::Tamer => "Entrenador",
         }
     }
 
@@ -89,6 +99,10 @@ impl CharacterClass {
                 "Campeón de la luz bendita. Híbrido protector que combate con martillo sagrado y \
                  escudo, asistiendo con auras a sus aliados."
             },
+            CharacterClass::Tamer => {
+                "Domador de bestias que lucha junto a sus mascotas. Captura criaturas salvajes \
+                 con collares, las potencia y cura un poco a su grupo; su propio daño es leve."
+            },
         }
     }
 
@@ -96,7 +110,11 @@ impl CharacterClass {
         match self {
             CharacterClass::Warrior | CharacterClass::Paladin => CombatRole::Tank,
             CharacterClass::Priest => CombatRole::Healer,
-            CharacterClass::Mage | CharacterClass::Hunter | CharacterClass::Rogue => CombatRole::Dps,
+            // El Entrenador hace su daño a través de sus mascotas
+            CharacterClass::Mage
+            | CharacterClass::Hunter
+            | CharacterClass::Rogue
+            | CharacterClass::Tamer => CombatRole::Dps,
         }
     }
 
@@ -127,12 +145,14 @@ impl CharacterClass {
                 Some("common.items.weapons.hammer.starter_hammer"),
                 Some("common.items.weapons.shield.starter_shield"),
             ),
+            CharacterClass::Tamer => (Some(TAMER_WEAPON), None),
         }
     }
 
     /// Deducción de la clase según las armas que empuña el personaje
     pub fn from_weapons(mainhand: Option<&str>, offhand: Option<&str>) -> Self {
         match (mainhand, offhand) {
+            (Some(m), _) if m == TAMER_WEAPON => CharacterClass::Tamer,
             (Some(m), _) if m.contains("sceptre") => CharacterClass::Priest,
             (Some(m), _) if m.contains("staff") => CharacterClass::Mage,
             (Some(m), _) if m.contains("bow") => CharacterClass::Hunter,
@@ -184,8 +204,18 @@ impl CharacterClass {
             CharacterClass::Paladin => 1.25,
             CharacterClass::Hunter => 1.05,
             CharacterClass::Rogue => 1.00,
+            CharacterClass::Tamer => 0.95,
             CharacterClass::Priest => 0.90,
             CharacterClass::Mage => 0.85,
+        }
+    }
+
+    /// Multiplicador del daño que infligen las mascotas de esta clase. Cualquier
+    /// clase puede domar bestias, pero solo las del Entrenador pegan al 100 %.
+    pub fn pet_damage_multiplier(&self) -> f32 {
+        match self {
+            CharacterClass::Tamer => 1.0,
+            _ => NON_TAMER_PET_DAMAGE,
         }
     }
 }

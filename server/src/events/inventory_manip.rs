@@ -650,6 +650,7 @@ impl ServerEvent for InventoryManipEvent {
                                                 emitters.emit(TamePetEvent {
                                                     owner_entity: entity,
                                                     pet_entity: tameable_entity,
+                                                    from_collar: true,
                                                 });
                                                 false
                                             } else {

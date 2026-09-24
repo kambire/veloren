@@ -8,8 +8,9 @@ use vek::*;
 
 use common::{
     assets::{AssetCombined, AssetHandle, Ron},
+    combat,
     comp::{
-        self, InventoryUpdateEvent,
+        self, Content, InventoryUpdateEvent,
         agent::{AgentEvent, Sound, SoundKind},
         inventory::slot::EquipSlot,
         item::{MaterialStatManifest, flatten_counted_items},
@@ -596,7 +597,60 @@ impl ServerEvent for ToggleSpriteLightEvent {
 }
 
 pub fn handle_tame_pet(server: &mut Server, ev: TamePetEvent) {
+    // Con Collar solo se pueden capturar bestias de nivel igual o menor al del dueño
+    if ev.from_collar
+        && let (Some(owner_level), Some(pet_level)) = (
+            entity_level(server.state.ecs(), ev.owner_entity),
+            entity_level(server.state.ecs(), ev.pet_entity),
+        )
+        && pet_level > owner_level
+    {
+        // El Collar ya se consumió al usarlo: se devuelve. Vuelve al mismo
+        // montón del que salió, así que siempre cabe.
+        if let Some(mut inventory) = server
+            .state
+            .ecs()
+            .write_storage::<comp::Inventory>()
+            .get_mut(ev.owner_entity)
+        {
+            let _ = inventory.push(comp::Item::new_from_asset_expect(
+                "common.items.utility.collar",
+            ));
+        }
+        server.notify_client(
+            ev.owner_entity,
+            ServerGeneral::server_msg(
+                comp::ChatType::CommandError,
+                Content::Plain(format!(
+                    "Esta bestia es demasiado fuerte para domarla (Nvl {pet_level}). Tu nivel \
+                     es {owner_level}: solo puedes capturar bestias de tu nivel o inferior."
+                )),
+            ),
+        );
+        return;
+    }
+
     // TODO: Raise outcome to send to clients to play sound/render an indicator
     // showing taming success?
     tame_pet(server.state.ecs(), ev.pet_entity, ev.owner_entity);
+}
+
+/// Nivel MMORPG de una entidad, el mismo que muestra el HUD como `[Nvl X]`
+fn entity_level(ecs: &specs::World, entity: specs::Entity) -> Option<u32> {
+    let inventories = ecs.read_storage::<comp::Inventory>();
+    let healths = ecs.read_storage::<comp::Health>();
+    let energies = ecs.read_storage::<comp::Energy>();
+    let poises = ecs.read_storage::<comp::Poise>();
+    let skill_sets = ecs.read_storage::<comp::SkillSet>();
+    let bodies = ecs.read_storage::<comp::Body>();
+    let combat_rating = combat::combat_rating(
+        inventories.get(entity)?,
+        healths.get(entity)?,
+        energies.get(entity)?,
+        poises.get(entity)?,
+        skill_sets.get(entity)?,
+        *bodies.get(entity)?,
+        &ecs.read_resource::<MaterialStatManifest>(),
+    );
+    Some(combat::level_from_combat_rating(combat_rating))
 }

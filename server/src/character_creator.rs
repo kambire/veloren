@@ -2,8 +2,8 @@ use crate::persistence::{PersistedComponents, character_updater::CharacterUpdate
 use common::{
     character::CharacterId,
     comp::{
-        BASE_ABILITY_LIMIT, Body, Content, Inventory, Item, SkillSet, Stats, Waypoint,
-        inventory::loadout_builder::LoadoutBuilder,
+        BASE_ABILITY_LIMIT, Body, Content, Inventory, Item, Pet, SkillSet, Stats, Waypoint,
+        inventory::loadout_builder::LoadoutBuilder, quadruped_medium,
     },
 };
 use specs::{Entity, WriteExpect};
@@ -33,7 +33,11 @@ const VALID_STARTER_ITEMS: &[[Option<&str>; 2]] = &[
         Some("common.items.weapons.hammer.starter_hammer"),
         Some("common.items.weapons.shield.starter_shield"),
     ],
+    [Some(common::class::TAMER_WEAPON), None],
 ];
+
+/// Collares con los que empieza el Entrenador para capturar más mascotas
+const TAMER_STARTING_COLLARS: usize = 2;
 
 #[derive(Debug)]
 #[expect(clippy::enum_variant_names)]
@@ -114,6 +118,23 @@ pub fn create_character(
         },
     }
 
+    // El Entrenador empieza con un lobo domado y collares para capturar más bestias
+    let mut pets = Vec::new();
+    if character_class == common::class::CharacterClass::Tamer {
+        for _ in 0..TAMER_STARTING_COLLARS {
+            let _ = inventory.push(Item::new_from_asset_expect("common.items.utility.collar"));
+        }
+        let wolf_body = Body::QuadrupedMedium(quadruped_medium::Body::random_with(
+            &mut rand::rng(),
+            &quadruped_medium::Species::Wolf,
+        ));
+        pets.push((
+            Pet::default(),
+            wolf_body,
+            Stats::new(Content::Plain("Lobo".to_owned()), wolf_body),
+        ));
+    }
+
     inventory
         .push_recipe_group(Item::new_from_asset_expect("common.items.recipes.default"))
         .expect("New inventory should not already have default recipe group.");
@@ -127,7 +148,7 @@ pub fn create_character(
         skill_set,
         inventory,
         waypoint,
-        pets: Vec::new(),
+        pets,
         active_abilities: common::comp::ActiveAbilities::default_limited(BASE_ABILITY_LIMIT),
         map_marker,
     });

@@ -96,3 +96,6 @@ weapon-hammer-2hhammer_starter = Sturdy Old Hammer
 
 weapon-hammer-craftsman = Craftsman Hammer
     .desc = Used to craft various items.
+
+weapon-sceptre-cayado_entrenador = Tamer's Crook
+    .desc = A shepherd's crook used by beast tamers to guide and heal their companions.

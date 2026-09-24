@@ -1,5 +1,6 @@
 use common::{
     Damage, DamageSource,
+    class::CharacterClass,
     combat::{self, DamageContributor},
     comp::{
         Alignment, Energy, Group, Health, HealthChange, Inventory, LightEmitter, Mass,
@@ -452,6 +453,21 @@ impl<'a> System<'a> for Sys {
 
             // Call to reset stats to base values
             stat.reset_temp_modifiers();
+
+            // Mascotas de jugadores: solo las del Entrenador hacen el 100 % del daño.
+            // Los jugadores también tienen `Alignment::Owned` apuntando a sí mismos,
+            // así que se excluyen. `Pet` solo existe en el servidor, por eso se usa
+            // la alineación en su lugar.
+            if read_data.players.get(entity).is_none()
+                && let Some(Alignment::Owned(owner_uid)) = read_data.alignments.get(entity)
+                && let Some(owner) = read_data.id_maps.uid_entity(*owner_uid)
+                && owner != entity
+                && read_data.players.get(owner).is_some()
+                && let Some(owner_inventory) = read_data.inventories.get(owner)
+            {
+                stat.attack_damage_modifier *=
+                    CharacterClass::from_inventory(owner_inventory).pet_damage_multiplier();
+            }
 
             let mut body_override = None;
 

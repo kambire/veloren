@@ -64,3 +64,5 @@ weapon-hammer-2hhammer_starter = Martillo resistente viejo
     .desc = "Propiedad de..." El mensaje está incompleto.
 weapon-hammer-craftsman = Martillo de artesano
     .desc = Se utiliza para fabricar varios objetos.
+weapon-sceptre-cayado_entrenador = Cayado del Entrenador
+    .desc = Cayado de pastor con el que los domadores guían y curan a sus bestias.

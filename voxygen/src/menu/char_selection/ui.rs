@@ -93,6 +93,7 @@ image_ids_ice! {
         staff: "voxygen.element.weapons.staff",
         bow: "voxygen.element.weapons.bow",
         daggers: "voxygen.element.weapons.daggers",
+        tamer: "voxygen.element.ui.char_select.icons.tamer",
 
         // Hardcore icon
         hardcore: "voxygen.element.ui.map.icons.dif_map_icon",
@@ -181,7 +182,7 @@ enum Mode {
 
         body_type_buttons: [button::State; 2],
         species_buttons: [button::State; 6],
-        class_buttons: [button::State; 6],
+        class_buttons: [button::State; 7],
         sliders: Sliders,
         hardcore_enabled: bool,
         left_scroll: scrollable::State,
@@ -1130,6 +1131,7 @@ impl Controls {
                             CharacterClass::Mage => imgs.staff,
                             CharacterClass::Hunter => imgs.bow,
                             CharacterClass::Rogue => imgs.daggers,
+                            CharacterClass::Tamer => imgs.tamer,
                         };
                         icon_button(
                             button,
@@ -1154,6 +1156,7 @@ impl Controls {
                         mage_button,
                         hunter_button,
                         rogue_button,
+                        tamer_button,
                     ] = class_buttons;
                     let tool = Column::with_children(vec![
                         // Tanques y sanador
@@ -1164,11 +1167,12 @@ impl Controls {
                         ])
                         .spacing(1)
                         .into(),
-                        // DPS
+                        // DPS (el Entrenador pelea a través de sus mascotas)
                         Row::with_children(vec![
                             class_button(mage_button, CharacterClass::Mage).into(),
                             class_button(hunter_button, CharacterClass::Hunter).into(),
                             class_button(rogue_button, CharacterClass::Rogue).into(),
+                            class_button(tamer_button, CharacterClass::Tamer).into(),
                         ])
                         .spacing(1)
                         .into(),

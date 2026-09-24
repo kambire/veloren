@@ -430,7 +430,7 @@ pub fn create_character(
         skill_set,
         inventory,
         waypoint,
-        pets: _,
+        pets,
         active_abilities,
         map_marker,
     } = persisted_components;
@@ -627,6 +627,9 @@ pub fn create_character(
         ])?;
     }
     drop(stmt);
+
+    // Mascotas iniciales (por ejemplo el lobo del Entrenador)
+    update_pets(CharacterId(character_id), pets, transaction)?;
 
     load_character_list(uuid, transaction).map(|list| (CharacterId(character_id), list))
 }

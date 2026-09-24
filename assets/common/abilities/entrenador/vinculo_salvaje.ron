@@ -1,0 +1,19 @@
+// Acelera al grupo (mascotas incluidas): atacan y se mueven más rápido, lo que
+// sube el daño que hacen las mascotas del Entrenador.
+BasicAura(
+    buildup_duration: 0.3,
+    cast_duration: 0.5,
+    recover_duration: 0.2,
+    targets: InGroup,
+    auras: [
+        (
+            kind: Hastened,
+            strength: 0.25,
+            duration: Some(10),
+        ),
+    ],
+    aura_duration: Some(1.0),
+    range: 20.0,
+    energy_cost: 30.0,
+    scales_with_combo: false,
+)

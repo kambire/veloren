@@ -64,3 +64,5 @@ weapon-staff-firestaff_humble_stick = Palo humilde
     .desc = Palo para caminar con uno de sus extremos afilado.
 weapon-sceptre-wood-simple = Palo de caminar de naturalista
     .desc = Sana a tus aliados con el poder de la naturaleza.
+weapon-sceptre-cayado_entrenador = Cayado del Entrenador
+    .desc = Cayado de pastor con el que los domadores guían y curan a sus bestias.

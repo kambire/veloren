@@ -2334,6 +2334,7 @@ fn handle_spawn(
                     server.state.emit_event_now(TamePetEvent {
                         owner_entity: target,
                         pet_entity: new_entity,
+                        from_collar: false,
                     });
                 } else if let Some(group) = alignment.group() {
                     insert_or_replace_component(server, new_entity, group, "new entity")?;

@@ -286,7 +286,7 @@ impl Widget for Overhead<'_> {
             let display_name = match (name.as_deref(), combat_rating) {
                 (Some(n), Some(cr)) if cr >= 122.0 => format!("[??] {}", n),
                 (Some(n), Some(cr)) => {
-                    let lvl = ((1.0 + cr * 5.0) as u32).clamp(1, 60);
+                    let lvl = common::combat::level_from_combat_rating(cr);
                     format!("[Nvl {}] {}", lvl, n)
                 },
                 (Some(n), None) => n.to_string(),

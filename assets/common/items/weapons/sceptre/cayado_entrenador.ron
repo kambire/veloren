@@ -1,0 +1,22 @@
+ItemDef(
+    legacy_name: "Tamer's Crook",
+    legacy_description: "A shepherd's crook used by beast tamers to guide and heal their companions.",
+    kind: Tool((
+        kind: Sceptre,
+        hands: Two,
+        stats: (
+            equip_time_secs: 0.25,
+            // Daño propio muy leve: el Entrenador pelea a través de sus mascotas
+            power: 0.4,
+            // Curación algo menor que la del Sacerdote
+            effect_power: 0.7,
+            speed: 0.9,
+            range: 1.0,
+            energy_efficiency: 1.0,
+            buff_strength: 1.0,
+        ),
+    )),
+    quality: Low,
+    tags: [],
+    ability_spec: Some(Custom("Entrenador")),
+)

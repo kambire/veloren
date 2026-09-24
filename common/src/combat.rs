@@ -2123,6 +2123,12 @@ fn get_weapon_rating(inventory: &Inventory, msm: &MaterialStatManifest) -> f32 {
     mainhand_rating.max(offhand_rating)
 }
 
+/// Nivel MMORPG (1-60) que se muestra como `[Nvl X]` y que limita qué bestias
+/// se pueden capturar, calculado a partir de [`combat_rating`].
+pub fn level_from_combat_rating(combat_rating: f32) -> u32 {
+    ((1.0 + combat_rating * 5.0) as u32).clamp(1, 60)
+}
+
 pub fn combat_rating(
     inventory: &Inventory,
     health: &Health,

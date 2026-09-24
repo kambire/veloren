@@ -1540,6 +1540,10 @@
         "voxel.weapon.sceptre.wood-simple",
         (0.0, -0.0, 0.0), (-130., 90.0, 0.0), 1.25,
     ),
+    Simple("common.items.weapons.sceptre.cayado_entrenador"): VoxTrans(
+        "voxel.weapon.sceptre.crook.wood",
+        (0.0, 0.0, 0.0), (-130.0, 90.0, 0.0), 1.0,
+    ),
     Simple("common.items.weapons.sceptre.root_evil"): VoxTrans(
         "voxel.weapon.sceptre.root_evil",
         (1.0, -1.0, 0.0), (-130., 90.0, 0.0), 1.2,

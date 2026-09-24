@@ -1,0 +1,20 @@
+// Curación leve en área para todo el grupo. Las mascotas pertenecen al grupo de
+// su dueño, así que también las cura.
+BasicAura(
+    buildup_duration: 0.2,
+    cast_duration: 0.4,
+    recover_duration: 0.2,
+    targets: InGroup,
+    auras: [
+        (
+            kind: Regeneration,
+            strength: 0.25,
+            duration: Some(6),
+        ),
+    ],
+    aura_duration: Some(1.0),
+    range: 20.0,
+    energy_cost: 20.0,
+    scales_with_combo: true,
+    specifier: Some(HealingAura),
+)

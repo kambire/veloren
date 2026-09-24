@@ -961,6 +961,9 @@
             "common.items.weapons.sceptre.starter_sceptre",
         ): "weapon-sceptre-wood-simple",
         Simple(
+            "common.items.weapons.sceptre.cayado_entrenador",
+        ): "weapon-sceptre-cayado_entrenador",
+        Simple(
             "common.items.weapons.hammer.burnt_drumstick",
         ): "weapon-hammer-burnt_drumstick",
         Simple(

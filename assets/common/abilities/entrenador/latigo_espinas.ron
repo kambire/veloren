@@ -1,0 +1,17 @@
+// Ataque básico del Entrenador: rayo de espinas con daño muy leve que roba un
+// poco de vida. El daño fuerte lo ponen sus mascotas.
+BasicBeam(
+    buildup_duration: 0.20,
+    recover_duration: 0.20,
+    beam_duration: 1.0,
+    damage: 2.5,
+    tick_rate: 3,
+    range: 20.0,
+    max_angle: 1.0,
+    damage_effect: Some(Lifesteal(0.1)),
+    energy_regen: 7.5,
+    energy_drain: 0,
+    move_efficiency: 0.5,
+    ori_rate: 0.4,
+    specifier: LifestealBeam
+)

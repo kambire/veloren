@@ -1,10 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Veloren
-Comment=Veloren is a multiplayer voxel RPG written in Rust
-Comment[de]=Veloren ist ein in Rust geschriebenes Mehrspieler Voxel RPG
+Name=World of Azeria
+Comment=World of Azeria is a multiplayer voxel MMORPG written in Rust
 Exec=veloren-voxygen
 Categories=Game;Simulation;
-Keywords=veloren;sandbox;world;blocks;nodes;multiplayer;roleplaying;
+Keywords=azeria;world of azeria;mmorpg;voxel;multiplayer;roleplaying;
 Icon=net.veloren.veloren
 Terminal=false

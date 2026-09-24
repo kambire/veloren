@@ -255,6 +255,9 @@ pub struct RequestSiteInfoEvent {
 pub struct TamePetEvent {
     pub pet_entity: EcsEntity,
     pub owner_entity: EcsEntity,
+    /// Captura hecha por un jugador con un Collar: solo se permite si la bestia
+    /// no supera el nivel del dueño, y si falla se le devuelve el Collar.
+    pub from_collar: bool,
 }
 
 pub struct UpdateMapMarkerEvent {

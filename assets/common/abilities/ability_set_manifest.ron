@@ -1051,6 +1051,14 @@
         secondary: Simple(None, "common.abilities.custom.fiery_tornado.fiery_aura"),
         abilities: [],
     )),
+    // Clase Entrenador (cayado_entrenador)
+    Custom("Entrenador"): AbilitySet((
+        primary: Simple(None, "common.abilities.entrenador.latigo_espinas"),
+        secondary: Simple(None, "common.abilities.entrenador.aura_vital"),
+        abilities: [
+            Simple(None, "common.abilities.entrenador.vinculo_salvaje"),
+        ],
+    )),
     Custom("Golf Club"): AbilitySet((
         primary: Simple(None, "common.abilities.tool.golf_club.charged"),
         secondary: Simple(None, "common.abilities.tool.golf_club.charged"),

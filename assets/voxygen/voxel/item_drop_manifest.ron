@@ -365,6 +365,7 @@
     ModularWeapon(("common.items.modular.weapon.primary.sceptre.grandsceptre", "common.items.log.eldwood", Two)): "voxel.weapon.sceptre.grandsceptre.eldwood",
     ModularWeapon(("common.items.modular.weapon.primary.sceptre.sceptre", "common.items.log.eldwood", Two)): "voxel.weapon.sceptre.sceptre.eldwood",
     Simple("common.items.weapons.sceptre.starter_sceptre"): "voxel.weapon.sceptre.wood-simple",
+    Simple("common.items.weapons.sceptre.cayado_entrenador"): "voxel.weapon.sceptre.crook.wood",
     Simple("common.items.weapons.sceptre.root_evil"): "voxel.weapon.sceptre.root_evil",
     Simple("common.items.weapons.sceptre.sceptre_velorite_0"): "voxel.weapon.sceptre.ore-nature",
     Simple("common.items.weapons.sceptre.caduceus"): "voxel.weapon.sceptre.caduceus",
