@@ -34,7 +34,7 @@ use common::{
 use common_i18n::Content;
 use common_net::msg::world_msg::SiteId;
 use i18n::{Localization, LocalizationHandle};
-use rand::{RngExt, rng};
+use rand::RngExt;
 //ImageFrame, Tooltip,
 use crate::settings::Settings;
 //use std::time::Duration;
@@ -197,8 +197,6 @@ enum Mode {
         create_button: button::State,
         rand_character_button: button::State,
         rand_name_button: button::State,
-        prev_starting_site_button: button::State,
-        next_starting_site_button: button::State,
         /// `character_id.is_some()` can be used to determine if we're in edit
         /// mode as opposed to create mode.
         // TODO: Something less janky? Express the problem domain better!
@@ -236,10 +234,12 @@ impl Mode {
             .build();
 
         let inventory = Box::new(Inventory::with_loadout_humanoid(loadout));
+        let body = humanoid::Body::random();
+        let start_site_idx = Some(common::zone::species_starting_site_index(body.species, 6));
 
         Self::CreateOrEdit {
             name,
-            body: humanoid::Body::random(),
+            body,
             inventory,
             mainhand,
             offhand,
@@ -255,10 +255,8 @@ impl Mode {
             create_button: Default::default(),
             rand_character_button: Default::default(),
             rand_name_button: Default::default(),
-            prev_starting_site_button: Default::default(),
-            next_starting_site_button: Default::default(),
             character_id: None,
-            start_site_idx: None,
+            start_site_idx,
         }
     }
 
@@ -286,8 +284,6 @@ impl Mode {
             create_button: Default::default(),
             rand_character_button: Default::default(),
             rand_name_button: Default::default(),
-            prev_starting_site_button: Default::default(),
-            next_starting_site_button: Default::default(),
             character_id: Some(character_id),
             start_site_idx: None,
         }
@@ -354,9 +350,6 @@ enum Message {
     Accessory(u8),
     Beard(u8),
     HeightScale(u8),
-    StartingSite(usize),
-    PrevStartingSite,
-    NextStartingSite,
     // Workaround for widgets that require a message but we don't want them to actually do
     // anything
     DoNothing,
@@ -975,8 +968,6 @@ impl Controls {
                 create_button,
                 rand_character_button,
                 rand_name_button,
-                prev_starting_site_button,
-                next_starting_site_button,
                 character_id,
                 start_site_idx,
             } => {
@@ -1207,31 +1198,7 @@ impl Controls {
                 // Height of interactable area
                 const SLIDER_HEIGHT: u16 = 30;
 
-                fn starter_slider<'a>(
-                    text: String,
-                    size: u16,
-                    state: &'a mut slider::State,
-                    max: u32,
-                    selected_val: u32,
-                    on_change: impl 'static + Fn(u32) -> Message,
-                    imgs: &Imgs,
-                ) -> Element<'a, Message> {
-                    Column::with_children(vec![
-                        Text::new(text).size(size).into(),
-                        Slider::new(state, 0..=max, selected_val, on_change)
-                            .height(SLIDER_HEIGHT)
-                            .style(style::slider::Style::images(
-                                imgs.slider_indicator,
-                                imgs.slider_range,
-                                SLIDER_BAR_PAD,
-                                SLIDER_CURSOR_SIZE,
-                                SLIDER_BAR_HEIGHT,
-                            ))
-                            .into(),
-                    ])
-                    .align_items(Align::Center)
-                    .into()
-                }
+
                 fn char_slider<'a>(
                     text: String,
                     state: &'a mut slider::State,
@@ -1430,19 +1397,27 @@ impl Controls {
                     //TODO: Add text-outline here whenever we updated iced to a version supporting
                     // this
 
+                    let species_site_idx = common::zone::species_starting_site_index(
+                        body.species,
+                        self.possible_starting_sites.len().max(1),
+                    );
+                    *start_site_idx = Some(species_site_idx);
+                    let race_info = common::zone::get_race_starting_info(body.species);
+
                     let map = if let Some(info) = self
                         .possible_starting_sites
-                        .get(start_site_idx.unwrap_or_default())
+                        .get(species_site_idx)
                     {
-                        let site_name = Text::new(
-                            self.possible_starting_sites[start_site_idx.unwrap_or_default()]
-                                .label
-                                .as_ref()
-                                .map(|name| i18n.get_content(name))
-                                .unwrap_or_else(|| "Unknown".to_string()),
-                        )
-                        .horizontal_alignment(HorizontalAlignment::Left)
-                        .color(Color::from_rgb(131.0, 102.0, 0.0));
+                        let site_label = info
+                            .label
+                            .as_ref()
+                            .map(|name| i18n.get_content(name))
+                            .unwrap_or_else(|| race_info.town_name.to_string());
+                        let site_title = format!("{} ({})", race_info.town_name, site_label);
+
+                        let site_name = Text::new(site_title)
+                            .horizontal_alignment(HorizontalAlignment::Left)
+                            .color(Color::from_rgb(218.0 / 255.0, 165.0 / 255.0, 32.0 / 255.0));
                         let pos_frac = info
                             .wpos
                             .map2(self.world_sz * TerrainChunkSize::RECT_SIZE, |e, sz| {
@@ -1473,60 +1448,36 @@ impl Controls {
                         map_img.into()
                     };
 
-                    if self.possible_starting_sites.is_empty() {
-                        vec![map]
+                    let faction_color = if race_info.faction == common::zone::FactionId::Alliance {
+                        Color::from_rgb(0.3, 0.65, 1.0)
                     } else {
-                        let selected = start_site_idx.get_or_insert_with(|| {
-                            rng().random_range(0..self.possible_starting_sites.len())
-                        });
+                        Color::from_rgb(1.0, 0.35, 0.35)
+                    };
 
-                        let site_slider = starter_slider(
-                            i18n.get_msg("char_selection-starting_site").into_owned(),
-                            30,
-                            &mut sliders.starting_site,
-                            self.possible_starting_sites.len() as u32 - 1,
-                            *selected as u32,
-                            |x| Message::StartingSite(x as usize),
-                            imgs,
-                        );
-                        let site_buttons = Row::with_children(vec![
-                            neat_button(
-                                prev_starting_site_button,
-                                i18n.get_msg("char_selection-starting_site_prev")
-                                    .into_owned(),
-                                FILL_FRAC_ONE,
-                                button_style,
-                                Some(Message::PrevStartingSite),
-                            ),
-                            neat_button(
-                                next_starting_site_button,
-                                i18n.get_msg("char_selection-starting_site_next")
-                                    .into_owned(),
-                                FILL_FRAC_ONE,
-                                button_style,
-                                Some(Message::NextStartingSite),
-                            ),
+                    let title_text = Text::new(format!("Hogar Natal: {}", race_info.town_name))
+                        .size(fonts.cyri.scale(22))
+                        .color(Color::from_rgb(218.0 / 255.0, 165.0 / 255.0, 32.0 / 255.0));
+
+                    let region_text = Text::new(format!(
+                        "Zona: {} — Territorio de la {}",
+                        race_info.homeland_name,
+                        race_info.faction.name()
+                    ))
+                    .size(fonts.cyri.scale(16))
+                    .color(faction_color);
+
+                    let info_box = Container::new(
+                        Column::with_children(vec![
+                            title_text.into(),
+                            region_text.into(),
                         ])
-                        .max_height(60)
-                        .padding(15)
-                        .into();
-                        // Todo: use this to change the site icon if we use different starting site
-                        // types
-                        /* let site_kind = Text::new(i18n
-                            .get_msg_ctx("char_selection-starting_site_kind", &i18n::fluent_args! {
-                                "kind" => match self.possible_starting_sites[*start_site_idx].kind {
-                                    SiteKind::Town => i18n.get_msg("hud-map-town").into_owned(),
-                                    SiteKind::Castle => i18n.get_msg("hud-map-castle").into_owned(),
-                                    SiteKind::Bridge => i18n.get_msg("hud-map-bridge").into_owned(),
-                                    _ => "Unknown".to_string(),
-                                },
-                            })
-                            .into_owned())
-                        .size(fonts.cyri.scale(SLIDER_TEXT_SIZE))
-                        .into(); */
+                        .align_items(Align::Center)
+                        .spacing(4),
+                    )
+                    .width(Length::Fill)
+                    .padding(8);
 
-                        vec![site_slider, map, site_buttons]
-                    }
+                    vec![info_box.into(), map]
                 } else {
                     // If we're editing an existing character, don't display the world column
                     Vec::new()
@@ -1909,9 +1860,11 @@ impl Controls {
                 }
             },
             Message::Species(value) => {
-                if let Mode::CreateOrEdit { body, .. } = &mut self.mode {
+                if let Mode::CreateOrEdit { body, start_site_idx, .. } = &mut self.mode {
                     body.species = value;
                     body.validate();
+                    let total = self.possible_starting_sites.len().max(1);
+                    *start_site_idx = Some(common::zone::species_starting_site_index(value, total));
                 }
             },
             Message::Tool(value) => {
@@ -2022,34 +1975,7 @@ impl Controls {
                     body.validate();
                 }
             },
-            Message::StartingSite(idx) => {
-                if let Mode::CreateOrEdit { start_site_idx, .. } = &mut self.mode {
-                    *start_site_idx = Some(idx);
-                }
-            },
-            Message::PrevStartingSite => {
-                if let Mode::CreateOrEdit { start_site_idx, .. } = &mut self.mode
-                    && !self.possible_starting_sites.is_empty()
-                {
-                    *start_site_idx = Some(
-                        (start_site_idx.unwrap_or_default() + self.possible_starting_sites.len()
-                            - 1)
-                            % self.possible_starting_sites.len(),
-                    );
-                }
-            },
-            Message::NextStartingSite => {
-                if let Mode::CreateOrEdit { start_site_idx, .. } = &mut self.mode
-                    && !self.possible_starting_sites.is_empty()
-                {
-                    *start_site_idx = Some(
-                        (start_site_idx.unwrap_or_default()
-                            + self.possible_starting_sites.len()
-                            + 1)
-                            % self.possible_starting_sites.len(),
-                    );
-                }
-            },
+
         }
     }
 
@@ -2236,5 +2162,4 @@ struct Sliders {
     accessory: slider::State,
     beard: slider::State,
     height_scale: slider::State,
-    starting_site: slider::State,
 }

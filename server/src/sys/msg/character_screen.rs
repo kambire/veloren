@@ -170,10 +170,7 @@ impl Sys {
                 offhand,
                 body,
                 hardcore,
-                #[cfg(feature = "worldgen")]
-                start_site,
-                #[cfg(not(feature = "worldgen"))]
-                    start_site: _,
+                start_site: _,
             } => {
                 if !common::character::verify_character_name(&alias) {
                     client.send(ServerGeneral::CharacterActionError(
@@ -188,24 +185,32 @@ impl Sys {
                 } else if let Some(player) = data.players.get(entity) {
                     #[cfg(feature = "worldgen")]
                     let waypoint = {
-                        let faction = match body {
+                        let target_wpos2d = match body {
                             common::comp::Body::Humanoid(humanoid_body) => {
-                                common::zone::FactionId::from_species(humanoid_body.species)
-                            },
-                            _ => common::zone::FactionId::Alliance,
-                        };
+                                let total = data.world_map_msg.possible_starting_sites.len();
+                                let site_idx_opt = if total > 0 {
+                                    let s_idx = common::zone::species_starting_site_index(
+                                        humanoid_body.species,
+                                        total,
+                                    );
+                                    data.world_map_msg.possible_starting_sites.get(s_idx).copied()
+                                } else {
+                                    None
+                                };
 
-                        let target_wpos2d = start_site
-                            .filter(|site_idx| data.world_map_msg.possible_starting_sites.contains(site_idx))
-                            .and_then(|site_idx| {
-                                data.world
-                                    .civs()
-                                    .sites
-                                    .iter()
-                                    .find(|(_, site)| site.site_tmp.map(|i| i.id()) == Some(site_idx))
-                                    .map(|(_, site)| TerrainChunkSize::center_wpos(site.center))
-                            })
-                            .unwrap_or_else(|| common::zone::get_faction_spawn_wpos(faction));
+                                site_idx_opt
+                                    .and_then(|site_idx| {
+                                        data.world
+                                            .civs()
+                                            .sites
+                                            .iter()
+                                            .find(|(_, site)| site.site_tmp.map(|i| i.id()) == Some(site_idx))
+                                            .map(|(_, site)| TerrainChunkSize::center_wpos(site.center))
+                                    })
+                                    .unwrap_or_else(|| common::zone::get_species_spawn_wpos(humanoid_body.species))
+                            },
+                            _ => common::zone::get_faction_spawn_wpos(common::zone::FactionId::Alliance),
+                        };
 
                         // Garantizar que el spawn esté en un suelo plano y transitable
                         let safe_flat_pos = data.world.find_flat_accessible_pos(

@@ -208,7 +208,7 @@ impl World {
                     )
                     .collect(),
                 possible_starting_sites: {
-                    const STARTING_SITE_COUNT: usize = 5;
+                    const STARTING_SITE_COUNT: usize = 6;
 
                     let mut candidates = self
                         .civs()

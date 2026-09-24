@@ -118,6 +118,110 @@ pub fn get_faction_spawn_wpos(faction: FactionId) -> Vec2<i32> {
     }
 }
 
+/// Información del hogar y asentamiento natal de cada raza jugable
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RaceStartingInfo {
+    pub species: Species,
+    pub race_name: &'static str,
+    pub homeland_name: &'static str,
+    pub town_name: &'static str,
+    pub faction: FactionId,
+    pub spawn_wpos: Vec2<i32>,
+    pub graveyard_wpos: Vec2<i32>,
+}
+
+pub const RACE_STARTING_INFOS: [RaceStartingInfo; 6] = [
+    // Alianza
+    RaceStartingInfo {
+        species: Species::Human,
+        race_name: "Humano",
+        homeland_name: "Valle de Bosquedorado",
+        town_name: "Villa Bosquedorado",
+        faction: FactionId::Alliance,
+        spawn_wpos: Vec2::new(14000, 14000),
+        graveyard_wpos: Vec2::new(14020, 14010),
+    },
+    RaceStartingInfo {
+        species: Species::Dwarf,
+        race_name: "Enano",
+        homeland_name: "Picos de Dun Kahr",
+        town_name: "Fortaleza Forjahierro",
+        faction: FactionId::Alliance,
+        spawn_wpos: Vec2::new(13200, 14800),
+        graveyard_wpos: Vec2::new(13220, 14810),
+    },
+    RaceStartingInfo {
+        species: Species::Elf,
+        race_name: "Elfo",
+        homeland_name: "Bosque Místico de Elveron",
+        town_name: "Arboleda de las Estrellas",
+        faction: FactionId::Alliance,
+        spawn_wpos: Vec2::new(14800, 13200),
+        graveyard_wpos: Vec2::new(14820, 13210),
+    },
+    // Horda
+    RaceStartingInfo {
+        species: Species::Orc,
+        race_name: "Orco",
+        homeland_name: "Valle Quebrantahuesos",
+        town_name: "Bastión Ogron",
+        faction: FactionId::Horde,
+        spawn_wpos: Vec2::new(18000, 18000),
+        graveyard_wpos: Vec2::new(18020, 18010),
+    },
+    RaceStartingInfo {
+        species: Species::Draugr,
+        race_name: "Draugr",
+        homeland_name: "Criptas de la Desolación",
+        town_name: "Sepulcro Sombrío",
+        faction: FactionId::Horde,
+        spawn_wpos: Vec2::new(18800, 17200),
+        graveyard_wpos: Vec2::new(18820, 17210),
+    },
+    RaceStartingInfo {
+        species: Species::Danari,
+        race_name: "Danari",
+        homeland_name: "Oasis del Sol Silencioso",
+        town_name: "Santuario de las Arenas",
+        faction: FactionId::Horde,
+        spawn_wpos: Vec2::new(17200, 18800),
+        graveyard_wpos: Vec2::new(17220, 18810),
+    },
+];
+
+/// Obtiene la información del lugar de nacimiento natal de una raza
+pub fn get_race_starting_info(species: Species) -> &'static RaceStartingInfo {
+    match species {
+        Species::Human => &RACE_STARTING_INFOS[0],
+        Species::Dwarf => &RACE_STARTING_INFOS[1],
+        Species::Elf => &RACE_STARTING_INFOS[2],
+        Species::Orc => &RACE_STARTING_INFOS[3],
+        Species::Draugr => &RACE_STARTING_INFOS[4],
+        Species::Danari => &RACE_STARTING_INFOS[5],
+    }
+}
+
+/// Obtiene la posición de spawn inicial de una raza
+pub fn get_species_spawn_wpos(species: Species) -> Vec2<i32> {
+    get_race_starting_info(species).spawn_wpos
+}
+
+/// Obtiene el índice determinista del sitio inicial asignado a la raza
+pub fn species_starting_site_index(species: Species, total_sites: usize) -> usize {
+    if total_sites == 0 {
+        return 0;
+    }
+    let idx = match species {
+        Species::Human => 0,
+        Species::Dwarf => 1,
+        Species::Elf => 2,
+        Species::Orc => 3,
+        Species::Draugr => 4,
+        Species::Danari => 5,
+    };
+    idx % total_sites
+}
+
 /// Devuelve la zona en la que se encuentra una coordenada del mundo
 pub fn get_zone_at(wpos: Vec2<f32>) -> &'static ZoneDefinition {
     // Buscar la zona más cercana o que contenga la coordenada dentro de su radio
