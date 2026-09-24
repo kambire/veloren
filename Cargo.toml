@@ -25,6 +25,7 @@ members = [
     "voxygen/egui",
     "voxygen/i18n-helpers",
     "world",
+    "updater",
 ]
 
 ### PACKAGE ###

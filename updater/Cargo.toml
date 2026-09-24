@@ -1,0 +1,12 @@
+[package]
+name = "veloren-updater"
+version = "0.1.0"
+edition = "2024"
+authors = ["Veloren MMORPG Team"]
+description = "Auto-updater and launcher for Veloren from GitHub"
+
+[dependencies]
+ureq = { version = "2.10", features = ["json", "tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+zip = { version = "2.1", default-features = false, features = ["deflate"] }
