@@ -314,7 +314,7 @@
     )),
     Tool(Sceptre): AbilitySet((
         primary: Simple(None, "common.abilities.sceptre.lifestealbeam"),
-        secondary: Simple(None, "common.abilities.sceptre.healingaura"),
+        secondary: Simple(None, "common.abilities.sceptre.sanacion"),
         abilities: [
             Simple(Some(Sceptre(UnlockAura)), "common.abilities.sceptre.wardingaura"),
         ],

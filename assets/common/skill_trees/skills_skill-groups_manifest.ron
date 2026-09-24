@@ -6,6 +6,7 @@
         UnlockGroup(Weapon(Bow)),
         UnlockGroup(Weapon(Staff)),
         UnlockGroup(Weapon(Sceptre)),
+        UnlockGroup(Tamer),
         Climb(Cost),
         Climb(Speed),
         Swim(Speed),
@@ -128,5 +129,12 @@
         Pick(Speed),
         Pick(OreGain),
         Pick(GemGain),
+    ],
+    Tamer: [
+        Tamer(PetDamage),
+        Tamer(PetDefense),
+        Tamer(CaptureLevel),
+        Tamer(VitalHeal),
+        Tamer(BondStrength),
     ],
 }

@@ -1074,9 +1074,10 @@ pub fn allow_friendly_fire(
 ///
 /// Returns `false` if attack will create unintentional conflict,
 /// e.g. if player with PvE mode will harm pets of other players
-/// or other players will do the same to such player.
+/// or other players will do the same to such player. Also returns `false`
+/// when a player (or their pet) attacks a town NPC or its animals.
 ///
-/// If both players have PvP mode enabled, interact with NPC and
+/// If both players have PvP mode enabled, interact with hostile NPCs and
 /// in any other case, this function will return `true`
 // TODO: add parameter for doing self-harm?
 pub fn permit_pvp(
@@ -1110,6 +1111,19 @@ pub fn permit_pvp(
     // "Dereference" to owner if this is a pet.
     let attacker_owner = owner_if_pet(attacker);
     let target_owner = owner_if_pet(target);
+
+    // Los NPC de pueblo (aldeanos, guardias, comerciantes, NPC de misiones...) y
+    // sus animales no pueden recibir daño de jugadores ni de sus mascotas: así
+    // nunca se enfadan con ellos. El combate con jugadores es solo PvP entre
+    // jugadores o contra monstruos.
+    if players.contains(attacker_owner)
+        && matches!(
+            alignments.get(target_owner),
+            Some(Alignment::Npc | Alignment::Tame)
+        )
+    {
+        return false;
+    }
 
     // If both players are in the same ForcePvP aura, allow them to harm eachother
     if let (Some(attacker_auras), Some(target_auras)) = (

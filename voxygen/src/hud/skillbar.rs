@@ -1214,6 +1214,7 @@ impl<'a> Skillbar<'a> {
                 SkillGroupKind::Weapon(ToolKind::Bow) => self.imgs.bow,
                 SkillGroupKind::Weapon(ToolKind::Staff) => self.imgs.staff,
                 SkillGroupKind::Weapon(ToolKind::Pick) => self.imgs.mining,
+                SkillGroupKind::Tamer => self.imgs.tamer_class,
                 _ => self.imgs.nothing,
             })
             .w_h(24.0, 24.0)

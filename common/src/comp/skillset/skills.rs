@@ -21,6 +21,7 @@ pub enum Skill {
     Swim(SwimSkill),
     Pick(MiningSkill),
     UnlockGroup(SkillGroupKind),
+    Tamer(TamerSkill),
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
@@ -152,6 +153,19 @@ pub enum SceptreSkill {
     ACost,
 }
 
+/// Talentos del árbol del Entrenador (clase de mascotas)
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
+pub enum TamerSkill {
+    // Rama Manada: potencia a las mascotas
+    PetDamage,
+    PetDefense,
+    // Rama Doma: capturar bestias de más nivel
+    CaptureLevel,
+    // Rama Naturaleza: mejora las habilidades del cayado
+    VitalHeal,
+    BondStrength,
+}
+
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
 pub enum ClimbSkill {
     Cost,
@@ -205,6 +219,7 @@ pub const SKILL_MODIFIERS: SkillTreeModifiers = SkillTreeModifiers::get();
 pub struct SkillTreeModifiers {
     pub staff_tree: StaffTreeModifiers,
     pub sceptre_tree: SceptreTreeModifiers,
+    pub tamer_tree: TamerTreeModifiers,
     pub mining_tree: MiningTreeModifiers,
     pub general_tree: GeneralTreeModifiers,
 }
@@ -214,6 +229,7 @@ impl SkillTreeModifiers {
         Self {
             staff_tree: StaffTreeModifiers::get(),
             sceptre_tree: SceptreTreeModifiers::get(),
+            tamer_tree: TamerTreeModifiers::get(),
             mining_tree: MiningTreeModifiers::get(),
             general_tree: GeneralTreeModifiers::get(),
         }
@@ -306,11 +322,12 @@ impl SceptreTreeModifiers {
                 energy_regen: 1.05,
                 lifesteal: 1.05,
             },
+            // Rama Sagrada del Sacerdote: cada nivel se nota en la curación
             healing_aura: SceptreHealingAuraModifiers {
-                strength: 1.05,
-                duration: 1.05,
-                range: 1.05,
-                energy_cost: 0.95,
+                strength: 1.15,
+                duration: 1.1,
+                range: 1.1,
+                energy_cost: 0.9,
             },
             warding_aura: SceptreWardingAuraModifiers {
                 strength: 1.05,
@@ -318,6 +335,31 @@ impl SceptreTreeModifiers {
                 range: 1.05,
                 energy_cost: 0.95,
             },
+        }
+    }
+}
+
+pub struct TamerTreeModifiers {
+    /// Multiplicador de daño de las mascotas por nivel
+    pub pet_damage: f32,
+    /// Reducción de daño recibido por las mascotas por nivel
+    pub pet_defense: f32,
+    /// Niveles extra de bestia que se pueden capturar por nivel
+    pub capture_levels: u32,
+    /// Multiplicador de curación del Aura vital por nivel
+    pub vital_heal: f32,
+    /// Multiplicador de la aceleración del Vínculo salvaje por nivel
+    pub bond_strength: f32,
+}
+
+impl TamerTreeModifiers {
+    const fn get() -> Self {
+        Self {
+            pet_damage: 1.1,
+            pet_defense: 0.08,
+            capture_levels: 3,
+            vital_heal: 1.2,
+            bond_strength: 1.2,
         }
     }
 }

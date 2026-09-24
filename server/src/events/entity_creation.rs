@@ -87,6 +87,7 @@ pub fn handle_loaded_character_data(server: &mut Server, ev: UpdateCharacterData
         pets: ev.components.6,
         active_abilities: ev.components.7,
         map_marker: ev.components.8,
+        quests: ev.components.9,
     };
     let faction = match &loaded_components.body {
         common::comp::Body::Humanoid(h) => Some(common::zone::FactionId::from_species(h.species)),
@@ -145,6 +146,7 @@ pub fn handle_create_npc(server: &mut Server, ev: CreateNpcEvent) -> EcsEntity {
         death_effects,
         rider_effects,
         rider,
+        quest_giver,
     } = ev.npc;
     let entity = server
         .state
@@ -153,7 +155,8 @@ pub fn handle_create_npc(server: &mut Server, ev: CreateNpcEvent) -> EcsEntity {
         )
         .maybe_with(heads)
         .maybe_with(death_effects)
-        .maybe_with(rider_effects);
+        .maybe_with(rider_effects)
+        .maybe_with(quest_giver);
 
     if let Some(agent) = &mut agent
         && let Alignment::Owned(_) = &alignment

@@ -599,14 +599,29 @@ impl ServerEvent for ToggleSpriteLightEvent {
 }
 
 pub fn handle_tame_pet(server: &mut Server, ev: TamePetEvent) {
-    // Con Collar solo se pueden capturar bestias de nivel igual o menor al del dueño
+    // Con Collar solo se pueden capturar bestias de nivel igual o menor al del
+    // dueño, más los niveles extra del talento de Doma del Entrenador
+    let capture_bonus = server
+        .state
+        .ecs()
+        .read_storage::<comp::SkillSet>()
+        .get(ev.owner_entity)
+        .and_then(|skill_set| {
+            skill_set
+                .skill_level(comp::skills::Skill::Tamer(comp::skills::TamerSkill::CaptureLevel))
+                .ok()
+        })
+        .map_or(0, |level| {
+            u32::from(level) * comp::skills::SKILL_MODIFIERS.tamer_tree.capture_levels
+        });
     if ev.from_collar
         && let (Some(owner_level), Some(pet_level)) = (
             entity_level(server.state.ecs(), ev.owner_entity),
             entity_level(server.state.ecs(), ev.pet_entity),
         )
-        && pet_level > owner_level
+        && pet_level > owner_level + capture_bonus
     {
+        let max_level = owner_level + capture_bonus;
         // El Collar ya se consumió al usarlo: se devuelve. Vuelve al mismo
         // montón del que salió, así que siempre cabe.
         if let Some(mut inventory) = server
@@ -624,8 +639,8 @@ pub fn handle_tame_pet(server: &mut Server, ev: TamePetEvent) {
             ServerGeneral::server_msg(
                 comp::ChatType::CommandError,
                 Content::Plain(format!(
-                    "Esta bestia es demasiado fuerte para domarla (Nvl {pet_level}). Tu nivel \
-                     es {owner_level}: solo puedes capturar bestias de tu nivel o inferior."
+                    "Esta bestia es demasiado fuerte para domarla (Nvl {pet_level}). Solo puedes \
+                     capturar bestias hasta el nivel {max_level}."
                 )),
             ),
         );

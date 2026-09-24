@@ -55,6 +55,8 @@ macro_rules! synced_components {
             object: Object,
             frontend_marker: FrontendMarker,
             arcing: Arcing,
+            // NPC de pueblo que dan misiones (para el '!' sobre su cabeza)
+            quest_giver: QuestGiver,
             // TODO: change this to `SyncFrom::ClientEntity` and sync the bare minimum
             // from other entities (e.g. just keys needed to show appearance
             // based on their loadout). Also, it looks like this actually has
@@ -75,6 +77,8 @@ macro_rules! synced_components {
             can_build: CanBuild,
             is_interactor: IsInteractor,
             interactors: Interactors,
+            // Misiones del propio personaje
+            active_quests: ActiveQuests,
         }
     };
 }
@@ -85,6 +89,7 @@ macro_rules! reexport_comps {
             pub use common::comp::*;
             pub use body::parts::Heads;
             pub use common::{interaction::Interactors, mounting::VolumeRiders};
+            pub use common::quest::{ActiveQuests, QuestGiver};
             use common::link::Is;
             use common::{
                 mounting::{Mount, Rider, VolumeRider},
@@ -290,6 +295,10 @@ impl NetSync for Arcing {
     const SYNC_FROM: SyncFrom = SyncFrom::AnyEntity;
 }
 
+impl NetSync for QuestGiver {
+    const SYNC_FROM: SyncFrom = SyncFrom::AnyEntity;
+}
+
 // These are synced only from the client's own entity.
 
 impl NetSync for Admin {
@@ -305,6 +314,10 @@ impl NetSync for ActiveAbilities {
 }
 
 impl NetSync for CanBuild {
+    const SYNC_FROM: SyncFrom = SyncFrom::ClientEntity;
+}
+
+impl NetSync for ActiveQuests {
     const SYNC_FROM: SyncFrom = SyncFrom::ClientEntity;
 }
 

@@ -5,6 +5,7 @@ use common::{
         Stats, Waypoint,
         pet::{Pet, is_tameable},
     },
+    quest::ActiveQuests,
     uid::Uid,
 };
 use common_ecs::{Job, Origin, Phase, System};
@@ -27,6 +28,7 @@ impl<'a> System<'a> for Sys {
         ReadStorage<'a, Pet>,
         ReadStorage<'a, Stats>,
         ReadStorage<'a, ActiveAbilities>,
+        ReadStorage<'a, ActiveQuests>,
         WriteExpect<'a, character_updater::CharacterUpdater>,
         Write<'a, SysScheduler<Self>>,
     );
@@ -49,6 +51,7 @@ impl<'a> System<'a> for Sys {
             pets,
             stats,
             active_abilities,
+            active_quests,
             mut updater,
             mut scheduler,
         ): Self::SystemData,
@@ -63,6 +66,7 @@ impl<'a> System<'a> for Sys {
                     player_waypoints.maybe(),
                     &active_abilities,
                     map_markers.maybe(),
+                    active_quests.maybe(),
                 )
                     .join()
                     .filter_map(
@@ -74,6 +78,7 @@ impl<'a> System<'a> for Sys {
                             waypoint,
                             active_abilities,
                             map_marker,
+                            quests,
                         )| match presence.kind {
                             PresenceKind::LoadingCharacter(_char_id) => {
                                 error!(
@@ -107,6 +112,7 @@ impl<'a> System<'a> for Sys {
                                     waypoint.cloned(),
                                     active_abilities.clone(),
                                     map_marker.cloned(),
+                                    quests.cloned().unwrap_or_default(),
                                 ))
                             },
                             PresenceKind::Spectator | PresenceKind::Possessor => None,

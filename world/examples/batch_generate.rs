@@ -70,6 +70,12 @@ struct BatchGenerateConfig {
     size: (u32, u32),
     kind: MapKind,
     erosion_quality: RangeInclusive<f32>,
+    /// Número de continentes separados por océano (0 = sin máscara)
+    #[serde(default)]
+    continents: u32,
+    /// Rellenar las hondonadas para que no haya lagos
+    #[serde(default)]
+    no_lakes: bool,
 }
 
 impl BatchGenerateConfig {
@@ -80,6 +86,8 @@ impl BatchGenerateConfig {
             scale: rng().random_range(self.scale.clone()),
             map_kind: self.kind,
             erosion_quality: rng().random_range(self.erosion_quality.clone()),
+            continents: self.continents,
+            no_lakes: self.no_lakes,
         }
     }
 }

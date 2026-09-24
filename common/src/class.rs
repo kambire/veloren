@@ -1,3 +1,8 @@
+use crate::comp::{
+    item::tool::ToolKind,
+    skills::Skill,
+    skillset::{SkillGroupKind, SkillSet},
+};
 use serde::{Deserialize, Serialize};
 use specs::{Component, VecStorage};
 
@@ -47,7 +52,8 @@ impl Component for CharacterClass {
 /// contiene "sceptre" y debe comprobarse antes que el del Sacerdote.
 pub const TAMER_WEAPON: &str = "common.items.weapons.sceptre.cayado_entrenador";
 
-/// Fracción del daño que hacen las mascotas de las clases que no son Entrenador
+/// Fracción del daño que hacen las mascotas de las clases que no son Entrenador.
+/// Cualquier clase puede domar bestias, pero solo las del Entrenador pegan al 100 %.
 pub const NON_TAMER_PET_DAMAGE: f32 = 0.2;
 
 impl CharacterClass {
@@ -210,12 +216,44 @@ impl CharacterClass {
         }
     }
 
-    /// Multiplicador del daño que infligen las mascotas de esta clase. Cualquier
-    /// clase puede domar bestias, pero solo las del Entrenador pegan al 100 %.
-    pub fn pet_damage_multiplier(&self) -> f32 {
+    /// Único árbol de talentos que puede usar la clase. Se desbloquea al crear el
+    /// personaje y, como los jugadores ya no pueden desbloquear otros árboles,
+    /// queda guardado como la clase del personaje.
+    pub fn skill_group(&self) -> SkillGroupKind {
         match self {
-            CharacterClass::Tamer => 1.0,
-            _ => NON_TAMER_PET_DAMAGE,
+            // El Pícaro no tiene árbol de dagas en Veloren: usa la rama ágil de la espada
+            CharacterClass::Warrior | CharacterClass::Rogue => SkillGroupKind::Weapon(ToolKind::Sword),
+            CharacterClass::Paladin => SkillGroupKind::Weapon(ToolKind::Hammer),
+            CharacterClass::Priest => SkillGroupKind::Weapon(ToolKind::Sceptre),
+            CharacterClass::Mage => SkillGroupKind::Weapon(ToolKind::Staff),
+            CharacterClass::Hunter => SkillGroupKind::Weapon(ToolKind::Bow),
+            CharacterClass::Tamer => SkillGroupKind::Tamer,
+        }
+    }
+
+    /// Árboles de clase: todos menos el general y el de minería
+    pub fn is_class_skill_group(group: SkillGroupKind) -> bool {
+        Self::ALL.iter().any(|class| class.skill_group() == group)
+    }
+
+    /// Indica si el personaje ya tiene desbloqueado algún árbol de clase
+    pub fn has_class_tree(skill_set: &SkillSet) -> bool {
+        Self::ALL
+            .iter()
+            .any(|class| skill_set.skill_group_accessible(class.skill_group()))
+    }
+
+    /// Desbloquea gratis el árbol de la clase. Se regala el punto general que
+    /// cuesta el desbloqueo y se gasta de forma normal, para que al cargar el
+    /// personaje de la base de datos el desbloqueo se reproduzca sin errores.
+    pub fn unlock_class_tree(&self, skill_set: &mut SkillSet) {
+        let unlock = Skill::UnlockGroup(self.skill_group());
+        if skill_set.has_skill(unlock) {
+            return;
+        }
+        skill_set.add_skill_points(SkillGroupKind::General, unlock.skill_cost(1));
+        if let Err(err) = skill_set.unlock_skill(unlock) {
+            tracing::warn!(?err, class = self.name(), "No se pudo desbloquear el árbol de clase");
         }
     }
 }

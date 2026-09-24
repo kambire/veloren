@@ -59,8 +59,8 @@ hud-skill-swim_speed = Nadas un { $boost } % más rápido.{ $SP }
 
 ## Drenar vida
 
-hud-skill-sc_lifesteal_title = Drenar vida
-hud-skill-sc_lifesteal = Lanza un rayo que absorbe la esencia vital de los enemigos.
+hud-skill-sc_lifesteal_title = Sombra: Drenar vida
+hud-skill-sc_lifesteal = Rama de daÃ±o del Sacerdote. Lanza un rayo que absorbe la esencia vital de los enemigos.
 hud-skill-sc_lifesteal_damage_title = Daño
 hud-skill-sc_lifesteal_damage = El rayo hace un { $boost } % más de daño.{ $SP }
 hud-skill-sc_lifesteal_regen_title = Regeneración de energía
@@ -72,8 +72,8 @@ hud-skill-sc_lifesteal_lifesteal = Convierte un { $boost } % adicional del daño
 
 ## Campo de vida
 
-hud-skill-sc_heal_title = Campo vital
-hud-skill-sc_heal = Emana de ti un aura curativa que usa la esencia vital absorbida.
+hud-skill-sc_heal_title = Sagrado: Luz sanadora
+hud-skill-sc_heal = Rama de curaciÃ³n del Sacerdote. Cura a todo tu grupo, mascotas incluidas, sin necesitar combo.
 hud-skill-sc_heal_heal_title = Sanar
 hud-skill-sc_heal_heal = Aumenta la curación que haces en un { $boost } %.{ $SP }
 hud-skill-sc_heal_cost_title = Costo de Energía
@@ -85,8 +85,8 @@ hud-skill-sc_heal_range = Tu aura sanadora llega un { $boost } % más lejos.{ $S
 
 ## Aura de protección
 
-hud-skill-sc_wardaura_unlock_title = Desbloquear Aura del guardián
-hud-skill-sc_wardaura_unlock = Emana de ti un aura que te protege a ti y a tus aliados.{ $SP }
+hud-skill-sc_wardaura_unlock_title = Disciplina: Aura del guardiÃ¡n
+hud-skill-sc_wardaura_unlock = Rama de protecciÃ³n del Sacerdote. Emana de ti un aura que te protege a ti y a tus aliados.{ $SP }
 hud-skill-sc_wardaura_strength_title = Potencia de Aura del guardián
 hud-skill-sc_wardaura_strength = La potencia de la protección aumenta en un { $boost } %.{ $SP }
 hud-skill-sc_wardaura_duration_title = Duración de Aura del guardián
@@ -168,7 +168,7 @@ hud-skill_tree-sword = Espada
 hud-skill_tree-axe = Hacha
 hud-skill_tree-hammer = Martillo
 hud-skill_tree-staff = Bastón de fuego
-hud-skill_tree-sceptre = Cetro
+hud-skill_tree-sceptre = Sacerdote
 hud-skill_tree-mining = Minería
 hud-skill-sword_stance_heavy = Robusta
 hud-skill-persistence-skills_unlock_failed = No se pudieron obtener tus habilidades en el mismo orden en que las adquiriste. Puede que los prerequisitos o los costos hayan cambiado.
@@ -180,3 +180,20 @@ hud-skill-sword_stance_defensive = Defensiva
 hud-skill-persistence-hash_mismatch = Se detectó una diferencia en uno de tus grupos de habilidades desde la última vez que jugaste.
 hud-skill-persistence-deserialization_failure = Hubo un error al cargar algunas de tus habilidades desde la base de datos.
 hud-skill-persistence-spent_experience_missing = La cantidad de experiencia libre que tenías en uno de tus grupos de habilidades difiere de cuando jugaste por última vez.
+hud-skill_tree-tamer = Entrenador
+hud-skill-tm_pack_title = Manada
+hud-skill-tm_pack = Rama de mascotas. Tus bestias pegan mÃ¡s fuerte y aguantan mÃ¡s golpes.
+hud-skill-tm_pet_damage_title = Fuerza de la manada
+hud-skill-tm_pet_damage = Tus mascotas infligen un { $boost } % mÃ¡s de daÃ±o.{ $SP }
+hud-skill-tm_pet_defense_title = Pelaje grueso
+hud-skill-tm_pet_defense = Tus mascotas reciben un { $boost } % menos de daÃ±o por nivel.{ $SP }
+hud-skill-tm_tame_title = Doma
+hud-skill-tm_tame = Rama de captura. Usa collares para domar bestias salvajes de hasta tu nivel.
+hud-skill-tm_capture_title = Domador experto
+hud-skill-tm_capture = Puedes capturar bestias { $boost } niveles por encima del tuyo.{ $SP }
+hud-skill-tm_nature_title = Naturaleza
+hud-skill-tm_nature = Rama de apoyo. Mejora las habilidades de tu cayado.
+hud-skill-tm_vital_heal_title = Aura vital mejorada
+hud-skill-tm_vital_heal = El Aura vital cura un { $boost } % mÃ¡s.{ $SP }
+hud-skill-tm_bond_title = VÃ­nculo potente
+hud-skill-tm_bond = El VÃ­nculo salvaje acelera un { $boost } % mÃ¡s a tu grupo y a tus mascotas.{ $SP }

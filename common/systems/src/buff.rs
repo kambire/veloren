@@ -1,6 +1,6 @@
 use common::{
     Damage, DamageSource,
-    class::CharacterClass,
+    class::NON_TAMER_PET_DAMAGE,
     combat::{self, DamageContributor},
     comp::{
         Alignment, Energy, Group, Health, HealthChange, Inventory, LightEmitter, Mass,
@@ -14,6 +14,8 @@ use common::{
         },
         fluid_dynamics::{Fluid, LiquidKind},
         item::MaterialStatManifest,
+        skills::{SKILL_MODIFIERS, Skill, TamerSkill},
+        skillset::{SkillGroupKind, SkillSet},
     },
     event::{
         BuffEvent, ChangeBodyEvent, ComboChangeEvent, CreateSpriteEvent, EmitExt,
@@ -71,6 +73,7 @@ pub struct ReadData<'a> {
     alignments: ReadStorage<'a, Alignment>,
     players: ReadStorage<'a, Player>,
     masses: ReadStorage<'a, Mass>,
+    skill_sets: ReadStorage<'a, SkillSet>,
 }
 
 #[derive(Default)]
@@ -454,19 +457,35 @@ impl<'a> System<'a> for Sys {
             // Call to reset stats to base values
             stat.reset_temp_modifiers();
 
-            // Mascotas de jugadores: solo las del Entrenador hacen el 100 % del daño.
-            // Los jugadores también tienen `Alignment::Owned` apuntando a sí mismos,
-            // así que se excluyen. `Pet` solo existe en el servidor, por eso se usa
-            // la alineación en su lugar.
+            // Mascotas de jugadores: solo las del Entrenador hacen el 100 % del daño,
+            // y sus talentos de Manada las potencian. Los jugadores también tienen
+            // `Alignment::Owned` apuntando a sí mismos, así que se excluyen. `Pet`
+            // solo existe en el servidor, por eso se usa la alineación en su lugar.
             if read_data.players.get(entity).is_none()
                 && let Some(Alignment::Owned(owner_uid)) = read_data.alignments.get(entity)
                 && let Some(owner) = read_data.id_maps.uid_entity(*owner_uid)
                 && owner != entity
                 && read_data.players.get(owner).is_some()
-                && let Some(owner_inventory) = read_data.inventories.get(owner)
+                && let Some(owner_skills) = read_data.skill_sets.get(owner)
             {
-                stat.attack_damage_modifier *=
-                    CharacterClass::from_inventory(owner_inventory).pet_damage_multiplier();
+                // La clase se lee del árbol desbloqueado, no del arma equipada
+                if owner_skills.skill_group_accessible(SkillGroupKind::Tamer) {
+                    let modifiers = SKILL_MODIFIERS.tamer_tree;
+                    if let Ok(level) = owner_skills.skill_level(Skill::Tamer(TamerSkill::PetDamage))
+                    {
+                        stat.attack_damage_modifier *= modifiers.pet_damage.powi(level.into());
+                    }
+                    if let Ok(level) =
+                        owner_skills.skill_level(Skill::Tamer(TamerSkill::PetDefense))
+                    {
+                        stat.damage_reduction.pos_mod = stat
+                            .damage_reduction
+                            .pos_mod
+                            .max(modifiers.pet_defense * f32::from(level));
+                    }
+                } else {
+                    stat.attack_damage_modifier *= NON_TAMER_PET_DAMAGE;
+                }
             }
 
             let mut body_override = None;

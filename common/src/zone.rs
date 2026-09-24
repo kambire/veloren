@@ -26,14 +26,13 @@ impl FactionId {
     }
 }
 
-/// Identificadores de las Zonas del Mundo Estático
+/// Zonas del mundo: cada una de ellas es uno de los 4 continentes
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ZoneId {
-    AllianceCapital,
-    AllianceStartingZone,
-    HordeCapital,
-    HordeStartingZone,
-    ContestedWilds,
+    AllianceContinent,
+    HordeContinent,
+    ContestedContinent,
+    HighLevelContinent,
 }
 
 /// Definición de una zona de aventura con rangos de nivel y puntos de spawn
@@ -44,73 +43,74 @@ pub struct ZoneDefinition {
     pub level_min: u8,
     pub level_max: u8,
     pub faction: Option<FactionId>,
+    /// Centro del continente. Cada punto del mundo pertenece al continente
+    /// cuyo centro tiene más cerca, igual que la máscara que los generó.
     pub center_wpos: Vec2<i32>,
-    pub radius: f32,
     pub graveyard_wpos: Vec2<i32>,
 }
 
-// Coordenadas base en el mapa estático (1024x1024 chunks -> 32768 x 32768 bloques)
-// Ubicadas en cuadrantes de llanura/valle con terreno estable y plano.
-pub const ALLIANCE_CAPITAL_WPOS: Vec2<i32> = Vec2::new(14000, 14000);
-pub const ALLIANCE_GRAVEYARD_WPOS: Vec2<i32> = Vec2::new(14020, 14010);
+/// Tamaño en bloques del mapa por defecto (`world.map.azeria_4continentes`,
+/// 2048 x 2048 chunks de 32 bloques)
+pub const WORLD_SIZE_BLOCKS: i32 = 65536;
 
-pub const HORDE_CAPITAL_WPOS: Vec2<i32> = Vec2::new(18000, 18000);
-pub const HORDE_GRAVEYARD_WPOS: Vec2<i32> = Vec2::new(18020, 18010);
+/// Centro de un continente a partir de su posición relativa en el mapa. Son las
+/// mismas posiciones que usa la máscara de continentes al generar el mundo
+/// (`continent_centers(4)` en `world/src/sim/util.rs`).
+const fn continent_center(x_frac: f32, y_frac: f32) -> Vec2<i32> {
+    Vec2::new(
+        (x_frac * WORLD_SIZE_BLOCKS as f32) as i32,
+        (y_frac * WORLD_SIZE_BLOCKS as f32) as i32,
+    )
+}
 
-pub const ZONES: [ZoneDefinition; 5] = [
+// En el mapa (norte arriba): Alianza al sureste, Horda al noreste, Tierras
+// Disputadas al suroeste y el continente de alto nivel al noroeste.
+pub const ALLIANCE_CAPITAL_WPOS: Vec2<i32> = continent_center(0.74, 0.24);
+pub const HORDE_CAPITAL_WPOS: Vec2<i32> = continent_center(0.76, 0.76);
+pub const CONTESTED_CENTER_WPOS: Vec2<i32> = continent_center(0.26, 0.27);
+pub const HIGH_LEVEL_CENTER_WPOS: Vec2<i32> = continent_center(0.24, 0.73);
+
+pub const ZONES: [ZoneDefinition; 4] = [
     ZoneDefinition {
-        id: ZoneId::AllianceCapital,
-        name: "Ciudadela de la Luz (Capital)",
+        id: ZoneId::AllianceContinent,
+        name: "Reinos de Valdoria",
         level_min: 1,
-        level_max: 60,
+        level_max: 20,
         faction: Some(FactionId::Alliance),
         center_wpos: ALLIANCE_CAPITAL_WPOS,
-        radius: 1200.0,
-        graveyard_wpos: ALLIANCE_GRAVEYARD_WPOS,
+        graveyard_wpos: ALLIANCE_CAPITAL_WPOS,
     },
     ZoneDefinition {
-        id: ZoneId::AllianceStartingZone,
-        name: "Valle Dorado",
+        id: ZoneId::HordeContinent,
+        name: "Dominios de Kargath",
         level_min: 1,
-        level_max: 10,
-        faction: Some(FactionId::Alliance),
-        center_wpos: ALLIANCE_CAPITAL_WPOS,
-        radius: 3500.0,
-        graveyard_wpos: ALLIANCE_GRAVEYARD_WPOS,
-    },
-    ZoneDefinition {
-        id: ZoneId::HordeCapital,
-        name: "Bastión de Ogron (Capital)",
-        level_min: 1,
-        level_max: 60,
+        level_max: 20,
         faction: Some(FactionId::Horde),
         center_wpos: HORDE_CAPITAL_WPOS,
-        radius: 1200.0,
-        graveyard_wpos: HORDE_GRAVEYARD_WPOS,
+        graveyard_wpos: HORDE_CAPITAL_WPOS,
     },
     ZoneDefinition {
-        id: ZoneId::HordeStartingZone,
-        name: "Estepas Áridas",
-        level_min: 1,
-        level_max: 10,
-        faction: Some(FactionId::Horde),
-        center_wpos: HORDE_CAPITAL_WPOS,
-        radius: 3500.0,
-        graveyard_wpos: HORDE_GRAVEYARD_WPOS,
-    },
-    ZoneDefinition {
-        id: ZoneId::ContestedWilds,
-        name: "Tierras Disputadas",
-        level_min: 10,
-        level_max: 25,
+        id: ZoneId::ContestedContinent,
+        name: "Tierras Disputadas de Morvenia",
+        level_min: 20,
+        level_max: 40,
         faction: None,
-        center_wpos: Vec2::new(16000, 16000),
-        radius: 8000.0,
-        graveyard_wpos: Vec2::new(16000, 16000),
+        center_wpos: CONTESTED_CENTER_WPOS,
+        graveyard_wpos: CONTESTED_CENTER_WPOS,
+    },
+    ZoneDefinition {
+        id: ZoneId::HighLevelContinent,
+        name: "Picos Helados de Nordheim",
+        level_min: 40,
+        level_max: 60,
+        faction: None,
+        center_wpos: HIGH_LEVEL_CENTER_WPOS,
+        graveyard_wpos: HIGH_LEVEL_CENTER_WPOS,
     },
 ];
 
-/// Devuelve la posición inicial plana en la plaza principal de la facción correspondiente
+/// Devuelve el centro del continente de la facción, usado como aparición de
+/// respaldo si no se encuentra su pueblo inicial
 pub fn get_faction_spawn_wpos(faction: FactionId) -> Vec2<i32> {
     match faction {
         FactionId::Alliance => ALLIANCE_CAPITAL_WPOS,
@@ -138,8 +138,8 @@ pub const RACE_STARTING_INFOS: [RaceStartingInfo; 6] = [
         homeland_name: "Valle de Bosquedorado",
         town_name: "Villa Bosquedorado",
         faction: FactionId::Alliance,
-        spawn_wpos: Vec2::new(14000, 14000),
-        graveyard_wpos: Vec2::new(14020, 14010),
+        spawn_wpos: ALLIANCE_CAPITAL_WPOS,
+        graveyard_wpos: ALLIANCE_CAPITAL_WPOS,
     },
     RaceStartingInfo {
         species: Species::Dwarf,
@@ -147,8 +147,8 @@ pub const RACE_STARTING_INFOS: [RaceStartingInfo; 6] = [
         homeland_name: "Picos de Dun Kahr",
         town_name: "Fortaleza Forjahierro",
         faction: FactionId::Alliance,
-        spawn_wpos: Vec2::new(13200, 14800),
-        graveyard_wpos: Vec2::new(13220, 14810),
+        spawn_wpos: Vec2::new(ALLIANCE_CAPITAL_WPOS.x - 3000, ALLIANCE_CAPITAL_WPOS.y + 2500),
+        graveyard_wpos: Vec2::new(ALLIANCE_CAPITAL_WPOS.x - 3000, ALLIANCE_CAPITAL_WPOS.y + 2500),
     },
     RaceStartingInfo {
         species: Species::Elf,
@@ -156,8 +156,8 @@ pub const RACE_STARTING_INFOS: [RaceStartingInfo; 6] = [
         homeland_name: "Bosque Místico de Elveron",
         town_name: "Arboleda de las Estrellas",
         faction: FactionId::Alliance,
-        spawn_wpos: Vec2::new(14800, 13200),
-        graveyard_wpos: Vec2::new(14820, 13210),
+        spawn_wpos: Vec2::new(ALLIANCE_CAPITAL_WPOS.x + 3000, ALLIANCE_CAPITAL_WPOS.y + 2500),
+        graveyard_wpos: Vec2::new(ALLIANCE_CAPITAL_WPOS.x + 3000, ALLIANCE_CAPITAL_WPOS.y + 2500),
     },
     // Horda
     RaceStartingInfo {
@@ -166,8 +166,8 @@ pub const RACE_STARTING_INFOS: [RaceStartingInfo; 6] = [
         homeland_name: "Valle Quebrantahuesos",
         town_name: "Bastión Ogron",
         faction: FactionId::Horde,
-        spawn_wpos: Vec2::new(18000, 18000),
-        graveyard_wpos: Vec2::new(18020, 18010),
+        spawn_wpos: HORDE_CAPITAL_WPOS,
+        graveyard_wpos: HORDE_CAPITAL_WPOS,
     },
     RaceStartingInfo {
         species: Species::Draugr,
@@ -175,8 +175,8 @@ pub const RACE_STARTING_INFOS: [RaceStartingInfo; 6] = [
         homeland_name: "Criptas de la Desolación",
         town_name: "Sepulcro Sombrío",
         faction: FactionId::Horde,
-        spawn_wpos: Vec2::new(18800, 17200),
-        graveyard_wpos: Vec2::new(18820, 17210),
+        spawn_wpos: Vec2::new(HORDE_CAPITAL_WPOS.x + 3000, HORDE_CAPITAL_WPOS.y - 2500),
+        graveyard_wpos: Vec2::new(HORDE_CAPITAL_WPOS.x + 3000, HORDE_CAPITAL_WPOS.y - 2500),
     },
     RaceStartingInfo {
         species: Species::Danari,
@@ -184,8 +184,8 @@ pub const RACE_STARTING_INFOS: [RaceStartingInfo; 6] = [
         homeland_name: "Oasis del Sol Silencioso",
         town_name: "Santuario de las Arenas",
         faction: FactionId::Horde,
-        spawn_wpos: Vec2::new(17200, 18800),
-        graveyard_wpos: Vec2::new(17220, 18810),
+        spawn_wpos: Vec2::new(HORDE_CAPITAL_WPOS.x - 3000, HORDE_CAPITAL_WPOS.y - 2500),
+        graveyard_wpos: Vec2::new(HORDE_CAPITAL_WPOS.x - 3000, HORDE_CAPITAL_WPOS.y - 2500),
     },
 ];
 
@@ -222,12 +222,15 @@ pub fn species_starting_site_index(species: Species, total_sites: usize) -> usiz
     idx % total_sites
 }
 
-/// Devuelve la zona en la que se encuentra una coordenada del mundo
+/// Devuelve la zona (el continente) en la que se encuentra una coordenada del
+/// mundo: la del centro de continente más cercano
 pub fn get_zone_at(wpos: Vec2<f32>) -> &'static ZoneDefinition {
-    // Buscar la zona más cercana o que contenga la coordenada dentro de su radio
     ZONES
         .iter()
-        .filter(|z| (z.center_wpos.as_::<f32>() - wpos).magnitude() <= z.radius)
-        .min_by(|a, b| a.radius.partial_cmp(&b.radius).unwrap_or(core::cmp::Ordering::Equal))
-        .unwrap_or(&ZONES[4]) // Tierras Disputadas por defecto si está en zonas abiertas
+        .min_by(|a, b| {
+            let da = a.center_wpos.as_::<f32>().distance_squared(wpos);
+            let db = b.center_wpos.as_::<f32>().distance_squared(wpos);
+            da.partial_cmp(&db).unwrap_or(core::cmp::Ordering::Equal)
+        })
+        .expect("Siempre hay al menos una zona")
 }

@@ -717,6 +717,7 @@ pub fn ability_image(imgs: &img_ids::Imgs, ability_id: &str) -> image::Id {
         // Sceptre
         "common.abilities.sceptre.lifestealbeam" => imgs.skill_sceptre_lifesteal,
         "common.abilities.sceptre.healingaura" => imgs.skill_sceptre_heal,
+        "common.abilities.sceptre.sanacion" => imgs.skill_sceptre_heal,
         "common.abilities.sceptre.wardingaura" => imgs.skill_sceptre_aura,
         // Entrenador
         "common.abilities.entrenador.latigo_espinas" => imgs.skill_sceptre_lifesteal,

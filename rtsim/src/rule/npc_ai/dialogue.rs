@@ -6,6 +6,15 @@ pub fn general<S: State>(tgt: ActorId, session: DialogueSession) -> impl Action<
     now(move |ctx, _| {
         let mut responses = Vec::new();
 
+        // Misiones de World of Azeria que da o recibe este NPC, las primeras del menú
+        if let Some(giver) = ctx
+            .actor
+            .profession()
+            .and_then(|profession| common::quest::QuestGiver::from_profession(&profession))
+        {
+            responses.extend(azeria_quest::quest_responses(ctx, tgt, session, giver));
+        }
+
         // Job-dependent responses
         match &ctx.npc.job {
             // TODO: Implement hiring as a quest?

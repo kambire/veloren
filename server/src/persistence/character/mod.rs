@@ -287,6 +287,30 @@ pub fn load_character_data(
         })
     })?;
 
+    // Misiones. Los personajes creados antes de que existieran no tienen fila:
+    // empiezan sin misiones.
+    let mut stmt = connection.prepare_cached(
+        "
+            SELECT  data
+            FROM    quest_progress
+            WHERE   character_id = ?1",
+    )?;
+    let quests = stmt
+        .query_map([char_id.0], |row| row.get::<_, String>(0))?
+        .filter_map(Result::ok)
+        .next()
+        .map(|data| {
+            serde_json::from_str::<common::quest::ActiveQuests>(&data).unwrap_or_else(|err| {
+                warn!(
+                    ?err,
+                    "Failed to deserialize quests for character_id {}", char_id.0
+                );
+                common::quest::ActiveQuests::default()
+            })
+        })
+        .unwrap_or_default();
+    drop(stmt);
+
     let (skill_set, skill_set_persistence_load_error) =
         convert_skill_set_from_database(&skill_group_data);
     let body = convert_body_from_database(&body_data.variant, &body_data.body_data)?;
@@ -310,6 +334,7 @@ pub fn load_character_data(
             pets,
             active_abilities: convert_active_abilities_from_database(&ability_set_data),
             map_marker: char_map_marker,
+            quests,
         },
         UpdateCharacterMetadata {
             skill_set_persistence_load_error,
@@ -433,6 +458,7 @@ pub fn create_character(
         pets,
         active_abilities,
         map_marker,
+        quests,
     } = persisted_components;
 
     // Fetch new entity IDs for character, inventory, loadout, overflow items, and
@@ -631,6 +657,8 @@ pub fn create_character(
     // Mascotas iniciales (por ejemplo el lobo del Entrenador)
     update_pets(CharacterId(character_id), pets, transaction)?;
 
+    save_quests(CharacterId(character_id), &quests, transaction)?;
+
     load_character_list(uuid, transaction).map(|list| (CharacterId(character_id), list))
 }
 
@@ -741,6 +769,17 @@ pub fn delete_character(
         DELETE
         FROM    ability_set
         WHERE   entity_id = ?1",
+    )?;
+
+    stmt.execute([&char_id.0])?;
+    drop(stmt);
+
+    // Borrar las misiones
+    let mut stmt = transaction.prepare_cached(
+        "
+        DELETE
+        FROM    quest_progress
+        WHERE   character_id = ?1",
     )?;
 
     stmt.execute([&char_id.0])?;
@@ -1080,6 +1119,7 @@ pub fn update(
     char_waypoint: Option<comp::Waypoint>,
     active_abilities: comp::ability::ActiveAbilities,
     map_marker: Option<comp::MapMarker>,
+    quests: common::quest::ActiveQuests,
     transaction: &mut Transaction,
 ) -> Result<(), PersistenceError> {
     // Run pet persistence
@@ -1255,6 +1295,34 @@ pub fn update(
             char_id.0,
         )));
     }
+    drop(stmt);
 
+    save_quests(char_id, &quests, transaction)?;
+
+    Ok(())
+}
+
+/// Guarda las misiones del personaje (en curso y completadas) como JSON. Usa
+/// `REPLACE` porque los personajes creados antes de las misiones no tienen fila.
+fn save_quests(
+    char_id: CharacterId,
+    quests: &common::quest::ActiveQuests,
+    transaction: &Transaction,
+) -> Result<(), PersistenceError> {
+    let data = serde_json::to_string(quests).map_err(|err| {
+        PersistenceError::OtherError(format!(
+            "Error serializing quests for char_id {}: {err}",
+            char_id.0
+        ))
+    })?;
+
+    let mut stmt = transaction.prepare_cached(
+        "
+        REPLACE
+        INTO    quest_progress (character_id,
+                                data)
+        VALUES  (?1, ?2)",
+    )?;
+    stmt.execute([&char_id.0 as &dyn ToSql, &data])?;
     Ok(())
 }

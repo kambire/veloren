@@ -39,6 +39,8 @@ pub struct PersistedComponents {
     pub pets: Vec<PetPersistenceData>,
     pub active_abilities: comp::ActiveAbilities,
     pub map_marker: Option<comp::MapMarker>,
+    /// Misiones en curso y completadas
+    pub quests: common::quest::ActiveQuests,
 }
 
 pub type EditableComponents = (comp::Body,);

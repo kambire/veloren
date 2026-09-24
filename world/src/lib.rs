@@ -208,7 +208,12 @@ impl World {
                     )
                     .collect(),
                 possible_starting_sites: {
-                    const STARTING_SITE_COUNT: usize = 6;
+                    // Pueblos iniciales por facción. Van en el orden de
+                    // `species_starting_site_index`: humano, enano y elfo en el
+                    // continente de la Alianza, y orco, draugr y danari en el de la Horda.
+                    const SITES_PER_FACTION: usize = 3;
+                    // Distancia mínima entre pueblos iniciales de la misma facción
+                    const MIN_STARTING_SITE_DIST: f32 = 3000.0;
 
                     let mut candidates = self
                         .civs()
@@ -218,10 +223,13 @@ impl World {
                         .map(|(civ_site, site_id)| {
                             // Score the site according to how suitable it is to be a starting site
 
+                            let wpos = (civ_site.center
+                                * TerrainChunkSize::RECT_SIZE.map(|e| e as i32))
+                            .as_::<f32>();
                             let site = &index.sites[site_id];
                             let mut score = match site.kind {
                                 // Excluir pueblos en acantilados o montañas empinadas
-                                Some(SiteKind::CliffTown) => return (site_id.id(), 0.0),
+                                Some(SiteKind::CliffTown) => return (site_id.id(), 0.0, wpos),
                                 Some(SiteKind::Refactor) => 2.0,
                                 Some(kind)
                                     if matches!(
@@ -233,13 +241,13 @@ impl World {
                                 },
                                 // Non-town sites should not be chosen as starting sites and get a
                                 // score of 0
-                                _ => return (site_id.id(), 0.0),
+                                _ => return (site_id.id(), 0.0, wpos),
                             };
 
                             // Descalificar terrenos montañosos o con riscos altos
                             if let Some(chunk) = self.sim().get(civ_site.center) {
                                 if chunk.alt > 150.0 || chunk.cliff_height > 6.0 {
-                                    return (site_id.id(), 0.0);
+                                    return (site_id.id(), 0.0, wpos);
                                 }
                                 if chunk.cliff_height < 3.0 && chunk.alt < 120.0 {
                                     score *= 3.0;
@@ -263,20 +271,6 @@ impl World {
 
                             score *= size_score;
 
-                            // Prefer sites that are close to the centre of the world
-                            let pos_score = (10.0
-                                / (1.0
-                                    + (civ_site
-                                        .center
-                                        .map2(self.sim().get_size(), |e, sz| {
-                                            (e as f32 / sz as f32 - 0.5).abs() * 2.0
-                                        })
-                                        .reduce_partial_max())
-                                    .powi(6)
-                                        * 25.0))
-                                .max(0.02);
-                            score *= pos_score;
-
                             // Check if neighboring biomes are beginner friendly
                             let mut chunk_scores = 2.0;
                             for (chunk, distance) in
@@ -298,15 +292,63 @@ impl World {
 
                             score *= chunk_scores;
 
-                            (site_id.id(), score)
+                            (site_id.id(), score, wpos)
                         })
+                        .filter(|(_, score, _)| *score > 0.0)
                         .collect::<Vec<_>>();
-                    candidates.sort_by_key(|(_, score)| -(*score * 1000.0) as i32);
-                    candidates
-                        .into_iter()
-                        .map(|(site_id, _)| site_id)
-                        .take(STARTING_SITE_COUNT)
-                        .collect()
+                    candidates.sort_by_key(|(_, score, _)| -(*score * 1000.0) as i32);
+
+                    let mut starting_sites = Vec::new();
+                    for faction_zone in [
+                        common::zone::ZoneId::AllianceContinent,
+                        common::zone::ZoneId::HordeContinent,
+                    ] {
+                        let in_zone = candidates
+                            .iter()
+                            .filter(|(_, _, wpos)| {
+                                common::zone::get_zone_at(*wpos).id == faction_zone
+                            })
+                            .collect::<Vec<_>>();
+                        // Si el continente no tiene ningún pueblo válido, se usan los del
+                        // resto del mundo para que cada raza siga teniendo su pueblo
+                        let in_zone = if in_zone.is_empty() {
+                            tracing::warn!(
+                                ?faction_zone,
+                                "No hay pueblos iniciales en el continente de la facción"
+                            );
+                            candidates.iter().collect()
+                        } else {
+                            in_zone
+                        };
+                        // Los mejores pueblos del continente, separados entre sí
+                        let mut picked: Vec<&(u64, f32, Vec2<f32>)> = Vec::new();
+                        for candidate in in_zone.iter() {
+                            if picked.len() == SITES_PER_FACTION {
+                                break;
+                            }
+                            if picked.iter().all(|p| {
+                                p.2.distance(candidate.2) > MIN_STARTING_SITE_DIST
+                            }) {
+                                picked.push(candidate);
+                            }
+                        }
+                        // Si no hay suficientes pueblos separados, se completa con los
+                        // mejores que queden, y si aun así faltan se repite el mejor,
+                        // para que cada raza conserve su índice
+                        for candidate in in_zone.iter() {
+                            if picked.len() == SITES_PER_FACTION {
+                                break;
+                            }
+                            if !picked.iter().any(|p| p.0 == candidate.0) {
+                                picked.push(candidate);
+                            }
+                        }
+                        if let Some(&best) = picked.first() {
+                            picked.resize(SITES_PER_FACTION, best);
+                        }
+                        starting_sites.extend(picked.iter().map(|(site_id, _, _)| *site_id));
+                    }
+                    starting_sites
                 },
                 ..self.sim.get_map(index, self.sim().calendar.as_ref())
             }

@@ -29,6 +29,81 @@ pub fn map_edge_factor(map_size_lg: MapSizeLg, posi: usize) -> f32 {
         .clamp(0.0, 1.0)
 }
 
+/// Centros de los continentes, en fracción del tamaño del mapa, para la
+/// máscara de continentes. Vacío si no hay máscara.
+pub fn continent_centers(continents: u32) -> &'static [(f64, f64)] {
+    match continents {
+        2 => &[(0.27, 0.5), (0.73, 0.5)],
+        3 => &[(0.26, 0.3), (0.74, 0.3), (0.5, 0.77)],
+        // Ligeramente descentrados para que la cuadrícula no quede simétrica
+        4 => &[(0.26, 0.27), (0.74, 0.24), (0.24, 0.73), (0.76, 0.76)],
+        _ => &[],
+    }
+}
+
+/// Resultado de la máscara de continentes en un punto
+pub struct ContinentMask {
+    /// Entre 0 y 1: 1 dentro de un continente y 0 en medio de los canales de
+    /// océano que los separan. Se multiplica por la altura para hundir esos canales.
+    pub factor: f64,
+    /// Entre 0 y 1: 0 en la costa y 1 en el interior profundo del continente.
+    /// Se usa para dar a cada continente forma de cúpula suave, de modo que el
+    /// terreno baje hacia la costa y el agua salga en ríos en vez de quedarse en
+    /// grandes lagos interiores.
+    pub inland: f64,
+}
+
+/// Máscara de continentes. Cada continente es la celda de Voronoi de su centro.
+/// `wposf` es la posición en bloques, que conviene deformar con ruido antes para
+/// que las costas no salgan rectas. Sin máscara devuelve `factor = 1` e
+/// `inland = 0`, así que el mundo no cambia.
+pub fn continent_mask(map_size_lg: MapSizeLg, continents: u32, wposf: Vec2<f64>) -> ContinentMask {
+    let centers = continent_centers(continents);
+    if centers.len() < 2 {
+        return ContinentMask {
+            factor: 1.0,
+            inland: 0.0,
+        };
+    }
+    let world_size = map_size_lg.chunks().map(f64::from) * TerrainChunkSize::RECT_SIZE.map(f64::from);
+    let centers = centers.iter().map(|&(x, y)| Vec2::new(x, y) * world_size);
+
+    // Los dos centros más cercanos
+    let (mut c1, mut d1, mut c2, mut d2) = (Vec2::zero(), f64::MAX, Vec2::zero(), f64::MAX);
+    for center in centers {
+        let d = wposf.distance_squared(center);
+        if d < d1 {
+            (c2, d2) = (c1, d1);
+            (c1, d1) = (center, d);
+        } else if d < d2 {
+            (c2, d2) = (center, d);
+        }
+    }
+    // Distancia a la frontera (mediatriz) entre esos dos continentes
+    let border_dist = (d2 - d1) / (2.0 * c1.distance(c2)).max(1.0);
+
+    // Distancia al borde exterior del mapa, para que los continentes no queden
+    // cortados en recto y tengan océano alrededor
+    let edge_dist = wposf
+        .map2(world_size, |p, size| p.min(size - p))
+        .reduce_partial_min();
+
+    let world_min = world_size.reduce_partial_min();
+    // Medio ancho del canal de océano y distancia en la que la costa baja hasta él
+    let half_channel = world_min * 0.03;
+    let falloff = world_min * 0.07;
+    let smooth = |dist: f64| {
+        let t = ((dist - half_channel) / falloff).clamp(0.0, 1.0);
+        t * t * (3.0 - 2.0 * t)
+    };
+    // La cúpula sube desde la costa durante algo menos de medio continente
+    let coast_dist = border_dist.min(edge_dist) - half_channel;
+    ContinentMask {
+        factor: smooth(border_dist) * smooth(edge_dist),
+        inland: (coast_dist / (world_min * 0.2)).clamp(0.0, 1.0),
+    }
+}
+
 /// Computes the cumulative distribution function of the weighted sum of k
 /// independent, uniformly distributed random variables between 0 and 1.  For
 /// each variable i, we use `weights[i]` as the weight to give `samples[i]` (the

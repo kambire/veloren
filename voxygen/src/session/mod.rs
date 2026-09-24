@@ -50,7 +50,6 @@ use crate::{
     menu::{char_selection::CharSelectionState, main::get_client_msg_error},
     render::{Drawer, GlobalsBindGroup},
     scene::{CameraMode, DebugShapeId, Scene, SceneData, camera},
-    session::target::ray_entities,
     settings::Settings,
     window::{AnalogGameInput, Event},
 };
@@ -841,6 +840,23 @@ impl PlayState for SessionState {
                         .hud
                         .handle_event(event.clone(), global_state, inventory)
                     {
+                        // Si la interfaz se queda con el evento de soltar un botón, hay que
+                        // terminar igualmente el arrastre de cámara para que no se quede pegado
+                        if let Event::MouseButton(button, crate::window::PressState::Released) =
+                            &event
+                        {
+                            match button {
+                                crate::window::MouseButton::Left => self.mouse_left_down = false,
+                                crate::window::MouseButton::Right => self.mouse_right_down = false,
+                                _ => {},
+                            }
+                            if !self.mouse_left_down
+                                && !self.mouse_right_down
+                                && self.hud.is_camera_dragging()
+                            {
+                                self.hud.set_camera_dragging(false, global_state);
+                            }
+                        }
                         continue;
                     }
                 }
@@ -1602,6 +1618,12 @@ impl PlayState for SessionState {
                 global_state.profile.tutorial.event_move()
             }
             let (axis_right, axis_up) = (input_vec[0], input_vec[1]);
+            // Estilo WoW: con los dos botones del ratón pulsados el personaje avanza
+            let axis_up = if self.mouse_left_down && self.mouse_right_down {
+                1.0
+            } else {
+                axis_up
+            };
 
             if let Some(ref mut timer) = self.key_state.give_up {
                 use crate::key_state::GIVE_UP_HOLD_TIME;
@@ -1640,32 +1662,13 @@ impl PlayState for SessionState {
                     self.key_state.auto_walk = self.auto_walk;
                     if !self.free_look {
                         let is_left_orbit = self.mouse_left_down && !self.mouse_right_down;
+                        let is_moving = axis_right != 0.0 || axis_up != 0.0;
                         if !is_left_orbit {
                             self.walk_forward_dir = self.scene.camera().forward_xy();
                             self.walk_right_dir = self.scene.camera().right_xy();
                         }
 
                         let client = self.client.borrow();
-
-                        let holding_ranged = client
-                            .inventories()
-                            .get(player_entity)
-                            .and_then(|inv| inv.equipped(EquipSlot::ActiveMainhand))
-                            .and_then(|item| item.tool_info())
-                            .is_some_and(|tool_kind| {
-                                matches!(
-                                    tool_kind,
-                                    ToolKind::Bow
-                                        | ToolKind::Staff
-                                        | ToolKind::Sceptre
-                                        | ToolKind::Throwable
-                                )
-                            })
-                            || client
-                                .current::<comp::CharacterState>()
-                                .is_some_and(|char_state| {
-                                    matches!(char_state, comp::CharacterState::Throw(_))
-                                });
 
                         let target_pos = self.target_entity.and_then(|t| {
                             let positions = client.state().read_storage::<comp::Pos>();
@@ -1705,64 +1708,19 @@ impl PlayState for SessionState {
                                 .unwrap();
 
                             target_pos - (player_pos.0 + body_offsets)
-                        } else if is_aiming
-                            && holding_ranged
-                            && self.scene.camera().get_mode() == CameraMode::ThirdPerson
-                        {
-                            let ray_start = cursor_cam_pos;
-                            let entity_ray_end = ray_start + cursor_cam_dir * 1000.0;
-                            let terrain_ray_end = ray_start + cursor_cam_dir * 1000.0;
-
-                            let aim_point = {
-                                let entity_dist =
-                                    ray_entities(&client, ray_start, entity_ray_end, 1000.0).0;
-                                let terrain_ray_distance = client
-                                    .state()
-                                    .terrain()
-                                    .ray(ray_start, terrain_ray_end)
-                                    .max_iter(1000)
-                                    .until(Block::is_solid)
-                                    .cast()
-                                    .0;
-
-                                ray_start + cursor_cam_dir * entity_dist.min(terrain_ray_distance).min(1000.0)
-                            };
-
-                            let ori = client
-                                .state()
-                                .read_storage::<comp::Ori>()
-                                .get(player_entity)
-                                .copied()
-                                .unwrap();
-                            let scale = client
-                                .state()
-                                .read_storage::<comp::Scale>()
-                                .get(player_entity)
-                                .copied()
-                                .unwrap_or(comp::Scale(1.0));
-                            let body = client
-                                .state()
-                                .read_storage::<comp::Body>()
-                                .get(player_entity)
-                                .copied()
-                                .unwrap();
-                            let body_offsets = body.projectile_offsets(ori.look_vec(), scale.0);
-
-                            let player_pos = client
-                                .state()
-                                .read_storage::<Pos>()
-                                .get(player_entity)
-                                .copied()
-                                .unwrap();
-
-                            aim_point - (player_pos.0 + body_offsets)
                         } else {
+                            // Sin objetivo el personaje mira hacia donde mira la cámara, nunca
+                            // hacia el cursor: el cursor es libre para usar la interfaz
                             cam_dir + aim_dir_offset
                         };
 
                         drop(client);
-                        let is_left_orbit = self.mouse_left_down && !self.mouse_right_down;
-                        if self.target_entity.is_some() || !is_left_orbit {
+                        // Estilo WoW: el personaje solo gira con el clic derecho (o al andar).
+                        // El clic izquierdo mueve solo la cámara, y al soltarlo el personaje
+                        // sigue mirando hacia donde miraba.
+                        let steering = self.mouse_right_down
+                            || (!is_left_orbit && (is_moving || self.key_state.auto_walk));
+                        if self.target_entity.is_some() || steering {
                             self.inputs.look_dir = Dir::from_unnormalized(dir).unwrap_or(self.inputs.look_dir);
                         }
                     }

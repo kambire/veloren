@@ -701,6 +701,7 @@ impl StateExt for State {
             pets,
             active_abilities,
             map_marker,
+            quests,
         } = components;
 
         if let Some(player_uid) = self.read_component_copied::<Uid>(entity) {
@@ -742,8 +743,16 @@ impl StateExt for State {
             self.write_component_ignore_entity_dead(entity, Poise::new(body));
             self.write_component_ignore_entity_dead(entity, stats);
             self.write_component_ignore_entity_dead(entity, active_abilities);
+            // Personajes creados antes de fijar los árboles por clase: se les
+            // asigna el árbol de la clase de su arma actual (una sola vez)
+            let mut skill_set = skill_set;
+            if !common::class::CharacterClass::has_class_tree(&skill_set) {
+                common::class::CharacterClass::from_inventory(&inventory)
+                    .unlock_class_tree(&mut skill_set);
+            }
             self.write_component_ignore_entity_dead(entity, skill_set);
             self.write_component_ignore_entity_dead(entity, inventory);
+            self.write_component_ignore_entity_dead(entity, quests);
             self.write_component_ignore_entity_dead(
                 entity,
                 comp::InventoryUpdateBuffer::new(comp::InventoryUpdateEvent::Init),

@@ -126,6 +126,12 @@ pub struct ActorSystemData<'a> {
     pub ability_map: ReadExpect<'a, comp::tool::AbilityMap>,
     pub msm: ReadExpect<'a, comp::item::MaterialStatManifest>,
     pub inventories: Mutex<WriteStorage<'a, comp::Inventory>>,
+    /// Misiones de los jugadores, para que los NPC las den y las reciban
+    pub active_quests: Mutex<WriteStorage<'a, common::quest::ActiveQuests>>,
+    /// Facción de los jugadores
+    pub players: ReadStorage<'a, comp::Player>,
+    /// Para dar la experiencia de las recompensas de misión
+    pub skill_sets: Mutex<WriteStorage<'a, comp::SkillSet>>,
 }
 
 /// A trait that describes 'actions': long-running tasks performed by rtsim

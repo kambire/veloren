@@ -213,6 +213,9 @@ impl Sys {
                     }
                 }
             },
+            // Los árboles de talentos van fijados a la clase desde la creación del
+            // personaje: un jugador no puede desbloquear árboles de otras clases.
+            ClientGeneral::UnlockSkill(common::comp::skills::Skill::UnlockGroup(_)) => {},
             ClientGeneral::UnlockSkill(skill) => {
                 // FIXME: How do we want to handle the error?  Probably not by swallowing it.
                 let _ = skill_set

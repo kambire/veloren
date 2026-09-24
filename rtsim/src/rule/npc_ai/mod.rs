@@ -26,6 +26,7 @@
 mod airship_ai;
 #[cfg(feature = "airship_log")]
 mod airship_logger;
+pub mod azeria_quest;
 pub mod dialogue;
 pub mod movement;
 pub mod quest;
@@ -1403,10 +1404,20 @@ fn check_inbox<S: State>(ctx: &mut NpcCtx) -> Option<impl Action<S> + use<S>> {
                         if let Some(site) = site
                             && ctx.actor.home == Some(site)
                         {
-                            // TODO: Don't hardcode sentiment change.
-                            ctx.sentiments
-                                .toward_mut(thief)
-                                .change_by(-0.2, Sentiment::ENEMY);
+                            // Un jugador que recoge cosas del pueblo no se vuelve enemigo:
+                            // si no, los NPC de misiones dejarían de hablarle y los
+                            // guardias le atacarían
+                            let thief_is_player = ctx
+                                .data
+                                .actors
+                                .get(thief)
+                                .is_some_and(|a| a.character().is_some());
+                            if !thief_is_player {
+                                // TODO: Don't hardcode sentiment change.
+                                ctx.sentiments
+                                    .toward_mut(thief)
+                                    .change_by(-0.2, Sentiment::ENEMY);
+                            }
                             ctx.known_reports.insert(*report_id);
 
                             let phrase =
@@ -1486,6 +1497,14 @@ fn check_for_enemies<S: State>(ctx: &mut NpcCtx) -> Option<impl Action<S> + use<
     ctx.data
         .actors
         .nearby(Some(ctx.actor_id), ctx.actor.wpos, 24.0)
+        // Los NPC de pueblo nunca atacan a jugadores: con ellos solo hay PvP
+        // entre jugadores o combate contra monstruos
+        .filter(|actor| {
+            !ctx.data
+                .actors
+                .get(*actor)
+                .is_some_and(|a| a.character().is_some())
+        })
         .find(|actor| ctx.sentiments.toward(*actor).is(Sentiment::ENEMY))
         .map(|enemy| just(move |ctx, _| ctx.controller.attack(enemy)))
 }

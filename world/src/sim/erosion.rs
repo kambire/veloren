@@ -1742,7 +1742,19 @@ pub(crate) fn fill_sinks<F: Float + Send + Sync>(
 ) -> Box<[F]> {
     // NOTE: We are using the "exact" version of depression-filling, which is slower
     // but doesn't change altitudes.
-    let epsilon = F::zero();
+    fill_sinks_with_slope(map_size_lg, h, is_ocean, F::zero())
+}
+
+/// Igual que [`fill_sinks`], pero cada casilla rellenada queda al menos
+/// `epsilon` por encima del vecino por el que desagua. Con `epsilon > 0` no
+/// queda ninguna zona plana cerrada: toda hondonada tiene salida cuesta abajo
+/// hasta el océano, así que no se forman lagos.
+pub(crate) fn fill_sinks_with_slope<F: Float + Send + Sync>(
+    map_size_lg: MapSizeLg,
+    h: impl Fn(usize) -> F + Sync,
+    is_ocean: impl Fn(usize) -> bool + Sync,
+    epsilon: F,
+) -> Box<[F]> {
     let infinity = F::infinity();
     let range = 0..map_size_lg.chunks_len();
     let oldh = range

@@ -1,0 +1,22 @@
+// Curación principal del Sacerdote. A diferencia del Aura curativa original no
+// exige combo, así que puede curar al grupo sin tener que atacar antes.
+// Cura unos 15 puntos de vida en 6 s a todo el grupo (mascotas incluidas),
+// y los talentos de la rama Sagrada la suben hasta ~23.
+BasicAura(
+    buildup_duration: 0.2,
+    cast_duration: 0.4,
+    recover_duration: 0.2,
+    targets: InGroup,
+    auras: [
+        (
+            kind: Regeneration,
+            strength: 2.5,
+            duration: Some(6),
+        ),
+    ],
+    aura_duration: Some(1.0),
+    range: 25.0,
+    energy_cost: 25.0,
+    scales_with_combo: false,
+    specifier: Some(HealingAura),
+)

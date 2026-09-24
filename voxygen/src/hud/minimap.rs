@@ -25,12 +25,12 @@ use common::{
 use common_state::TerrainChanges;
 use conrod_core::{
     Color, Colorable, Positionable, Sizeable, Widget, WidgetCommon, color, position,
-    widget::{self, Button, Image, Rectangle, Text},
+    widget::{self, Button, Image, Rectangle, RoundedRectangle, Text},
     widget_ids,
 };
 use hashbrown::{HashMap, HashSet};
 use image::{DynamicImage, RgbaImage};
-use specs::WorldExt;
+use specs::{Join, WorldExt};
 use std::sync::Arc;
 
 use vek::{Rgba, Vec2, Vec3, approx::AbsDiffEq};
@@ -313,6 +313,7 @@ impl VoxelMinimap {
         {
             self.last_pos = cpos.with_z(pos.z as i32);
             self.last_ceiling = ceiling_offset;
+            let mut raw_colors = vec![Rgba::<u8>::zero(); (VOXEL_MINIMAP_SIDELENGTH * VOXEL_MINIMAP_SIDELENGTH) as usize];
             for y in 0..VOXEL_MINIMAP_SIDELENGTH {
                 for x in 0..VOXEL_MINIMAP_SIDELENGTH {
                     let voff = Vec2::new(x as f32, y as f32);
@@ -360,10 +361,74 @@ impl VoxelMinimap {
                             }
                         })
                         .unwrap_or_else(Rgba::zero);
+                    raw_colors[(y * VOXEL_MINIMAP_SIDELENGTH + x) as usize] = color;
+                }
+            }
+
+            // Sombreado 3D de relieve (hillshading) con fuente de luz desde el Noroeste (sol a 45 grados)
+            // y viñeteado circular perfecto para adaptarse a la brújula redonda de fantasía
+            let side = VOXEL_MINIMAP_SIDELENGTH as usize;
+            let center = VOXEL_MINIMAP_SIDELENGTH as f32 / 2.0;
+            let lum = |c: Rgba<u8>| -> f32 {
+                0.299 * c.r as f32 + 0.587 * c.g as f32 + 0.114 * c.b as f32
+            };
+
+            for y in 0..VOXEL_MINIMAP_SIDELENGTH {
+                for x in 0..VOXEL_MINIMAP_SIDELENGTH {
+                    let idx = (y * VOXEL_MINIMAP_SIDELENGTH + x) as usize;
+                    let color = raw_colors[idx];
+
+                    let mut r = color.r;
+                    let mut g = color.g;
+                    let mut b = color.b;
+                    let mut a = color.a;
+
+                    let c_lum = lum(color);
+                    if a > 0 && c_lum > 12.0 {
+                        let x_prev = x.saturating_sub(1) as usize;
+                        let x_next = (x + 1).min(VOXEL_MINIMAP_SIDELENGTH - 1) as usize;
+                        let y_prev = y.saturating_sub(1) as usize;
+                        let y_next = (y + 1).min(VOXEL_MINIMAP_SIDELENGTH - 1) as usize;
+
+                        let l_west = lum(raw_colors[(y as usize) * side + x_prev]);
+                        let l_east = lum(raw_colors[(y as usize) * side + x_next]);
+                        let l_north = lum(raw_colors[y_prev * side + (x as usize)]);
+                        let l_south = lum(raw_colors[y_next * side + (x as usize)]);
+
+                        // Gradiente direccional con luz desde el Noroeste (-X, -Y)
+                        let dx = l_east - l_west;
+                        let dy = l_south - l_north;
+                        let slope = -0.55 * dx - 0.55 * dy;
+                        let factor = (1.0 + (slope / 255.0) * 0.42).clamp(0.68, 1.35);
+
+                        if factor >= 1.0 {
+                            // Brillo solar cálido en las laderas orientadas a la luz
+                            r = ((r as f32 * factor * 1.03).min(255.0)) as u8;
+                            g = ((g as f32 * factor * 1.01).min(255.0)) as u8;
+                            b = ((b as f32 * factor * 0.97).min(255.0)) as u8;
+                        } else {
+                            // Sombra ambiental suave en las laderas opuestas
+                            r = (r as f32 * factor * 0.96) as u8;
+                            g = (g as f32 * factor * 0.98) as u8;
+                            b = ((b as f32 * factor * 1.04).min(255.0)) as u8;
+                        }
+                    }
+
+                    // Viñeteado circular suave en los bordes para encajar en el compás
+                    let dx = x as f32 + 0.5 - center;
+                    let dy = y as f32 + 0.5 - center;
+                    let dist = (dx * dx + dy * dy).sqrt();
+                    if dist > 125.0 {
+                        a = 0;
+                    } else if dist > 118.0 {
+                        let t = (125.0 - dist) / 7.0;
+                        a = ((a as f32) * t) as u8;
+                    }
+
                     self.composited.put_pixel(
                         x,
                         VOXEL_MINIMAP_SIDELENGTH - y - 1,
-                        image::Rgba([color.r, color.g, color.b, color.a]),
+                        image::Rgba([r, g, b, a]),
                     );
                 }
             }
@@ -403,6 +468,11 @@ widget_ids! {
         location_marker_group[],
         voxel_minimap,
         draggable_area,
+        quest_marker_borders[],
+        quest_marker_bgs[],
+        quest_markers[],
+        quest_marker_dist_bgs[],
+        quest_marker_dist_texts[],
     }
 }
 
@@ -743,14 +813,10 @@ impl Widget for MiniMap<'_> {
                 let rpos = Vec2::unit_x().rotated_z(orientation.x) * rpixpos.x
                     + Vec2::unit_y().rotated_z(orientation.x) * rpixpos.y;
 
-                if rpos
-                    .map2(map_size, |e, sz| e.abs() > sz as f32 / 2.0)
-                    .reduce_or()
-                {
-                    limit.then(|| {
-                        let clamped = rpos / rpos.map(|e| e.abs()).reduce_partial_max();
-                        clamped * map_size.map(|e| e as f32) / 2.0
-                    })
+                let max_radius = (map_size.x as f32 / 2.0) - 13.0 * scale as f32;
+                let dist = rpos.magnitude();
+                if dist > max_radius {
+                    limit.then(|| (rpos / dist) * max_radius)
                 } else {
                     Some(rpos)
                 }
@@ -942,6 +1008,242 @@ impl Widget for MiniMap<'_> {
                     .set(state.ids.location_marker, ui)
             }
 
+            // Marcadores de misiones e indicador de navegación en la brújula
+            let ecs = self.client.state().ecs();
+            let me = self.client.entity();
+            let quest_givers = ecs.read_storage::<common::quest::QuestGiver>();
+            let quest_alignments = ecs.read_storage::<comp::Alignment>();
+            let my_quests = ecs
+                .read_storage::<common::quest::ActiveQuests>()
+                .get(me)
+                .cloned();
+            let bodies = ecs.read_storage::<comp::Body>();
+            let positions = ecs.read_storage::<comp::Pos>();
+            let healths = ecs.read_storage::<comp::Health>();
+            let entities = ecs.entities();
+            let my_faction = match bodies.get(me) {
+                Some(comp::Body::Humanoid(body)) => {
+                    Some(common::zone::FactionId::from_species(body.species))
+                },
+                _ => None,
+            };
+            let npc_names = common::npc::NPC_NAMES.read();
+
+            struct QuestTargetItem {
+                wpos: Vec2<f32>,
+                marker: common::quest::QuestMarker,
+            }
+            let mut quest_targets: Vec<QuestTargetItem> = Vec::new();
+
+            if let Some(quests) = &my_quests {
+                // 1. NPCs que dan o reciben misiones en el área cargada
+                for (_, pos, giver) in (&entities, &positions, &quest_givers).join() {
+                    let zone = common::zone::get_zone_at(pos.0.xy()).id;
+                    if let Some(marker) = quests.marker_for_giver(*giver, zone, my_faction) {
+                        quest_targets.push(QuestTargetItem {
+                            wpos: pos.0.xy(),
+                            marker,
+                        });
+                    }
+                }
+
+                // 2. Criaturas que son objetivo de misiones activas (mobs)
+                for (entity, pos, body) in (&entities, &positions, &bodies).join() {
+                    if entity == me {
+                        continue;
+                    }
+                    if healths.get(entity).is_some_and(|h| h.is_dead) {
+                        continue;
+                    }
+                    if matches!(
+                        quest_alignments.get(entity),
+                        Some(
+                            comp::Alignment::Owned(_)
+                                | comp::Alignment::Npc
+                                | comp::Alignment::Tame
+                        )
+                    ) {
+                        continue;
+                    }
+                    if let Some(meta) = npc_names.get_species_meta(body) {
+                        if quests.is_target(&meta.keyword) {
+                            quest_targets.push(QuestTargetItem {
+                                wpos: pos.0.xy(),
+                                marker: common::quest::QuestMarker::Target,
+                            });
+                        }
+                    }
+                }
+
+                // 3. Destinos de misiones activas que están fuera del rango cargado
+                for progress in &quests.active {
+                    if let Some(quest_def) = progress.definition() {
+                        let is_ready = progress.is_complete();
+                        let target_marker = if is_ready {
+                            common::quest::QuestMarker::ReadyToTurnIn
+                        } else {
+                            common::quest::QuestMarker::Target
+                        };
+
+                        let already_present = quest_targets.iter().any(|qt| qt.marker == target_marker);
+                        if !already_present {
+                            let zone_def = common::zone::ZONES.iter().find(|z| z.id == quest_def.zone);
+                            let target_pos = self.client.sites().values()
+                                .find(|s| common::zone::get_zone_at(s.marker.wpos).id == quest_def.zone)
+                                .map(|s| s.marker.wpos)
+                                .or_else(|| zone_def.map(|zd| zd.center_wpos.map(|e| e as f32)))
+                                .unwrap_or(player_pos.xy());
+
+                            quest_targets.push(QuestTargetItem {
+                                wpos: target_pos,
+                                marker: target_marker,
+                            });
+                        }
+                    }
+                }
+            }
+
+            let q_len = quest_targets.len();
+            if state.ids.quest_markers.len() < q_len {
+                state.update(|s| {
+                    s.ids.quest_marker_borders.resize(q_len, &mut ui.widget_id_generator());
+                    s.ids.quest_marker_bgs.resize(q_len, &mut ui.widget_id_generator());
+                    s.ids.quest_markers.resize(q_len, &mut ui.widget_id_generator());
+                    s.ids.quest_marker_dist_bgs.resize(q_len, &mut ui.widget_id_generator());
+                    s.ids.quest_marker_dist_texts.resize(q_len, &mut ui.widget_id_generator());
+                });
+            }
+
+            for (i, target) in quest_targets.iter().enumerate() {
+                let rwpos = target.wpos - player_pos.xy();
+                let dist_meters = rwpos.magnitude() as i32;
+
+                let rcpos = rwpos.wpos_to_cpos();
+                let rfpos = rcpos / max_zoom as f32;
+                let rpixpos = rfpos.map2(map_size, |e, sz| e * sz as f32 * zoom as f32);
+                let rpos_unclamped = Vec2::unit_x().rotated_z(orientation.x) * rpixpos.x
+                    + Vec2::unit_y().rotated_z(orientation.x) * rpixpos.y;
+
+                let compass_radius = (map_size.x as f32 / 2.0) - 14.0 * scale as f32;
+                let dist_px = rpos_unclamped.magnitude();
+                let is_clamped = dist_px > compass_radius;
+
+                let rpos = if is_clamped {
+                    (rpos_unclamped / dist_px) * compass_radius
+                } else {
+                    rpos_unclamped
+                };
+
+                let pulse_anim = if target.marker == common::quest::QuestMarker::ReadyToTurnIn {
+                    (self.pulse * 5.0).sin() * 2.0
+                } else {
+                    0.0
+                };
+
+                let (border_col, bg_col, text_col, base_size) = match target.marker {
+                    common::quest::QuestMarker::ReadyToTurnIn => (
+                        Color::Rgba(0.38, 0.28, 0.05, 0.95),
+                        Color::Rgba(1.0, 0.85, 0.1, 0.98),
+                        Color::Rgba(0.12, 0.08, 0.01, 1.0),
+                        18.0 * scale as f32,
+                    ),
+                    common::quest::QuestMarker::Available => (
+                        Color::Rgba(0.38, 0.28, 0.05, 0.95),
+                        Color::Rgba(1.0, 0.85, 0.1, 0.95),
+                        Color::Rgba(0.12, 0.08, 0.01, 1.0),
+                        16.0 * scale as f32,
+                    ),
+                    common::quest::QuestMarker::InProgress => (
+                        Color::Rgba(0.2, 0.2, 0.25, 0.9),
+                        Color::Rgba(0.72, 0.72, 0.76, 0.9),
+                        Color::Rgba(0.1, 0.1, 0.12, 1.0),
+                        15.0 * scale as f32,
+                    ),
+                    common::quest::QuestMarker::Target => (
+                        Color::Rgba(0.38, 0.12, 0.02, 0.95),
+                        Color::Rgba(1.0, 0.45, 0.08, 0.98),
+                        Color::Rgba(1.0, 1.0, 1.0, 1.0),
+                        16.0 * scale as f32,
+                    ),
+                };
+
+                let badge_size = (base_size + pulse_anim) as f64;
+                let inner_size = (badge_size - 3.0).max(4.0);
+
+                // Círculo exterior (borde 3D)
+                RoundedRectangle::fill_with(
+                    [badge_size, badge_size],
+                    badge_size / 2.0,
+                    border_col,
+                )
+                .x_y_position_relative_to(
+                    state.ids.map_layers[0],
+                    position::Relative::Scalar(rpos.x as f64),
+                    position::Relative::Scalar(rpos.y as f64),
+                )
+                .parent(ui.window)
+                .set(state.ids.quest_marker_borders[i], ui);
+
+                // Círculo interior
+                RoundedRectangle::fill_with(
+                    [inner_size, inner_size],
+                    inner_size / 2.0,
+                    bg_col,
+                )
+                .middle_of(state.ids.quest_marker_borders[i])
+                .parent(ui.window)
+                .set(state.ids.quest_marker_bgs[i], ui);
+
+                // Símbolo '!' o '?'
+                Text::new(target.marker.icon())
+                    .middle_of(state.ids.quest_marker_bgs[i])
+                    .font_id(self.fonts.cyri.conrod_id)
+                    .font_size(self.fonts.cyri.scale(match target.marker {
+                        common::quest::QuestMarker::Target => 12,
+                        _ => 14,
+                    }))
+                    .color(text_col)
+                    .parent(ui.window)
+                    .set(state.ids.quest_markers[i], ui);
+
+                // Si está fuera de pantalla, mostrar indicador de distancia hacia el objetivo
+                if is_clamped {
+                    let dist_str = if dist_meters < 1000 {
+                        format!("{}m", dist_meters)
+                    } else {
+                        format!("{:.1}k", dist_meters as f32 / 1000.0)
+                    };
+
+                    let dist_offset = if rpos.magnitude() > 1.0 {
+                        (rpos / rpos.magnitude()) * (13.0 * scale as f32)
+                    } else {
+                        Vec2::zero()
+                    };
+                    let dist_pos = rpos - dist_offset;
+
+                    RoundedRectangle::fill_with(
+                        [26.0 * scale, 12.0 * scale],
+                        3.0,
+                        Color::Rgba(0.04, 0.04, 0.06, 0.88),
+                    )
+                    .x_y_position_relative_to(
+                        state.ids.map_layers[0],
+                        position::Relative::Scalar(dist_pos.x as f64),
+                        position::Relative::Scalar(dist_pos.y as f64),
+                    )
+                    .parent(ui.window)
+                    .set(state.ids.quest_marker_dist_bgs[i], ui);
+
+                    Text::new(&dist_str)
+                        .middle_of(state.ids.quest_marker_dist_bgs[i])
+                        .font_id(self.fonts.cyri.conrod_id)
+                        .font_size(self.fonts.cyri.scale(8))
+                        .color(Color::Rgba(1.0, 0.95, 0.82, 1.0))
+                        .parent(ui.window)
+                        .set(state.ids.quest_marker_dist_texts[i], ui);
+                }
+            }
+
             // Camera direction
             let (cam_scale, cam_rotation) = if is_facing_north {
                 // shows camera cone when map is locked north
@@ -983,20 +1285,20 @@ impl Widget for MiniMap<'_> {
             for (dir, id, name, bold) in dirs.iter() {
                 let cardinal_dir = Vec2::unit_x().rotated_z(orientation.x as f64) * dir.x
                     + Vec2::unit_y().rotated_z(orientation.x as f64) * dir.y;
-                let clamped = cardinal_dir / cardinal_dir.map(|e| e.abs()).reduce_partial_max();
-                let pos = clamped * (map_size / 2.0 - 10.0);
+                let compass_radius = (map_size.x as f64 / 2.0) - 13.0 * scale;
+                let pos = cardinal_dir * compass_radius;
                 Text::new(name)
                     .x_y_position_relative_to(
                         state.ids.map_layers[0],
                         position::Relative::Scalar(pos.x),
                         position::Relative::Scalar(pos.y),
                     )
-                    .font_size(self.fonts.cyri.scale(18))
+                    .font_size(self.fonts.cyri.scale(if *bold { 16 } else { 13 }))
                     .font_id(self.fonts.cyri.conrod_id)
                     .color(if *bold {
-                        Color::Rgba(0.75, 0.0, 0.0, 1.0)
+                        Color::Rgba(1.0, 0.25, 0.2, 1.0)
                     } else {
-                        TEXT_COLOR
+                        Color::Rgba(0.92, 0.88, 0.75, 0.95)
                     })
                     .parent(ui.window)
                     .set(*id, ui);

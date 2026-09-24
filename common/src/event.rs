@@ -71,6 +71,8 @@ pub struct NpcBuilder {
     pub death_effects: Option<DeathEffects>,
     pub rider_effects: Option<RiderEffects>,
     pub rider: Option<Box<Self>>,
+    /// Profesión con la que este NPC de pueblo da misiones
+    pub quest_giver: Option<crate::quest::QuestGiver>,
 }
 
 impl NpcBuilder {
@@ -94,7 +96,13 @@ impl NpcBuilder {
             death_effects: None,
             rider_effects: None,
             rider: None,
+            quest_giver: None,
         }
+    }
+
+    pub fn with_quest_giver(mut self, quest_giver: Option<crate::quest::QuestGiver>) -> Self {
+        self.quest_giver = quest_giver;
+        self
     }
 
     pub fn with_rider(mut self, rider: impl Into<Option<NpcBuilder>>) -> Self {
@@ -239,6 +247,7 @@ pub struct UpdateCharacterDataEvent {
         Vec<(comp::Pet, comp::Body, comp::Stats)>,
         comp::ActiveAbilities,
         Option<comp::MapMarker>,
+        crate::quest::ActiveQuests,
     ),
     pub metadata: UpdateCharacterMetadata,
 }

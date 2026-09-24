@@ -84,6 +84,7 @@ pub fn skill_group_to_db_string(skill_group: comp::skillset::SkillGroupKind) -> 
         Weapon(ToolKind::Staff) => "Weapon Staff",
         Weapon(ToolKind::Sceptre) => "Weapon Sceptre",
         Weapon(ToolKind::Pick) => "Weapon Pick",
+        Tamer => "Tamer",
         Weapon(ToolKind::Dagger)
         | Weapon(ToolKind::Shield)
         | Weapon(ToolKind::Spear)
@@ -113,6 +114,7 @@ pub fn db_string_to_skill_group(skill_group_string: &str) -> comp::skillset::Ski
         "Weapon Staff" => Weapon(ToolKind::Staff),
         "Weapon Sceptre" => Weapon(ToolKind::Sceptre),
         "Weapon Pick" => Weapon(ToolKind::Pick),
+        "Tamer" => Tamer,
 
         _ => panic!(
             "Tried to convert an unsupported string from the database: {}",

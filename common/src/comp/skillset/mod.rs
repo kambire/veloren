@@ -89,6 +89,9 @@ lazy_static! {
 pub enum SkillGroupKind {
     General,
     Weapon(ToolKind),
+    /// Árbol del Entrenador. Su cayado es un cetro, pero tiene su propio árbol
+    /// para no compartir puntos ni talentos con el Sacerdote.
+    Tamer,
 }
 
 impl SkillGroupKind {

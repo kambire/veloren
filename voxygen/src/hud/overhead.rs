@@ -326,16 +326,16 @@ impl Widget for Overhead<'_> {
                 // Sombra de contraste
                 Text::new(marker.icon())
                     .font_id(self.fonts.cyri.conrod_id)
-                    .font_size(28)
+                    .font_size(marker.font_size())
                     .color(Color::Rgba(0.0, 0.0, 0.0, 0.85))
                     .x_y(1.0, marker_y - 1.0)
                     .parent(id)
                     .set(state.ids.quest_marker_shadow, ui);
 
-                // Icono visible ('!' o '?')
+                // Icono visible ('!' o '?'; naranja y más pequeño en las criaturas)
                 Text::new(marker.icon())
                     .font_id(self.fonts.cyri.conrod_id)
-                    .font_size(28)
+                    .font_size(marker.font_size())
                     .color(Color::Rgba(
                         r as f32 / 255.0,
                         g as f32 / 255.0,

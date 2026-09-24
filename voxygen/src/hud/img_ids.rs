@@ -410,6 +410,8 @@ image_ids! {
         bow_foothold: "voxygen.element.skills.bow.foothold",
         bow_heavy_nock: "voxygen.element.skills.bow.heavy_nock",
         bow_ardent_hunt: "voxygen.element.skills.bow.ardent_hunt",
+        // Clase Entrenador
+        tamer_class: "voxygen.element.ui.char_select.icons.tamer",
         bow_storm_chaser: "voxygen.element.skills.bow.storm_chaser",
         bow_eagle_eye: "voxygen.element.skills.bow.eagle_eye",
         bow_heartseeker: "voxygen.element.skills.bow.heartseeker",

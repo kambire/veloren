@@ -21,6 +21,7 @@ use crate::{
 use common::{
     CachedSpatialGrid, Damage, DamageKind, DamageSource, GroupTarget, RadiusEffect,
     assets::{AssetExt, Ron},
+    class::CharacterClass,
     combat::{
         self, AttackSource, BASE_PARRIED_POISE_PUNISHMENT, CombatEffect, DamageContributor,
         DeathEffects, StatEffect, StatEffectTarget,
@@ -499,11 +500,21 @@ fn handle_exp_gain(
             }
         }
     };
-    // Add weapons to xp pools considered
-    add_tool_from_slot(EquipSlot::ActiveMainhand);
-    add_tool_from_slot(EquipSlot::ActiveOffhand);
-    add_tool_from_slot(EquipSlot::InactiveMainhand);
-    add_tool_from_slot(EquipSlot::InactiveOffhand);
+    // La experiencia de combate va al árbol de la clase, lleve el arma que lleve.
+    // Solo si el personaje aún no tiene árbol de clase se usa el arma equipada.
+    let class_pools = CharacterClass::ALL
+        .iter()
+        .map(|class| class.skill_group())
+        .filter(|group| skill_set.skill_group_accessible(*group))
+        .collect::<Vec<_>>();
+    if class_pools.is_empty() {
+        add_tool_from_slot(EquipSlot::ActiveMainhand);
+        add_tool_from_slot(EquipSlot::ActiveOffhand);
+        add_tool_from_slot(EquipSlot::InactiveMainhand);
+        add_tool_from_slot(EquipSlot::InactiveOffhand);
+    } else {
+        xp_pools.extend(class_pools);
+    }
     let num_pools = xp_pools.len() as f32;
     for pool in xp_pools.iter() {
         if let Some(level_outcome) =
@@ -564,6 +575,7 @@ pub struct DestroyEventData<'a> {
     #[cfg(feature = "worldgen")]
     rtsim_actors: ReadStorage<'a, rtsim::ActorId>,
     masses: ReadStorage<'a, comp::Mass>,
+    active_quests: WriteStorage<'a, common::quest::ActiveQuests>,
     event_buses: DestroyEvents<'a>,
     buffs: ReadStorage<'a, comp::Buffs>,
     orientations: ReadStorage<'a, comp::Ori>,
@@ -1207,6 +1219,25 @@ impl ServerEvent for DestroyEvent {
                 }
             }).flatten().collect::<Vec<(Entity, f32, Option<Group>)>>();
 
+                // Especie de la criatura muerta para las misiones. Los jugadores, sus
+                // mascotas y los NPC de pueblo no cuentan.
+                let quest_keyword = data
+                    .bodies
+                    .get(ev.entity)
+                    .filter(|_| {
+                        !data.players.contains(ev.entity)
+                            && !matches!(
+                                data.alignments.get(ev.entity),
+                                Some(Alignment::Owned(_) | Alignment::Npc | Alignment::Tame)
+                            )
+                    })
+                    .and_then(|body| {
+                        NPC_NAMES
+                            .read()
+                            .get_species_meta(body)
+                            .map(|meta| meta.keyword.clone())
+                    });
+
                 exp_awards.iter().for_each(|(attacker, exp_reward, _)| {
                     // Process the calculated EXP rewards
                     if let Some((mut attacker_skill_set, attacker_uid, attacker_inventory)) =
@@ -1221,6 +1252,31 @@ impl ServerEvent for DestroyEvent {
                             attacker_uid,
                             &mut outcomes,
                         );
+                    }
+
+                    // Progreso de misiones: cuenta para todo el que recibe experiencia
+                    // por la muerte (también los miembros del grupo que estaban cerca)
+                    if let Some(keyword) = &quest_keyword
+                        && let Some(mut quests) = data.active_quests.get_mut(*attacker)
+                    {
+                        for update in quests.register_kill(keyword) {
+                            let mut msg = format!(
+                                "{}: {} {}/{}",
+                                update.quest_title,
+                                update.objective_label,
+                                update.count,
+                                update.required
+                            );
+                            if update.quest_completed {
+                                msg.push_str(" - ¡Misión completada! Vuelve a entregarla.");
+                            }
+                            if let Some(client) = data.clients.get(*attacker) {
+                                client.send_fallible(ServerGeneral::server_msg(
+                                    comp::ChatType::Meta,
+                                    comp::Content::Plain(msg),
+                                ));
+                            }
+                        }
                     }
                 });
             };

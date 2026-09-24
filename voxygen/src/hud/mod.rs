@@ -1971,10 +1971,11 @@ impl Hud {
                         Weapon(ToolKind::Hammer) => i18n.get_msg("common-weapons-hammer"),
                         Weapon(ToolKind::Axe) => i18n.get_msg("common-weapons-axe"),
                         Weapon(ToolKind::Sword) => i18n.get_msg("common-weapons-sword"),
-                        Weapon(ToolKind::Sceptre) => i18n.get_msg("common-weapons-sceptre"),
+                        Weapon(ToolKind::Sceptre) => i18n.get_msg("hud-skill_tree-sceptre"),
                         Weapon(ToolKind::Bow) => i18n.get_msg("common-weapons-bow"),
                         Weapon(ToolKind::Staff) => i18n.get_msg("common-weapons-staff"),
                         Weapon(ToolKind::Pick) => i18n.get_msg("common-tool-mining"),
+                        SkillGroupKind::Tamer => i18n.get_msg("hud-skill_tree-tamer"),
                         _ => Cow::Borrowed("Unknown"),
                     };
                     Text::new(&skill)
@@ -2000,6 +2001,7 @@ impl Hud {
                         Weapon(ToolKind::Bow) => self.imgs.bow,
                         Weapon(ToolKind::Staff) => self.imgs.staff,
                         Weapon(ToolKind::Pick) => self.imgs.mining,
+                        SkillGroupKind::Tamer => self.imgs.tamer_class,
                         _ => self.imgs.swords_crossed,
                     })
                     .w_h(20.0, 20.0)
@@ -2405,6 +2407,21 @@ impl Hud {
 
             let speech_bubbles = &self.speech_bubbles;
             let my_stats = stats.get(me);
+            // Datos para los marcadores de misión
+            let quest_givers = ecs.read_storage::<common::quest::QuestGiver>();
+            let quest_alignments = ecs.read_storage::<comp::Alignment>();
+            let my_quests = ecs
+                .read_storage::<common::quest::ActiveQuests>()
+                .get(me)
+                .cloned();
+            // La facción sale de la raza, igual que en el servidor al cargar el personaje
+            let my_faction = match ecs.read_storage::<comp::Body>().get(me) {
+                Some(comp::Body::Humanoid(body)) => {
+                    Some(common::zone::FactionId::from_species(body.species))
+                },
+                _ => None,
+            };
+            let npc_names = common::npc::NPC_NAMES.read();
             // Render overhead name tags and health bars
             for (
                 entity,
@@ -2470,15 +2487,28 @@ impl Hud {
 
                         let is_marked = my_stats.is_some_and(|s| s.marked_entities.contains(uid));
 
-                        let quest_marker = entity_interactables
-                            .get(&entity)
-                            .and_then(|interactions| {
-                                if interactions.contains(&interactable::EntityInteraction::Talk) {
-                                    Some(common::quest::QuestMarker::Available)
-                                } else {
-                                    None
-                                }
-                            });
+                        // Marcadores de misión estilo WoW: '!' y '?' sobre los NPC que dan
+                        // misiones, y '!' naranja sobre las criaturas de misiones en curso
+                        let quest_marker = my_quests.as_ref().and_then(|quests| {
+                            if let Some(giver) = quest_givers.get(entity) {
+                                let zone = common::zone::get_zone_at(pos.xy()).id;
+                                quests.marker_for_giver(*giver, zone, my_faction)
+                            } else if !matches!(
+                                quest_alignments.get(entity),
+                                Some(
+                                    comp::Alignment::Owned(_)
+                                        | comp::Alignment::Npc
+                                        | comp::Alignment::Tame
+                                )
+                            ) && npc_names
+                                .get_species_meta(body)
+                                .is_some_and(|meta| quests.is_target(&meta.keyword))
+                            {
+                                Some(common::quest::QuestMarker::Target)
+                            } else {
+                                None
+                            }
+                        });
 
                         // Determine whether to display nametag and healthbar based on whether the
                         // entity is mounted, has been damaged, is targeted/selected, or is in your

@@ -16,11 +16,13 @@ pub use self::{
 };
 pub(crate) use self::{
     erosion::{
-        Alt, RiverData, RiverKind, do_erosion, fill_sinks, get_lakes, get_multi_drainage,
+        Alt, RiverData, RiverKind, do_erosion, fill_sinks, fill_sinks_with_slope, get_lakes,
+        get_multi_drainage,
         get_multi_rec, get_rivers,
     },
     util::{
-        InverseCdf, cdf_irwin_hall, downhill, get_oceans, local_cells, map_edge_factor,
+        InverseCdf, cdf_irwin_hall, continent_mask, downhill, get_oceans, local_cells,
+        map_edge_factor,
         uniform_noise, uphill,
     },
 };
@@ -150,6 +152,12 @@ pub struct GenOpts {
     pub scale: f64,
     pub map_kind: MapKind,
     pub erosion_quality: f32,
+    /// Número de continentes separados por océano (2, 3 o 4). Con 0 o 1 no se
+    /// aplica ninguna máscara y el mundo se genera como en Veloren original.
+    pub continents: u32,
+    /// Mundo sin lagos: tras la erosión se rellenan todas las hondonadas cerradas
+    /// para que el agua baje siempre en ríos hasta el océano.
+    pub no_lakes: bool,
 }
 
 impl Default for GenOpts {
@@ -160,6 +168,8 @@ impl Default for GenOpts {
             scale: 2.0,
             map_kind: MapKind::Square,
             erosion_quality: 1.0,
+            continents: 0,
+            no_lakes: false,
         }
     }
 }
@@ -565,25 +575,27 @@ pub type ModernMap = WorldMap_0_7_0;
 /// TODO: Consider using some naming convention to automatically change this
 /// with changing versions, or at least keep it in a constant somewhere that's
 /// easy to change.
-// Generation parameters:
+// Mundo de World of Azeria: 4 continentes separados por océano y sin lagos.
+// Se genera con el ejemplo `batch_generate` (`regenerate --save-bin`) y estos
+// parámetros:
 //
 // gen_opts: (
+//     x_lg: 11,
+//     y_lg: 11,
+//     scale: 1.9527549859175888,
+//     map_kind: Square,
 //     erosion_quality: 1.0,
-//     map_kind: Circle,
-//     scale: 2.157574498096227,
-//     x_lg: 10,
-//     y_lg: 10,
+//     continents: 4,
+//     no_lakes: true,
 // )
-// seed: 3582734543
+// seed: 2495936208
 //
-// The biome seed can found below
-pub const DEFAULT_WORLD_MAP: &str = "world.map.veloren_0_18_0_0";
-/// This is *not* the seed used to generate the default map, this seed was used
-/// to generate a better set of biomes on it as the original ones were
-/// unsuitable.
-///
-/// See DEFAULT_WORLD_MAP to get the original worldgen parameters.
-pub const DEFAULT_WORLD_SEED: u32 = 130626853;
+// El mapa original de Veloren (`world.map.veloren_0_18_0_0`, semilla de biomas
+// 130626853) se conserva en assets por si hace falta volver a él.
+pub const DEFAULT_WORLD_MAP: &str = "world.map.azeria_4continentes";
+/// Semilla con la que se generó el mapa por defecto. Debe coincidir con el mapa:
+/// de ella salen los biomas, los pueblos y las mazmorras.
+pub const DEFAULT_WORLD_SEED: u32 = 2495936208;
 
 impl WorldFileLegacy {
     #[inline]
@@ -1013,6 +1025,28 @@ impl WorldSim {
         // a correct altitude calculation.  Note that this is using the
         // "unadjusted" temperature.
         //
+        // Máscara de continentes (1 si no hay). La posición se deforma con dos
+        // escalas de ruido para que las costas y los canales serpenteen.
+        let world_min_blocks = (map_size_lg.chunks().map(f64::from)
+            * TerrainChunkSize::RECT_SIZE.map(f64::from))
+        .reduce_partial_min();
+        let continent_mask_at = |wposf: Vec2<f64>| {
+            let warp = |nz: &SuperSimplex| {
+                nz.get(wposf.div(18_000.0).into_array()) * world_min_blocks * 0.08
+                    + nz.get(wposf.div(5_000.0).add(100.0).into_array()) * world_min_blocks * 0.02
+            };
+            let warped = if gen_opts.continents < 2 {
+                wposf
+            } else {
+                wposf + Vec2::new(warp(&gen_ctx.turb_x_nz), warp(&gen_ctx.turb_y_nz))
+            };
+            continent_mask(map_size_lg, gen_opts.continents, warped)
+        };
+        // Altura extra del interior de los continentes respecto a la costa. Hace que
+        // el terreno baje hacia el mar, así las hondonadas poco profundas desaguan
+        // en ríos en vez de formar grandes lagos interiores.
+        const CONTINENT_DOME: f64 = 0.35;
+
         // No NaNs in these uniform vectors, since the original noise value always
         // returns Some.
         let (alt_old, _) = uniform_noise(map_size_lg, |posi, wposf| {
@@ -1075,13 +1109,20 @@ impl WorldSim {
             // ~ [-.3675, .3325] + [-0.445, 0.565] * [0.07, 1.40]
             // = [-.3675, .3325] + ([-0.5785, 0.7345])
             // = [-0.946, 1.067]
+            //
+            // Además del borde del mapa, la máscara de continentes hunde el terreno
+            // en los canales de océano que separan los continentes y eleva su interior.
+            let continent = continent_mask_at(wposf);
+            let edge_factor = map_edge_factor(map_size_lg, posi) as f64 * continent.factor;
             Some(
-                ((alt_base[posi].1 + alt_main.mul((chaos[posi].1 as f64).powf(1.2)))
-                    .mul(map_edge_factor(map_size_lg, posi) as f64)
+                ((alt_base[posi].1
+                    + alt_main.mul((chaos[posi].1 as f64).powf(1.2))
+                    + CONTINENT_DOME * continent.inland)
+                    .mul(edge_factor)
                     .add(
                         (CONFIG.sea_level as f64)
                             .div(CONFIG.mountain_scale as f64)
-                            .mul(map_edge_factor(map_size_lg, posi) as f64),
+                            .mul(edge_factor),
                     )
                     .sub((CONFIG.sea_level as f64).div(CONFIG.mountain_scale as f64)))
                     as f32,
@@ -1419,6 +1460,23 @@ impl WorldSim {
                 threadpool,
                 report_erosion,
             )
+        };
+
+        // Mundo sin lagos: rellenar todas las hondonadas cerradas con una pendiente
+        // mínima hacia su salida, así toda el agua baja en ríos hasta el océano.
+        // Se hace antes de guardar, de modo que el mapa guardado ya no tiene lagos.
+        let alt = if fresh && gen_opts.no_lakes {
+            // Subida mínima (en bloques) por cada chunk de terreno rellenado
+            const NO_LAKES_SLOPE: Alt = 0.3;
+            let is_ocean = get_oceans(map_size_lg, |posi| alt[posi]);
+            fill_sinks_with_slope(
+                map_size_lg,
+                |posi| alt[posi],
+                |posi| is_ocean[posi],
+                NO_LAKES_SLOPE,
+            )
+        } else {
+            alt
         };
 
         // Save map, if necessary.

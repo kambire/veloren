@@ -1,0 +1,304 @@
+// Misiones de World of Azeria. Las da el NPC de pueblo de la profesión
+// indicada (`giver`) que viva en el continente indicado (`zone`).
+//
+// Los objetivos `Kill` cuentan cualquiera de las especies de `targets`, que
+// son palabras clave de `common.npc_names` (las mismas de `RandomWith(...)` en
+// los archivos de `common.entity`). `coins` son monedas de cobre.
+[
+    // ===================================================================
+    // ALIANZA — Reinos de Valdoria
+    // Cadena 1: La Guardia de Valdoria (guardia -> guardia -> cazador)
+    // ===================================================================
+    (
+        id: "alianza_guardia_1",
+        chain: "La Guardia de Valdoria",
+        title: "Trasgos en los caminos",
+        offer_text: "Bienvenido a Valdoria, recluta. Las bandas de trasgos asaltan a los viajeros en los caminos del reino. La Guardia necesita manos: elimina a seis de esas alimañas y vuelve a informarme.",
+        progress_text: "Los caminos siguen sin ser seguros. Vuelve cuando hayas acabado con esos trasgos.",
+        complete_text: "Buen trabajo. Los mercaderes ya hablan de ti. La Guardia paga sus deudas.",
+        giver: Guard,
+        zone: AllianceContinent,
+        faction: Some(Alliance),
+        requires: None,
+        min_level: 1,
+        objectives: [
+            Kill(targets: ["goblin_thug", "goblin_chucker", "goblin_ruffian"], label: "Trasgos", required: 6),
+        ],
+        rewards: (xp: 250, coins: 60, items: [("common.items.consumable.potion_minor", 2)]),
+    ),
+    (
+        id: "alianza_guardia_2",
+        chain: "La Guardia de Valdoria",
+        title: "Los lanzapiedras",
+        offer_text: "Los trasgos se han organizado: sus lanzapiedras cubren a los rufianes mientras saquean. Rompe su formación: acaba con cuatro lanzapiedras y cuatro rufianes.",
+        progress_text: "Todavía oigo piedras silbar sobre las murallas. Termina el trabajo.",
+        complete_text: "Sin sus lanzapiedras no son más que una turba. Te has ganado el respeto de la Guardia.",
+        giver: Guard,
+        zone: AllianceContinent,
+        faction: Some(Alliance),
+        requires: Some("alianza_guardia_1"),
+        min_level: 3,
+        objectives: [
+            Kill(targets: ["goblin_chucker"], label: "Trasgos lanzapiedras", required: 4),
+            Kill(targets: ["goblin_ruffian"], label: "Trasgos rufianes", required: 4),
+        ],
+        rewards: (xp: 400, coins: 90, items: [("common.items.consumable.potion_minor", 3)]),
+    ),
+    (
+        id: "alianza_guardia_3",
+        chain: "La Guardia de Valdoria",
+        title: "Rastro hasta la guarida",
+        offer_text: "El capitán de la Guardia me habló de ti. Yo conozco estos bosques: los trasgos que quedan se esconden en las colinas. Caza a diez más y la banda quedará deshecha para siempre.",
+        progress_text: "El rastro sigue fresco. Todavía quedan trasgos en las colinas.",
+        complete_text: "La banda está deshecha. Valdoria te debe mucho, héroe.",
+        giver: Hunter,
+        zone: AllianceContinent,
+        faction: Some(Alliance),
+        requires: Some("alianza_guardia_2"),
+        min_level: 5,
+        objectives: [
+            Kill(targets: ["goblin_thug", "goblin_chucker", "goblin_ruffian"], label: "Trasgos", required: 10),
+        ],
+        rewards: (xp: 700, coins: 150, items: [("common.items.consumable.potion_med", 2)]),
+    ),
+
+    // ===================================================================
+    // ALIANZA — Cadena 2: La cosecha de Valdoria (granjero -> granjero -> herbolario)
+    // ===================================================================
+    (
+        id: "alianza_cosecha_1",
+        chain: "La cosecha de Valdoria",
+        title: "Gorgojos en el granero",
+        offer_text: "¡Ay, forastero! Los gorgojos se están comiendo la cosecha antes de recogerla. Si acabas con seis de esos bichos, te pagaré con lo poco que tengo.",
+        progress_text: "Todavía veo gorgojos entre el trigo...",
+        complete_text: "¡Mil gracias! Esta cosecha dará de comer a todo el pueblo.",
+        giver: Farmer,
+        zone: AllianceContinent,
+        faction: Some(Alliance),
+        requires: None,
+        min_level: 1,
+        objectives: [
+            Kill(targets: ["weevil"], label: "Gorgojos", required: 6),
+        ],
+        rewards: (xp: 250, coins: 50, items: [("common.items.food.apple", 5)]),
+    ),
+    (
+        id: "alianza_cosecha_2",
+        chain: "La cosecha de Valdoria",
+        title: "Legoom hambrientos",
+        offer_text: "Ahora son los legoom: esas criaturas de colores arrancan las raíces de los huertos. Espanta a ocho de ellos... para siempre.",
+        progress_text: "Los legoom siguen arrasando los huertos.",
+        complete_text: "Los huertos vuelven a estar en paz. Toma, te lo has ganado.",
+        giver: Farmer,
+        zone: AllianceContinent,
+        faction: Some(Alliance),
+        requires: Some("alianza_cosecha_1"),
+        min_level: 3,
+        objectives: [
+            Kill(targets: ["green_legoom", "ochre_legoom", "purple_legoom", "red_legoom"], label: "Legoom", required: 8),
+        ],
+        rewards: (xp: 400, coins: 80, items: [("common.items.food.cheese", 4)]),
+    ),
+    (
+        id: "alianza_cosecha_3",
+        chain: "La cosecha de Valdoria",
+        title: "La raíz de la plaga",
+        offer_text: "El granjero me contó lo que hiciste. La plaga nace en el bosque: gorgojos y legoom se multiplican entre las hierbas. Limpia el bosque de ellos y podré sembrar mis plantas medicinales.",
+        progress_text: "La plaga sigue viva en el bosque.",
+        complete_text: "El bosque respira de nuevo. Estas pociones son de mi propia cosecha.",
+        giver: Herbalist,
+        zone: AllianceContinent,
+        faction: Some(Alliance),
+        requires: Some("alianza_cosecha_2"),
+        min_level: 5,
+        objectives: [
+            Kill(targets: ["weevil"], label: "Gorgojos", required: 6),
+            Kill(targets: ["green_legoom", "ochre_legoom", "purple_legoom", "red_legoom"], label: "Legoom", required: 6),
+        ],
+        rewards: (xp: 650, coins: 120, items: [("common.items.consumable.potion_med", 3)]),
+    ),
+
+    // ===================================================================
+    // HORDA — Dominios de Kargath
+    // Cadena 1: Sangre para Kargath (guardia -> guardia -> cazador)
+    // ===================================================================
+    (
+        id: "horda_guerra_1",
+        chain: "Sangre para Kargath",
+        title: "Prueba de sangre",
+        offer_text: "¡Lok'tar, recluta! En los Dominios de Kargath el respeto se gana con sangre. Sal ahí fuera y abate a seis trasgos o bestias del páramo. Vuelve cubierto de gloria.",
+        progress_text: "¿Ya vuelves? No veo sangre en tu arma.",
+        complete_text: "¡Ja! Eres más duro de lo que pareces. La Horda te acoge.",
+        giver: Guard,
+        zone: HordeContinent,
+        faction: Some(Horde),
+        requires: None,
+        min_level: 1,
+        objectives: [
+            Kill(targets: ["goblin_thug", "goblin_chucker", "goblin_ruffian", "asp", "raptor_sand", "antlion", "cactid"], label: "Trasgos o bestias del páramo", required: 6),
+        ],
+        rewards: (xp: 250, coins: 60, items: [("common.items.consumable.potion_minor", 2)]),
+    ),
+    (
+        id: "horda_guerra_2",
+        chain: "Sangre para Kargath",
+        title: "Los saqueadores",
+        offer_text: "Los saqueadores trasgos robaron provisiones de nuestro campamento. Nadie roba a la Horda. Encuentra a ocho de ellos y hazles pagar.",
+        progress_text: "Los ladrones siguen vivos. Eso es inaceptable.",
+        complete_text: "Así aprenderán. Nuestras provisiones están a salvo.",
+        giver: Guard,
+        zone: HordeContinent,
+        faction: Some(Horde),
+        requires: Some("horda_guerra_1"),
+        min_level: 3,
+        objectives: [
+            Kill(targets: ["goblin_thug", "goblin_chucker", "goblin_ruffian", "asp", "raptor_sand", "antlion", "cactid"], label: "Trasgos o bestias del páramo", required: 8),
+        ],
+        rewards: (xp: 400, coins: 90, items: [("common.items.consumable.potion_minor", 3)]),
+    ),
+    (
+        id: "horda_guerra_3",
+        chain: "Sangre para Kargath",
+        title: "La gran cacería",
+        offer_text: "El guardia dice que sabes pelear. Veamos si sabes cazar. Los Dominios están plagados de alimañas: tráeme diez presas y te contaré entre los grandes cazadores de la Horda.",
+        progress_text: "Una cacería no termina hasta que cae la última presa.",
+        complete_text: "Diez presas. Tu nombre se cantará junto al fuego esta noche.",
+        giver: Hunter,
+        zone: HordeContinent,
+        faction: Some(Horde),
+        requires: Some("horda_guerra_2"),
+        min_level: 5,
+        objectives: [
+            Kill(targets: ["goblin_thug", "goblin_chucker", "goblin_ruffian", "asp", "raptor_sand", "antlion", "cactid", "green_legoom", "ochre_legoom", "purple_legoom", "red_legoom", "weevil"], label: "Presas", required: 10),
+        ],
+        rewards: (xp: 700, coins: 150, items: [("common.items.consumable.potion_med", 2)]),
+    ),
+
+    // ===================================================================
+    // HORDA — Cadena 2: Tierra hostil (granjero -> granjero -> herbolario)
+    // ===================================================================
+    (
+        id: "horda_tierra_1",
+        chain: "Tierra hostil",
+        title: "Plagas en los cultivos",
+        offer_text: "Esta tierra es dura y lo poco que crece se lo comen las plagas. Mata a seis gorgojos, legoom o cáctidos y los clanes tendrán pan este invierno.",
+        progress_text: "Las plagas siguen devorando los campos.",
+        complete_text: "Los campos resisten. La Horda no pasará hambre.",
+        giver: Farmer,
+        zone: HordeContinent,
+        faction: Some(Horde),
+        requires: None,
+        min_level: 1,
+        objectives: [
+            Kill(targets: ["weevil", "green_legoom", "ochre_legoom", "purple_legoom", "red_legoom", "cactid"], label: "Plagas", required: 6),
+        ],
+        rewards: (xp: 250, coins: 50, items: [("common.items.food.apple", 5)]),
+    ),
+    (
+        id: "horda_tierra_2",
+        chain: "Tierra hostil",
+        title: "El páramo avanza",
+        offer_text: "Cada día el páramo se acerca más a los campos. Sus bestias vienen detrás. Abate a ocho criaturas del páramo antes de que lleguen a las granjas.",
+        progress_text: "El páramo sigue avanzando.",
+        complete_text: "Las granjas están a salvo, por ahora.",
+        giver: Farmer,
+        zone: HordeContinent,
+        faction: Some(Horde),
+        requires: Some("horda_tierra_1"),
+        min_level: 3,
+        objectives: [
+            Kill(targets: ["asp", "raptor_sand", "antlion", "cactid", "weevil"], label: "Criaturas del páramo", required: 8),
+        ],
+        rewards: (xp: 400, coins: 80, items: [("common.items.food.cheese", 4)]),
+    ),
+    (
+        id: "horda_tierra_3",
+        chain: "Tierra hostil",
+        title: "Venenos del desierto",
+        offer_text: "Necesito veneno para mis remedios. Las áspides y hormigas león lo llevan dentro. Mata a seis de ellas... o de cualquier alimaña venenosa que encuentres.",
+        progress_text: "Aún me falta veneno para los remedios.",
+        complete_text: "Suficiente veneno para curar a todo un clan. Toma estas pociones.",
+        giver: Herbalist,
+        zone: HordeContinent,
+        faction: Some(Horde),
+        requires: Some("horda_tierra_2"),
+        min_level: 5,
+        objectives: [
+            Kill(targets: ["asp", "antlion", "weevil", "cactid"], label: "Alimañas venenosas", required: 6),
+        ],
+        rewards: (xp: 650, coins: 120, items: [("common.items.consumable.potion_med", 3)]),
+    ),
+
+    // ===================================================================
+    // TIERRAS DISPUTADAS DE MORVENIA — Cadena: Frente de Morvenia
+    // (guardia -> guardia -> cazador -> guardia), para ambas facciones
+    // ===================================================================
+    (
+        id: "disputa_frente_1",
+        chain: "Frente de Morvenia",
+        title: "Colmillos en la nieve",
+        offer_text: "Llegas a Morvenia, tierra de nadie. Aquí no importa tu bandera: las bestias del frío atacan a todos por igual. Mata a seis lobos o colmillos helados y demuestra que puedes sobrevivir aquí.",
+        progress_text: "El frío no perdona a los débiles. Termina lo que empezaste.",
+        complete_text: "Sobreviviste. En Morvenia, eso ya es mucho.",
+        giver: Guard,
+        zone: ContestedContinent,
+        faction: None,
+        requires: None,
+        min_level: 20,
+        objectives: [
+            Kill(targets: ["wolf", "frostfang", "snowleopard", "grolgar", "raptor_snow", "goblin_thug", "goblin_chucker", "goblin_ruffian"], label: "Bestias de Morvenia", required: 6),
+        ],
+        rewards: (xp: 1200, coins: 300, items: [("common.items.consumable.potion_med", 2)]),
+    ),
+    (
+        id: "disputa_frente_2",
+        chain: "Frente de Morvenia",
+        title: "La tundra hambrienta",
+        offer_text: "Las manadas bajan de la tundra buscando comida y encuentran a nuestros exploradores. Abate a ocho bestias más para despejar las rutas.",
+        progress_text: "Las rutas siguen cortadas por las manadas.",
+        complete_text: "Las rutas están despejadas. Los exploradores te lo agradecen.",
+        giver: Guard,
+        zone: ContestedContinent,
+        faction: None,
+        requires: Some("disputa_frente_1"),
+        min_level: 22,
+        objectives: [
+            Kill(targets: ["wolf", "frostfang", "snowleopard", "grolgar", "raptor_snow"], label: "Bestias de la tundra", required: 8),
+        ],
+        rewards: (xp: 1600, coins: 400, items: [("common.items.consumable.potion_med", 3)]),
+    ),
+    (
+        id: "disputa_frente_3",
+        chain: "Frente de Morvenia",
+        title: "Los grandes depredadores",
+        offer_text: "He seguido las huellas de los grandes depredadores: grolgars, leopardos de las nieves y raptores. Son los que guían a las manadas. Caza a cinco de ellos y las manadas se dispersarán.",
+        progress_text: "Los depredadores siguen guiando a las manadas.",
+        complete_text: "Sin sus líderes, las manadas vagan sin rumbo. Gran cacería.",
+        giver: Hunter,
+        zone: ContestedContinent,
+        faction: None,
+        requires: Some("disputa_frente_2"),
+        min_level: 25,
+        objectives: [
+            Kill(targets: ["grolgar", "snowleopard", "raptor_snow", "frostfang"], label: "Grandes depredadores", required: 5),
+        ],
+        rewards: (xp: 2200, coins: 550, items: [("common.items.consumable.potion_big", 2)]),
+    ),
+    (
+        id: "disputa_frente_4",
+        chain: "Frente de Morvenia",
+        title: "Asegurar el frente",
+        offer_text: "Gracias a ti, el frente resiste. Una última tarea: barre la zona y acaba con doce bestias más. Después, Morvenia será un poco menos salvaje.",
+        progress_text: "El frente todavía no es seguro.",
+        complete_text: "El frente está asegurado. Tu nombre quedará grabado en Morvenia.",
+        giver: Guard,
+        zone: ContestedContinent,
+        faction: None,
+        requires: Some("disputa_frente_3"),
+        min_level: 28,
+        objectives: [
+            Kill(targets: ["wolf", "frostfang", "snowleopard", "grolgar", "raptor_snow", "goblin_thug", "goblin_chucker", "goblin_ruffian"], label: "Bestias del frente", required: 12),
+        ],
+        rewards: (xp: 3000, coins: 800, items: [("common.items.consumable.potion_big", 3)]),
+    ),
+]

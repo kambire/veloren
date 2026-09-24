@@ -17,4 +17,9 @@
     Pick(Speed): 3,
     Pick(OreGain): 3,
     Pick(GemGain): 3,
+    Tamer(PetDamage): 5,
+    Tamer(PetDefense): 5,
+    Tamer(CaptureLevel): 3,
+    Tamer(VitalHeal): 3,
+    Tamer(BondStrength): 3,
 }

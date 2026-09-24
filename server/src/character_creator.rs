@@ -93,7 +93,9 @@ pub fn create_character(
     let mut inventory = Inventory::with_loadout_humanoid(loadout);
 
     let stats = Stats::new(Content::Plain(character_alias.to_string()), body);
-    let skill_set = SkillSet::default();
+    // Cada clase solo tiene su propio árbol de talentos, que queda fijado aquí
+    let mut skill_set = SkillSet::default();
+    character_class.unlock_class_tree(&mut skill_set);
 
     // Objetos y consumibles iniciales según clase
     inventory
@@ -151,6 +153,7 @@ pub fn create_character(
         pets,
         active_abilities: common::comp::ActiveAbilities::default_limited(BASE_ABILITY_LIMIT),
         map_marker,
+        quests: common::quest::ActiveQuests::default(),
     });
     Ok(())
 }

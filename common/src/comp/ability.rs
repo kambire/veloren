@@ -2365,7 +2365,12 @@ impl CharacterAbility {
     #[must_use = "method returns new ability and doesn't mutate the original value"]
     pub fn adjusted_by_skills(mut self, skillset: &SkillSet, tool: Option<ToolKind>) -> Self {
         match tool {
-            Some(ToolKind::Sceptre) => self.adjusted_by_sceptre_skills(skillset),
+            // El cayado del Entrenador también es un cetro. Cada clase solo tiene
+            // talentos en su propio árbol, así que no se mezclan.
+            Some(ToolKind::Sceptre) => {
+                self.adjusted_by_sceptre_skills(skillset);
+                self.adjusted_by_tamer_skills(skillset);
+            },
             Some(ToolKind::Pick) => self.adjusted_by_mining_skills(skillset),
             None | Some(_) => {},
         }
@@ -2389,6 +2394,30 @@ impl CharacterAbility {
             *buildup_duration /= speed;
             *swing_duration /= speed;
             *recover_duration /= speed;
+        }
+    }
+
+    fn adjusted_by_tamer_skills(&mut self, skillset: &SkillSet) {
+        use skills::{Skill::Tamer, TamerSkill::*};
+
+        let modifiers = SKILL_MODIFIERS.tamer_tree;
+        if let CharacterAbility::BasicAura {
+            auras, specifier, ..
+        } = self
+        {
+            // Aura vital (curación) y Vínculo salvaje (aceleración)
+            let (skill, mult) = if *specifier == Some(aura::Specifier::HealingAura) {
+                (Tamer(VitalHeal), modifiers.vital_heal)
+            } else if auras.iter().any(|aura| aura.kind == BuffKind::Hastened) {
+                (Tamer(BondStrength), modifiers.bond_strength)
+            } else {
+                return;
+            };
+            if let Ok(level) = skillset.skill_level(skill) {
+                auras
+                    .iter_mut()
+                    .for_each(|aura| aura.strength *= mult.powi(level.into()));
+            }
         }
     }
 

@@ -11,6 +11,7 @@ use common::{
     },
     event::{CreateNpcEvent, CreateShipEvent, DeleteEvent, EventBus, NpcBuilder},
     generation::{BodyBuilder, EntityConfig, EntityInfo},
+    quest::QuestGiver,
     resources::{DeltaTime, Time, TimeOfDay},
     rtsim::ActorId,
     slowjob::SlowJobPool,
@@ -469,6 +470,9 @@ impl<'a> System<'a> for Sys {
         WriteExpect<'a, comp::gizmos::RtsimGizmos>,
         ReadExpect<'a, comp::tool::AbilityMap>,
         ReadExpect<'a, comp::item::MaterialStatManifest>,
+        WriteStorage<'a, common::quest::ActiveQuests>,
+        ReadStorage<'a, comp::Player>,
+        WriteStorage<'a, comp::SkillSet>,
     );
 
     const NAME: &'static str = "rtsim::tick";
@@ -501,6 +505,9 @@ impl<'a> System<'a> for Sys {
             rtsim_gizmos,
             ability_map,
             msm,
+            active_quests,
+            players,
+            skill_sets,
         ): Self::SystemData,
     ) {
         let mut create_ship_emitter = create_ship_events.emitter();
@@ -528,6 +535,9 @@ impl<'a> System<'a> for Sys {
                 rtsim_gizmos,
                 ability_map,
                 msm,
+                active_quests: Mutex::new(active_quests),
+                players,
+                skill_sets: Mutex::new(skill_sets),
             },
             &world,
             index.as_index_ref(),
@@ -583,10 +593,18 @@ impl<'a> System<'a> for Sys {
                         health.set_fraction(presence.health_fraction);
                     }
 
+                    // Los aldeanos con profesión pueden dar misiones
+                    let quest_giver = actor
+                        .profession()
+                        .and_then(|profession| QuestGiver::from_profession(&profession));
+
                     create_npc_emitter.emit(CreateNpcEvent {
                         pos,
                         ori: comp::Ori::from(Dir::new(actor.dir.with_z(0.0))),
-                        npc: npc_builder.with_rtsim(actor_id).with_rider(steering),
+                        npc: npc_builder
+                            .with_rtsim(actor_id)
+                            .with_rider(steering)
+                            .with_quest_giver(quest_giver),
                     });
                 },
             };
