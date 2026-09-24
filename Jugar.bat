@@ -17,6 +17,16 @@ if exist "target\release\veloren-updater.exe" (
     exit
 )
 
+if exist "target\debug\veloren-updater.exe" (
+    start "" "target\debug\veloren-updater.exe"
+    exit
+)
+
+if exist "target\release\veloren-voxygen.exe" (
+    start "" "target\release\veloren-voxygen.exe"
+    exit
+)
+
 if exist "target\debug\veloren-voxygen.exe" (
     start "" "target\debug\veloren-voxygen.exe"
     exit
