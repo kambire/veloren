@@ -144,7 +144,7 @@ pub(super) fn targets_under_cursor(
         .join()
         .filter(|(e, _, _, _, _, _, _, _)| *e != viewpoint_entity)
         .filter_map(|(e, p, s, b, i, _, is_rider, health)| {
-            const RADIUS_SCALE: f32 = 3.0;
+            const RADIUS_SCALE: f32 = 1.15;
             // TODO: use collider radius instead of body radius?
             let radius = s.map_or(1.0, |s| s.0) * (b.dimensions() * Vec3::new(1.0, 1.0, 0.5)).reduce_partial_max() * RADIUS_SCALE;
             let height = s.map_or(1.0, |s| s.0) * b.height();
@@ -171,13 +171,8 @@ pub(super) fn targets_under_cursor(
         })
         .collect::<Vec<_>>();
 
-    // If player is wielding, sort by distance to the ray, otherwise sort by
-    // distance to the camera
-    if player_wielding {
-        nearby.sort_unstable_by(|a, b| a.4.partial_cmp(&b.4).unwrap());
-    } else {
-        nearby.sort_unstable_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
-    }
+    // Priorizar siempre la entidad que esté más cercana al rayo del cursor
+    nearby.sort_unstable_by(|a, b| a.4.partial_cmp(&b.4).unwrap_or(std::cmp::Ordering::Equal));
 
     let seg_ray = LineSegment3 {
         start: cam_pos,
