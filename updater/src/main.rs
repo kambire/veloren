@@ -20,8 +20,8 @@ use windows_sys::Win32::{
     Graphics::Gdi::{
         BeginPaint, BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, CreateFontW,
         CreatePen, CreateSolidBrush, DeleteDC, DeleteObject, DrawTextW, EndPaint,
-        FillRect, InvalidateRect, RoundRect, SelectObject, SetBkMode, SetTextColor,
-        DT_CENTER, DT_LEFT, DT_SINGLELINE, DT_VCENTER,
+        FillRect, InvalidateRect, LineTo, MoveToEx, RoundRect, SelectObject, SetBkMode,
+        SetTextColor, HFONT, DT_CENTER, DT_LEFT, DT_SINGLELINE, DT_VCENTER,
         PAINTSTRUCT, PS_SOLID, SRCCOPY, TRANSPARENT,
     },
     System::LibraryLoader::GetModuleHandleW,
@@ -114,10 +114,20 @@ struct AppState {
 }
 
 fn get_game_dir() -> PathBuf {
-    env::current_exe()
+    let mut dir = env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-        .unwrap_or_else(|| PathBuf::from("."))
+        .unwrap_or_else(|| PathBuf::from("."));
+
+    // Si el binario se corre desde target/debug o target/release, subir al root del repo
+    if dir.ends_with("target/debug") || dir.ends_with("target\\debug")
+        || dir.ends_with("target/release") || dir.ends_with("target\\release")
+    {
+        if let Some(parent) = dir.parent().and_then(|p| p.parent()) {
+            dir = parent.to_path_buf();
+        }
+    }
+    dir
 }
 
 fn load_local_version(dir: &Path) -> LocalVersion {
@@ -144,41 +154,28 @@ fn save_local_version(dir: &Path, version: &LocalVersion) {
 }
 
 fn find_game_binary(dir: &Path) -> Option<PathBuf> {
-    // 1. En el mismo directorio del launcher
+    // 1. En el mismo directorio del juego
     let direct = dir.join(GAME_EXECUTABLE);
     if direct.exists() {
         return Some(direct);
     }
-    // 2. En target/release
-    let release_bin = dir.join("target").join("release").join(GAME_EXECUTABLE);
-    if release_bin.exists() {
-        return Some(release_bin);
-    }
-    // 3. En target/debug
+    // 2. En target/debug (desarrollo activo)
     let debug_bin = dir.join("target").join("debug").join(GAME_EXECUTABLE);
     if debug_bin.exists() {
         return Some(debug_bin);
     }
-    // 4. Si el launcher está dentro de target/debug o target/release
-    if let Some(parent) = dir.parent().and_then(|p| p.parent()) {
-        let rel = parent.join("target").join("release").join(GAME_EXECUTABLE);
-        if rel.exists() {
-            return Some(rel);
-        }
-        let deb = parent.join("target").join("debug").join(GAME_EXECUTABLE);
-        if deb.exists() {
-            return Some(deb);
-        }
+    // 3. En target/release
+    let release_bin = dir.join("target").join("release").join(GAME_EXECUTABLE);
+    if release_bin.exists() {
+        return Some(release_bin);
     }
     None
 }
 
-fn launch_game(game_path: &Path) {
+fn launch_game(game_path: &Path, game_dir: &Path) {
     let mut cmd = Command::new(game_path);
     cmd.args(env::args().skip(1));
-    if let Some(parent) = game_path.parent() {
-        cmd.current_dir(parent);
-    }
+    cmd.current_dir(game_dir);
     let _ = cmd.spawn();
 }
 
@@ -399,11 +396,66 @@ const fn rgb(r: u8, g: u8, b: u8) -> u32 {
 }
 
 #[cfg(windows)]
+struct UiFonts {
+    title: HFONT,
+    sub: HFONT,
+    label: HFONT,
+    val: HFONT,
+    status: HFONT,
+    bar: HFONT,
+    btn: HFONT,
+    btn_sec: HFONT,
+    footer: HFONT,
+}
+
+#[cfg(windows)]
+impl UiFonts {
+    unsafe fn new() -> Self {
+        let face = to_wide("Segoe UI");
+        let make_font = |h: i32, w: i32| -> HFONT {
+            CreateFontW(
+                h, 0, 0, 0, w, 0, 0, 0, 0, 0, 0, 0, 0,
+                face.as_ptr(),
+            )
+        };
+        Self {
+            title: make_font(26, 700),
+            sub: make_font(14, 400),
+            label: make_font(12, 600),
+            val: make_font(19, 700),
+            status: make_font(14, 600),
+            bar: make_font(13, 700),
+            btn: make_font(18, 700),
+            btn_sec: make_font(14, 600),
+            footer: make_font(12, 400),
+        }
+    }
+
+    unsafe fn destroy(&self) {
+        DeleteObject(self.title);
+        DeleteObject(self.sub);
+        DeleteObject(self.label);
+        DeleteObject(self.val);
+        DeleteObject(self.status);
+        DeleteObject(self.bar);
+        DeleteObject(self.btn);
+        DeleteObject(self.btn_sec);
+        DeleteObject(self.footer);
+    }
+}
+
+#[cfg(windows)]
+unsafe impl Send for UiFonts {}
+#[cfg(windows)]
+unsafe impl Sync for UiFonts {}
+
+#[cfg(windows)]
 struct UiContext {
     state: Arc<Mutex<AppState>>,
     game_dir: PathBuf,
     btn_play_rect: RECT,
     btn_check_rect: RECT,
+    fonts: UiFonts,
 }
 
 #[cfg(windows)]
@@ -426,21 +478,24 @@ unsafe extern "system" fn window_proc(
             let width = rect.right - rect.left;
             let height = rect.bottom - rect.top;
 
-            let mem_dc = CreateCompatibleDC(hdc);
-            let mem_bmp = CreateCompatibleBitmap(hdc, width, height);
-            let old_bmp = SelectObject(mem_dc, mem_bmp);
+            if width > 0 && height > 0 {
+                let mem_dc = CreateCompatibleDC(hdc);
+                let mem_bmp = CreateCompatibleBitmap(hdc, width, height);
+                let old_bmp = SelectObject(mem_dc, mem_bmp);
 
-            if let Ok(guard) = GLOBAL_UI_CTX.lock() {
-                if let Some(ctx) = guard.as_ref() {
-                    paint_ui(mem_dc, width, height, ctx);
+                if let Ok(guard) = GLOBAL_UI_CTX.lock() {
+                    if let Some(ctx) = guard.as_ref() {
+                        paint_ui(mem_dc, width, height, ctx);
+                    }
                 }
+
+                BitBlt(hdc, 0, 0, width, height, mem_dc, 0, 0, SRCCOPY);
+
+                SelectObject(mem_dc, old_bmp);
+                DeleteObject(mem_bmp);
+                DeleteDC(mem_dc);
             }
 
-            BitBlt(hdc, 0, 0, width, height, mem_dc, 0, 0, SRCCOPY);
-
-            SelectObject(mem_dc, old_bmp);
-            DeleteObject(mem_bmp);
-            DeleteDC(mem_dc);
             EndPaint(hwnd, &ps);
             0
         }
@@ -534,6 +589,11 @@ unsafe extern "system" fn window_proc(
             0
         }
         WM_DESTROY => {
+            if let Ok(mut guard) = GLOBAL_UI_CTX.lock() {
+                if let Some(ctx) = guard.take() {
+                    ctx.fonts.destroy();
+                }
+            }
             PostQuitMessage(0);
             0
         }
@@ -565,9 +625,8 @@ fn handle_button_click(_hwnd: HWND, btn: ButtonId) {
                                     perform_update(&state_arc, url, gdir, remote_tag);
                                 });
                             } else {
-                                // Sin URL zip directa, lanzar juego si existe
                                 if let Some(bin) = binary {
-                                    launch_game(&bin);
+                                    launch_game(&bin, &ctx.game_dir);
                                     unsafe { PostQuitMessage(0); }
                                 }
                             }
@@ -578,13 +637,12 @@ fn handle_button_click(_hwnd: HWND, btn: ButtonId) {
                         _ => {
                             // Iniciar el juego
                             if let Some(bin) = binary {
-                                launch_game(&bin);
+                                launch_game(&bin, &ctx.game_dir);
                                 unsafe { PostQuitMessage(0); }
                             } else {
-                                // Buscar nuevamente el binario
                                 let found = find_game_binary(&ctx.game_dir);
                                 if let Some(bin) = found {
-                                    launch_game(&bin);
+                                    launch_game(&bin, &ctx.game_dir);
                                     unsafe { PostQuitMessage(0); }
                                 }
                             }
@@ -656,17 +714,13 @@ unsafe fn paint_ui(
     let gold_pen = CreatePen(PS_SOLID, 2, rgb(214, 158, 46));
     let old_pen = SelectObject(hdc, gold_pen);
     let mut pt: POINT = std::mem::zeroed();
-    windows_sys::Win32::Graphics::Gdi::MoveToEx(hdc, 0, 82, &mut pt);
-    windows_sys::Win32::Graphics::Gdi::LineTo(hdc, width, 82);
+    MoveToEx(hdc, 0, 82, &mut pt);
+    LineTo(hdc, width, 82);
 
     SetBkMode(hdc, TRANSPARENT as i32);
 
     // Título Principal "WORLD OF AZERIA"
-    let font_title = CreateFontW(
-        26, 0, 0, 0, 700, 0, 0, 0, 0, 0, 0, 0, 0,
-        to_wide("Segoe UI").as_ptr(),
-    );
-    let old_font = SelectObject(hdc, font_title);
+    let old_font = SelectObject(hdc, ctx.fonts.title);
     SetTextColor(hdc, rgb(246, 173, 85)); // Oro cálido
     let mut title_rect = RECT {
         left: 28,
@@ -675,20 +729,10 @@ unsafe fn paint_ui(
         bottom: 46,
     };
     let title_w = to_wide("WORLD OF AZERIA");
-    DrawTextW(
-        hdc,
-        title_w.as_ptr(),
-        title_w.len() as i32 - 1,
-        &mut title_rect,
-        DT_LEFT | DT_VCENTER | DT_SINGLELINE,
-    );
+    DrawTextW(hdc, title_w.as_ptr(), -1, &mut title_rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     // Subtítulo
-    let font_sub = CreateFontW(
-        15, 0, 0, 0, 400, 0, 0, 0, 0, 0, 0, 0, 0,
-        to_wide("Segoe UI").as_ptr(),
-    );
-    SelectObject(hdc, font_sub);
+    SelectObject(hdc, ctx.fonts.sub);
     SetTextColor(hdc, rgb(160, 174, 192)); // Gris azulado
     let mut sub_rect = RECT {
         left: 30,
@@ -697,13 +741,7 @@ unsafe fn paint_ui(
         bottom: 72,
     };
     let sub_w = to_wide("Lanzador Oficial y Sistema de Actualizaciones Automáticas");
-    DrawTextW(
-        hdc,
-        sub_w.as_ptr(),
-        sub_w.len() as i32 - 1,
-        &mut sub_rect,
-        DT_LEFT | DT_VCENTER | DT_SINGLELINE,
-    );
+    DrawTextW(hdc, sub_w.as_ptr(), -1, &mut sub_rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     // 3. Tarjetas de Versión: Tu Versión vs Servidor/GitHub
     let card_y_top = 98;
@@ -729,18 +767,8 @@ unsafe fn paint_ui(
     RoundRect(hdc, card_1_rect.left, card_1_rect.top, card_1_rect.right, card_1_rect.bottom, 10, 10);
     RoundRect(hdc, card_2_rect.left, card_2_rect.top, card_2_rect.right, card_2_rect.bottom, 10, 10);
 
-    // Etiquetas de las tarjetas
-    let font_label = CreateFontW(
-        13, 0, 0, 0, 600, 0, 0, 0, 0, 0, 0, 0, 0,
-        to_wide("Segoe UI").as_ptr(),
-    );
-    let font_val = CreateFontW(
-        19, 0, 0, 0, 700, 0, 0, 0, 0, 0, 0, 0, 0,
-        to_wide("Segoe UI").as_ptr(),
-    );
-
     // Tarjeta 1: Tu Versión Local
-    SelectObject(hdc, font_label);
+    SelectObject(hdc, ctx.fonts.label);
     SetTextColor(hdc, rgb(160, 174, 192));
     let mut lbl1 = RECT {
         left: card_1_rect.left + 16,
@@ -749,9 +777,9 @@ unsafe fn paint_ui(
         bottom: card_1_rect.top + 32,
     };
     let lbl1_w = to_wide("TU VERSIÓN LOCAL");
-    DrawTextW(hdc, lbl1_w.as_ptr(), lbl1_w.len() as i32 - 1, &mut lbl1, DT_LEFT | DT_SINGLELINE);
+    DrawTextW(hdc, lbl1_w.as_ptr(), -1, &mut lbl1, DT_LEFT | DT_SINGLELINE);
 
-    SelectObject(hdc, font_val);
+    SelectObject(hdc, ctx.fonts.val);
     SetTextColor(hdc, rgb(129, 230, 217)); // Cian menta luminoso
     let mut val1 = RECT {
         left: card_1_rect.left + 16,
@@ -760,10 +788,10 @@ unsafe fn paint_ui(
         bottom: card_1_rect.bottom - 10,
     };
     let val1_w = to_wide(&local_ver);
-    DrawTextW(hdc, val1_w.as_ptr(), val1_w.len() as i32 - 1, &mut val1, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    DrawTextW(hdc, val1_w.as_ptr(), -1, &mut val1, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     // Tarjeta 2: Servidor / GitHub
-    SelectObject(hdc, font_label);
+    SelectObject(hdc, ctx.fonts.label);
     SetTextColor(hdc, rgb(160, 174, 192));
     let mut lbl2 = RECT {
         left: card_2_rect.left + 16,
@@ -772,9 +800,9 @@ unsafe fn paint_ui(
         bottom: card_2_rect.top + 32,
     };
     let lbl2_w = to_wide("SERVIDOR / GITHUB");
-    DrawTextW(hdc, lbl2_w.as_ptr(), lbl2_w.len() as i32 - 1, &mut lbl2, DT_LEFT | DT_SINGLELINE);
+    DrawTextW(hdc, lbl2_w.as_ptr(), -1, &mut lbl2, DT_LEFT | DT_SINGLELINE);
 
-    SelectObject(hdc, font_val);
+    SelectObject(hdc, ctx.fonts.val);
     SetTextColor(hdc, rgb(250, 204, 21)); // Oro vibrante
     let mut val2 = RECT {
         left: card_2_rect.left + 16,
@@ -783,29 +811,30 @@ unsafe fn paint_ui(
         bottom: card_2_rect.bottom - 10,
     };
     let val2_w = to_wide(&remote_ver);
-    DrawTextW(hdc, val2_w.as_ptr(), val2_w.len() as i32 - 1, &mut val2, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    DrawTextW(hdc, val2_w.as_ptr(), -1, &mut val2, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    // Restaurar y limpiar card pens/brushes
+    SelectObject(hdc, old_pen);
+    DeleteObject(card_brush);
+    DeleteObject(border_pen);
 
     // 4. Mensaje de Estado
-    let font_status = CreateFontW(
-        15, 0, 0, 0, 600, 0, 0, 0, 0, 0, 0, 0, 0,
-        to_wide("Segoe UI").as_ptr(),
-    );
-    SelectObject(hdc, font_status);
+    SelectObject(hdc, ctx.fonts.status);
 
     let (status_text, status_color, progress_pct) = match &status {
         UpdateStatus::Checking => (
             "⏳ Conectando con GitHub y verificando actualizaciones...".to_string(),
-            rgb(99, 179, 237), // Azul claro
+            rgb(99, 179, 237),
             20.0,
         ),
         UpdateStatus::UpToDate => (
             "✔ Ya estás en la última versión. ¡Todo listo para jugar!".to_string(),
-            rgb(72, 187, 120), // Verde esmeralda
+            rgb(72, 187, 120),
             100.0,
         ),
         UpdateStatus::UpdateAvailable { remote_tag, .. } => (
             format!("⚡ ¡Nueva versión disponible ({})! Presiona 'Actualizar' para descargar.", remote_tag),
-            rgb(236, 201, 75), // Oro/ámbar
+            rgb(236, 201, 75),
             100.0,
         ),
         UpdateStatus::Downloading { downloaded_bytes, total_bytes, pct } => {
@@ -842,7 +871,7 @@ unsafe fn paint_ui(
         bottom: 220,
     };
     let st_w = to_wide(&status_text);
-    DrawTextW(hdc, st_w.as_ptr(), st_w.len() as i32 - 1, &mut status_rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    DrawTextW(hdc, st_w.as_ptr(), -1, &mut status_rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     // 5. Barra de Progreso Estilizada
     let bar_left = 30;
@@ -856,6 +885,9 @@ unsafe fn paint_ui(
     SelectObject(hdc, bar_border_pen);
     SelectObject(hdc, bar_bg_brush);
     RoundRect(hdc, bar_left, bar_top, bar_right, bar_bottom, 8, 8);
+    SelectObject(hdc, old_pen);
+    DeleteObject(bar_bg_brush);
+    DeleteObject(bar_border_pen);
 
     // Relleno de la barra
     let fill_w = ((bar_total_w - 4) as f32 * (progress_pct.clamp(0.0, 100.0) / 100.0)) as i32;
@@ -879,16 +911,13 @@ unsafe fn paint_ui(
             6,
             6,
         );
+        SelectObject(hdc, old_pen);
         DeleteObject(fill_brush);
         DeleteObject(no_pen);
     }
 
     // Texto sobre la barra de progreso
-    let font_bar = CreateFontW(
-        13, 0, 0, 0, 700, 0, 0, 0, 0, 0, 0, 0, 0,
-        to_wide("Segoe UI").as_ptr(),
-    );
-    SelectObject(hdc, font_bar);
+    SelectObject(hdc, ctx.fonts.bar);
     SetTextColor(hdc, rgb(255, 255, 255));
     let bar_text = match &status {
         UpdateStatus::Downloading { pct, .. } => format!("{:.0}% completado", pct),
@@ -904,14 +933,10 @@ unsafe fn paint_ui(
         bottom: bar_bottom,
     };
     let bar_lbl_w = to_wide(&bar_text);
-    DrawTextW(hdc, bar_lbl_w.as_ptr(), bar_lbl_w.len() as i32 - 1, &mut bar_lbl_rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    DrawTextW(hdc, bar_lbl_w.as_ptr(), -1, &mut bar_lbl_rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
     // 6. Botones de Acción
-    let font_btn = CreateFontW(
-        18, 0, 0, 0, 700, 0, 0, 0, 0, 0, 0, 0, 0,
-        to_wide("Segoe UI").as_ptr(),
-    );
-    SelectObject(hdc, font_btn);
+    SelectObject(hdc, ctx.fonts.btn);
 
     // Botón Primario: JUGAR o ACTUALIZAR
     let is_play_hovered = hovered_btn == Some(ButtonId::PlayOrUpdate);
@@ -960,8 +985,9 @@ unsafe fn paint_ui(
     SetTextColor(hdc, rgb(255, 255, 255));
     let mut btn_play_lbl = ctx.btn_play_rect;
     let btn_play_w = to_wide(btn_main_text);
-    DrawTextW(hdc, btn_play_w.as_ptr(), btn_play_w.len() as i32 - 1, &mut btn_play_lbl, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    DrawTextW(hdc, btn_play_w.as_ptr(), -1, &mut btn_play_lbl, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
+    SelectObject(hdc, old_pen);
     DeleteObject(btn_play_brush);
     DeleteObject(btn_play_pen);
 
@@ -991,25 +1017,18 @@ unsafe fn paint_ui(
         12,
     );
 
-    let font_btn_sec = CreateFontW(
-        15, 0, 0, 0, 600, 0, 0, 0, 0, 0, 0, 0, 0,
-        to_wide("Segoe UI").as_ptr(),
-    );
-    SelectObject(hdc, font_btn_sec);
+    SelectObject(hdc, ctx.fonts.btn_sec);
     SetTextColor(hdc, rgb(226, 232, 240));
     let mut btn_check_lbl = ctx.btn_check_rect;
-    let btn_check_w = to_wide("🔄 Buscar Updates");
-    DrawTextW(hdc, btn_check_w.as_ptr(), btn_check_w.len() as i32 - 1, &mut btn_check_lbl, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    let btn_check_w = to_wide("↻ Buscar Updates");
+    DrawTextW(hdc, btn_check_w.as_ptr(), -1, &mut btn_check_lbl, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
+    SelectObject(hdc, old_pen);
     DeleteObject(btn_sec_brush);
     DeleteObject(btn_sec_pen);
 
     // 7. Pie de Página
-    let font_footer = CreateFontW(
-        12, 0, 0, 0, 400, 0, 0, 0, 0, 0, 0, 0, 0,
-        to_wide("Segoe UI").as_ptr(),
-    );
-    SelectObject(hdc, font_footer);
+    SelectObject(hdc, ctx.fonts.footer);
     SetTextColor(hdc, rgb(100, 116, 139));
     let mut footer_left = RECT {
         left: 30,
@@ -1018,7 +1037,7 @@ unsafe fn paint_ui(
         bottom: height - 10,
     };
     let footer_w = to_wide("GitHub: kambire/veloren");
-    DrawTextW(hdc, footer_w.as_ptr(), footer_w.len() as i32 - 1, &mut footer_left, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    DrawTextW(hdc, footer_w.as_ptr(), -1, &mut footer_left, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     let mut footer_right = RECT {
         left: width / 2,
@@ -1027,25 +1046,12 @@ unsafe fn paint_ui(
         bottom: height - 10,
     };
     let mode_w = to_wide(if matches!(status, UpdateStatus::Offline(_)) { "Modo Fuera de Línea" } else { "Conectado" });
-    DrawTextW(hdc, mode_w.as_ptr(), mode_w.len() as i32 - 1, &mut footer_right, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
+    DrawTextW(hdc, mode_w.as_ptr(), -1, &mut footer_right, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
 
-    // Limpieza de objetos GDI creados
+    // Limpieza final de GDI
     SelectObject(hdc, old_pen);
     SelectObject(hdc, old_font);
     DeleteObject(gold_pen);
-    DeleteObject(card_brush);
-    DeleteObject(border_pen);
-    DeleteObject(bar_bg_brush);
-    DeleteObject(bar_border_pen);
-    DeleteObject(font_title);
-    DeleteObject(font_sub);
-    DeleteObject(font_label);
-    DeleteObject(font_val);
-    DeleteObject(font_status);
-    DeleteObject(font_bar);
-    DeleteObject(font_btn);
-    DeleteObject(font_btn_sec);
-    DeleteObject(font_footer);
 }
 
 #[cfg(windows)]
@@ -1089,15 +1095,37 @@ fn run_gui_launcher() {
 
         RegisterClassExW(&wc);
 
-        let win_w = 640;
-        let win_h = 440;
+        let win_w = 660;
+        let win_h = 460;
 
         let screen_w = GetSystemMetrics(SM_CXSCREEN);
         let screen_h = GetSystemMetrics(SM_CYSCREEN);
         let pos_x = (screen_w - win_w) / 2;
         let pos_y = (screen_h - win_h) / 2;
 
-        let title = to_wide("World of Azeria — Lanzador y Actualizador");
+        let fonts = UiFonts::new();
+
+        if let Ok(mut guard) = GLOBAL_UI_CTX.lock() {
+            *guard = Some(UiContext {
+                state: Arc::clone(&state),
+                game_dir: game_dir.clone(),
+                btn_play_rect: RECT {
+                    left: 30,
+                    top: 280,
+                    right: 430,
+                    bottom: 340,
+                },
+                btn_check_rect: RECT {
+                    left: 450,
+                    top: 280,
+                    right: win_w - 30,
+                    bottom: 340,
+                },
+                fonts,
+            });
+        }
+
+        let title = to_wide("World of Azeria - Lanzador y Actualizador");
         let hwnd = CreateWindowExW(
             0,
             class_name.as_ptr(),
@@ -1113,30 +1141,25 @@ fn run_gui_launcher() {
             std::ptr::null(),
         );
 
-        if let Ok(mut guard) = GLOBAL_UI_CTX.lock() {
-            *guard = Some(UiContext {
-                state: Arc::clone(&state),
-                game_dir,
-                btn_play_rect: RECT {
-                    left: 30,
-                    top: 280,
-                    right: 420,
-                    bottom: 340,
-                },
-                btn_check_rect: RECT {
-                    left: 440,
-                    top: 280,
-                    right: win_w - 30,
-                    bottom: 340,
-                },
-            });
+        if hwnd == std::ptr::null_mut() {
+            return;
         }
+
+        // Posicionar explícitamente y mostrar ventana centrada
+        SetWindowPos(
+            hwnd,
+            HWND_TOP,
+            pos_x,
+            pos_y,
+            win_w,
+            win_h,
+            SWP_SHOWWINDOW,
+        );
+
+        ShowWindow(hwnd, SW_SHOW);
 
         // Temporizador de refresco a ~30 FPS para animaciones y actualización de progreso
         SetTimer(hwnd, 1, 33, None);
-
-        ShowWindow(hwnd, SW_SHOW);
-        SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_SHOWWINDOW);
 
         let mut msg: windows_sys::Win32::UI::WindowsAndMessaging::MSG = std::mem::zeroed();
         while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
@@ -1157,7 +1180,7 @@ fn main() {
         println!("World of Azeria Launcher");
         let game_dir = get_game_dir();
         if let Some(game_bin) = find_game_binary(&game_dir) {
-            launch_game(&game_bin);
+            launch_game(&game_bin, &game_dir);
         } else {
             eprintln!("No se encontró el ejecutable.");
         }
