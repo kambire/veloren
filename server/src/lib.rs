@@ -514,6 +514,36 @@ impl Server {
         // Set the spawn point we calculated above
         state.ecs_mut().insert(spawn_point);
 
+        // Register safe zones and spawn invulnerability aura safezone entities
+        #[cfg(feature = "worldgen")]
+        {
+            let index_ref = index.as_index_ref();
+            common::zone::register_safe_zone(spawn_point.0.xy().as_::<i32>());
+            state
+                .create_safezone(Some(common::zone::SAFE_ZONE_RADIUS), comp::Pos(spawn_point.0))
+                .build();
+
+            for info in &common::zone::RACE_STARTING_INFOS {
+                let pos = world.find_accessible_pos(index_ref, info.spawn_wpos, false);
+                state
+                    .create_safezone(Some(common::zone::SAFE_ZONE_RADIUS), comp::Pos(pos))
+                    .build();
+            }
+
+            for &capital in &[common::zone::ALLIANCE_CAPITAL_WPOS, common::zone::HORDE_CAPITAL_WPOS] {
+                let pos = world.find_accessible_pos(index_ref, capital, false);
+                state
+                    .create_safezone(Some(common::zone::SAFE_ZONE_RADIUS), comp::Pos(pos))
+                    .build();
+            }
+
+            // Register all settlement sites as dynamic safe zones
+            for site in world.civs().sites().filter(|s| s.is_settlement()) {
+                let center_wpos = TerrainChunkSize::center_wpos(site.center);
+                common::zone::register_safe_zone(center_wpos);
+            }
+        }
+
         // Insert a default AABB for the world
         // TODO: prevent this from being deleted
         {

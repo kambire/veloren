@@ -84,6 +84,7 @@ impl BehaviorTree {
     pub fn root() -> Self {
         Self {
             tree: vec![
+                repel_from_safezone_if_enemy,
                 maintain_if_gliding,
                 react_on_dangerous_fall,
                 react_if_on_fire,
@@ -184,6 +185,27 @@ impl BehaviorTree {
     }
 }
 
+/// Si un enemigo está dentro o en el borde de una zona segura, soltar target y huir hacia afuera
+fn repel_from_safezone_if_enemy(bdata: &mut BehaviorData) -> bool {
+    if matches!(bdata.agent_data.alignment, Some(Alignment::Enemy)) {
+        if let Some((center, _dist)) =
+            common::zone::nearest_safe_zone_with_margin(bdata.agent_data.pos.0.xy().as_(), 30.0)
+        {
+            bdata.agent.target = None;
+            let safe_center_pos = Pos(Vec3::new(
+                center.x as f32,
+                center.y as f32,
+                bdata.agent_data.pos.0.z,
+            ));
+            bdata
+                .agent_data
+                .flee(bdata.agent, bdata.controller, bdata.read_data, &safe_center_pos);
+            return true;
+        }
+    }
+    false
+}
+
 /// If in gliding, properly maintain it
 /// If on ground, unwield glider
 fn maintain_if_gliding(bdata: &mut BehaviorData) -> bool {
@@ -282,7 +304,14 @@ fn target_if_attacked(bdata: &mut BehaviorData) -> bool {
             {
                 // If target is dead or invulnerable (for now, this only
                 // means safezone), untarget them and idle.
-                if is_dead_or_invulnerable(attacker, bdata.read_data) {
+                if is_dead_or_invulnerable(attacker, bdata.read_data)
+                    || (matches!(bdata.agent_data.alignment, Some(Alignment::Enemy))
+                        && bdata
+                            .read_data
+                            .positions
+                            .get(attacker)
+                            .is_some_and(|p| common::zone::is_in_safe_zone(p.0.xy().as_())))
+                {
                     bdata.agent.target = None;
                 } else {
                     if bdata.agent.target.is_none() {
@@ -956,6 +985,9 @@ fn do_combat(bdata: &mut BehaviorData) -> bool {
                 agent.target = None;
                 agent_data.idle(agent, controller, read_data, emitters, rng);
             } else if is_invulnerable(target, read_data)
+                || (matches!(agent_data.alignment, Some(Alignment::Enemy))
+                    && (common::zone::is_in_safe_zone(tgt_pos.0.xy().as_())
+                        || common::zone::is_in_safe_zone(agent_data.pos.0.xy().as_())))
                 || stop_pursuing(
                     dist_sqrd,
                     origin_dist_sqrd,

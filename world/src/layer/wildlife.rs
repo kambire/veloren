@@ -570,6 +570,24 @@ pub fn apply_wildlife_supplement<'a, R: Rng>(
 
             let wpos2d = wpos2d + offs;
 
+            // Bloquear aparición de mobs/fauna en zonas seguras de inicio o dentro de asentamientos
+            let in_settlement = chunk.sites.iter().any(|site_id| {
+                let site = index.sites.get(*site_id);
+                matches!(
+                    site.kind,
+                    Some(
+                        crate::site::SiteKind::CliffTown
+                            | crate::site::SiteKind::SavannahTown
+                            | crate::site::SiteKind::DesertCity
+                            | crate::site::SiteKind::CoastalTown
+                            | crate::site::SiteKind::Citadel
+                    )
+                )
+            });
+            if in_settlement || common::zone::is_in_safe_zone(wpos2d) {
+                continue;
+            }
+
             // Sample terrain
             let col_sample = if let Some(col_sample) = get_column(offs) {
                 col_sample

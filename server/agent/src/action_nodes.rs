@@ -1171,6 +1171,14 @@ impl AgentData<'_> {
                 get_pos(entity).map(|pos| (entity, pos, attack_target))
             })
             .filter(|(entity, e_pos, _)| is_detected(entity, e_pos, read_data.scales.get(*entity)))
+            .filter(|(_, e_pos, attack_target)| {
+                if *attack_target && matches!(self.alignment, Some(Alignment::Enemy)) {
+                    !common::zone::is_in_safe_zone(e_pos.0.xy().as_())
+                        && !common::zone::is_in_safe_zone(self.pos.0.xy().as_())
+                } else {
+                    true
+                }
+            })
             .min_by_key(|(_, e_pos, attack_target)| {
                 (
                     *attack_target,

@@ -234,3 +234,72 @@ pub fn get_zone_at(wpos: Vec2<f32>) -> &'static ZoneDefinition {
         })
         .expect("Siempre hay al menos una zona")
 }
+
+/// Radio de protección en bloques/metros para las zonas seguras de inicio y asentamientos
+pub const SAFE_ZONE_RADIUS: f32 = 250.0;
+
+lazy_static::lazy_static! {
+    static ref DYNAMIC_SAFE_ZONES: std::sync::RwLock<Vec<Vec2<i32>>> = std::sync::RwLock::new(Vec::new());
+}
+
+/// Registra una zona segura dinámica (ej. el pueblo natal generado en el mundo)
+pub fn register_safe_zone(center: Vec2<i32>) {
+    if let Ok(mut zones) = DYNAMIC_SAFE_ZONES.write() {
+        if !zones.contains(&center) {
+            zones.push(center);
+        }
+    }
+}
+
+/// Determina si una coordenada se encuentra protegida dentro de una zona segura
+pub fn is_in_safe_zone(wpos2d: Vec2<i32>) -> bool {
+    nearest_safe_zone_with_margin(wpos2d, 0.0).is_some()
+}
+
+/// Devuelve el centro y distancia a la zona segura más cercana si está dentro del radio + margen
+pub fn nearest_safe_zone_with_margin(wpos2d: Vec2<i32>, margin: f32) -> Option<(Vec2<i32>, f32)> {
+    let wpos_f = wpos2d.map(|e| e as f32);
+    let max_dist = SAFE_ZONE_RADIUS + margin;
+    let mut nearest = None;
+    let mut min_dist = max_dist;
+
+    // 1. Zonas de spawn de cada raza
+    for info in &RACE_STARTING_INFOS {
+        let spawn_f = info.spawn_wpos.map(|e| e as f32);
+        let dist = wpos_f.distance(spawn_f);
+        if dist <= min_dist {
+            min_dist = dist;
+            nearest = Some((info.spawn_wpos, dist));
+        }
+    }
+
+    // 2. Capitales de facción
+    for capital in &[ALLIANCE_CAPITAL_WPOS, HORDE_CAPITAL_WPOS] {
+        let cap_f = capital.map(|e| e as f32);
+        let dist = wpos_f.distance(cap_f);
+        if dist <= min_dist {
+            min_dist = dist;
+            nearest = Some((*capital, dist));
+        }
+    }
+
+    // 3. Asentamientos y pueblos iniciales dinámicos
+    if let Ok(dyn_zones) = DYNAMIC_SAFE_ZONES.read() {
+        for &center in dyn_zones.iter() {
+            let center_f = center.map(|e| e as f32);
+            let dist = wpos_f.distance(center_f);
+            if dist <= min_dist {
+                min_dist = dist;
+                nearest = Some((center, dist));
+            }
+        }
+    }
+
+    nearest
+}
+
+/// Devuelve el centro y distancia a la zona segura más cercana si está dentro del radio normal
+pub fn nearest_safe_zone_center(wpos2d: Vec2<i32>) -> Option<(Vec2<i32>, f32)> {
+    nearest_safe_zone_with_margin(wpos2d, 0.0)
+}
+

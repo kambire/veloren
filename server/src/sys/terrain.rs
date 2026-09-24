@@ -199,6 +199,13 @@ impl<'a> System<'a> for Sys {
                             SpawnEntityData::Npc(data) => {
                                 let (npc_builder, pos) = data.to_npc_builder();
 
+                                // Bloquear la aparición de mobs enemigos dentro de zonas seguras de inicio
+                                if matches!(npc_builder.alignment, comp::Alignment::Enemy)
+                                    && common::zone::is_in_safe_zone(pos.0.xy().as_())
+                                {
+                                    continue;
+                                }
+
                                 emitters.emit(CreateNpcEvent {
                                     pos,
                                     ori: comp::Ori::from(Dir::random_2d(&mut rng)),
@@ -218,6 +225,14 @@ impl<'a> System<'a> for Sys {
                                 SpawnEntityData::Special(..) => None,
                                 SpawnEntityData::Npc(data) => {
                                     let (npc_builder, pos) = data.to_npc_builder();
+
+                                    // Bloquear la aparición de mobs enemigos dentro de zonas seguras de inicio
+                                    if matches!(npc_builder.alignment, comp::Alignment::Enemy)
+                                        && common::zone::is_in_safe_zone(pos.0.xy().as_())
+                                    {
+                                        return None;
+                                    }
+
                                     Some(CreateNpcEvent {
                                         pos,
                                         ori: comp::Ori::from(Dir::random_2d(&mut rng)),
