@@ -1067,6 +1067,8 @@ impl ServerEvent for DestroyEvent {
             }
 
             let mut exp_awards = Vec::<(Entity, f32, Option<Group>)>::new();
+            let mut mob_combat_rating = 1.0f32;
+            let mut mob_max_health = 100.0f32;
             // Award EXP to damage contributors
             //
             // NOTE: Debug logging is disabled by default for this module - to enable it add
@@ -1095,8 +1097,9 @@ impl ServerEvent for DestroyEvent {
                     break 'xp;
                 };
 
+                mob_max_health = entity_health.maximum();
                 // Calculate the total EXP award for the kill
-                let exp_reward = combat::combat_rating(
+                let cr = combat::combat_rating(
                     entity_inventory,
                     entity_health,
                     entity_energy,
@@ -1104,7 +1107,9 @@ impl ServerEvent for DestroyEvent {
                     entity_skill_set,
                     *entity_body,
                     &data.msm,
-                ) * 20.0;
+                );
+                mob_combat_rating = cr;
+                let exp_reward = cr * 20.0;
 
                 let mut damage_contributors = HashMap::<DamageContrib, (u64, f32)>::new();
                 for (damage_contributor, damage) in entity_health.damage_contributions() {
@@ -1308,13 +1313,28 @@ impl ServerEvent for DestroyEvent {
                 {
                     // Only drop loot if entity has agency (not a player),
                     // and if it is not owned by another entity (not a pet)
-                    if !matches!(alignment, Some(Alignment::Owned(_)))
-                        && let Some(items) = data
+                    if !matches!(alignment, Some(Alignment::Owned(_) | Alignment::Tame)) {
+                        let mut items = data
                             .item_drops
                             .remove(ev.entity)
                             .map(|comp::ItemDrops(item)| item)
-                    {
-                        // Remove entries where zero exp was awarded - this happens because some
+                            .unwrap_or_default();
+
+                        // Drop coins for defeated enemies / mobs
+                        let is_enemy = matches!(alignment, Some(Alignment::Enemy)) || !exp_awards.is_empty();
+                        if is_enemy {
+                            let health_bonus = (mob_max_health / 1000.0).clamp(1.0, 5.0);
+                            let base_coins = (mob_combat_rating * 15.0 * health_bonus).max(5.0);
+                            let variance = 0.8 + rng.random::<f32>() * 0.45;
+                            let coin_count = ((base_coins * variance) as u32).max(1);
+
+                            if let Ok(coin_item) = comp::Item::new_from_asset("common.items.utility.coins") {
+                                items.push((coin_count, coin_item));
+                            }
+                        }
+
+                        if !items.is_empty() {
+                            // Remove entries where zero exp was awarded - this happens because some
                         // entities like Object bodies don't give EXP.
                         let mut item_receivers = HashMap::new();
                         for (entity, exp, group) in exp_awards {
@@ -1388,6 +1408,7 @@ impl ServerEvent for DestroyEvent {
                             );
                         }
                     }
+                }
                 }
                 true
             };

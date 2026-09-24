@@ -705,6 +705,26 @@ impl Inventory {
             .sum()
     }
 
+    /// Determine how many coins there are in the inventory.
+    pub fn count_coins(&self) -> u64 {
+        self.slots()
+            .flatten()
+            .chain(self.overflow_items())
+            .filter(|it| matches!(it.kind().as_ref(), ItemKind::Utility { kind: item::Utility::Coins }))
+            .map(|it| u64::from(it.amount()))
+            .sum()
+    }
+
+    /// Return (gold, silver, bronze) denomination of coins.
+    /// 1 Gold = 100 Silver = 10,000 Bronze (Coins).
+    pub fn currency_denominations(&self) -> (u64, u64, u64) {
+        let total = self.count_coins();
+        let gold = total / 10_000;
+        let silver = (total % 10_000) / 100;
+        let bronze = total % 100;
+        (gold, silver, bronze)
+    }
+
     /// Determine whether the inventory has space to contain the given item, of
     /// the given amount.
     pub fn has_space_for(&self, item_def: &ItemDef, amount: u32) -> bool {

@@ -1890,6 +1890,22 @@ impl Client {
                 .is_some()
     }
 
+    pub fn is_volume_rider(&self) -> bool {
+        self.state
+            .ecs()
+            .read_storage::<Is<VolumeRider>>()
+            .get(self.entity())
+            .is_some()
+    }
+
+    pub fn is_volume_controller(&self) -> bool {
+        self.state
+            .ecs()
+            .read_storage::<Is<VolumeRider>>()
+            .get(self.entity())
+            .is_some_and(|r| r.block.is_controller())
+    }
+
     pub fn is_lantern_enabled(&self) -> bool {
         self.state
             .ecs()

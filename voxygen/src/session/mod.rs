@@ -1031,7 +1031,11 @@ impl PlayState for SessionState {
                             GameInput::Jump => {
                                 self.walking_speed = false;
                                 global_state.profile.tutorial.event_jump();
-                                self.client.borrow_mut().handle_input(
+                                let mut client = self.client.borrow_mut();
+                                if state && client.is_riding() {
+                                    client.unmount();
+                                }
+                                client.handle_input(
                                     InputKind::Jump,
                                     state,
                                     default_select_pos,
@@ -1056,7 +1060,12 @@ impl PlayState for SessionState {
                             GameInput::Sit => {
                                 if state && controlling_char {
                                     self.stop_auto_walk();
-                                    self.client.borrow_mut().toggle_sit();
+                                    let mut client = self.client.borrow_mut();
+                                    if client.is_riding() {
+                                        client.unmount();
+                                    } else {
+                                        client.toggle_sit();
+                                    }
                                 }
                             },
                             GameInput::Crawl => {
@@ -1763,6 +1772,12 @@ impl PlayState for SessionState {
                         // enabled.
                         self.inputs.move_dir =
                             self.walk_right_dir * axis_right + self.walk_forward_dir * axis_up;
+                        if self.inputs.move_dir.magnitude_squared() > 0.05 {
+                            let mut client = self.client.borrow_mut();
+                            if client.is_volume_rider() && !client.is_volume_controller() {
+                                client.unmount();
+                            }
+                        }
                     }
                 },
                 CameraMode::Freefly => {

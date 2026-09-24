@@ -52,6 +52,8 @@ widget_ids! {
         death_message_2_bg,
         death_message_3,
         death_message_3_bg,
+        riding_prompt,
+        riding_prompt_bg,
         // WoW Player Frame (Arriba a la izquierda)
         player_frame_border,
         player_frame_bg,
@@ -626,6 +628,29 @@ impl<'a> Skillbar<'a> {
                     .set(state.ids.death_message_1, ui);
             }
         }
+    }
+
+    fn show_riding_message(&self, state: &State, ui: &mut UiCell) {
+        let is_steering = self.client.is_volume_controller();
+        let prompt = if is_steering {
+            "[F / Espacio] Soltar timón / Levantarse"
+        } else {
+            "[Espacio / F / WASD] Levantarse del asiento"
+        };
+
+        Text::new(prompt)
+            .mid_bottom_with_margin_on(ui.window, 185.0)
+            .font_size(self.fonts.cyri.scale(20))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(0.0, 0.0, 0.0, 0.85))
+            .set(state.ids.riding_prompt_bg, ui);
+
+        Text::new(prompt)
+            .bottom_left_with_margins_on(state.ids.riding_prompt_bg, 2.0, 2.0)
+            .font_size(self.fonts.cyri.scale(20))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(TEXT_COLOR)
+            .set(state.ids.riding_prompt, ui);
     }
 
     fn show_death_message(&self, state: &State, ui: &mut UiCell) {
@@ -1840,6 +1865,10 @@ impl Widget for Skillbar<'_> {
         // Give up message
         else if comp::is_downed(Some(self.health), self.client.current().as_ref()) {
             self.show_give_up_message(state, ui);
+        }
+        // Riding / sitting on boat seat prompt
+        else if self.client.is_riding() {
+            self.show_riding_message(state, ui);
         }
 
         // Skillbar

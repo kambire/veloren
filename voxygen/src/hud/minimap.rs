@@ -823,11 +823,12 @@ impl Widget for MiniMap<'_> {
             };
 
             for (i, marker) in markers.iter().enumerate() {
-                let rpos =
-                    match wpos_to_rpos(marker.wpos, marker.flags.contains(MarkerFlags::IS_QUEST)) {
-                        Some(rpos) => rpos,
-                        None => continue,
-                    };
+                let is_quest = marker.flags.contains(MarkerFlags::IS_QUEST)
+                    && marker.wpos.distance(player_pos.xy()) <= 300.0;
+                let rpos = match wpos_to_rpos(marker.wpos, is_quest) {
+                    Some(rpos) => rpos,
+                    None => continue,
+                };
                 let difficulty = match &marker.kind {
                     MarkerKind::ChapelSite => Some(4),
                     MarkerKind::Terracotta => Some(5),
@@ -1040,6 +1041,20 @@ impl Widget for MiniMap<'_> {
                 for (_, pos, giver) in (&entities, &positions, &quest_givers).join() {
                     let zone = common::zone::get_zone_at(pos.0.xy()).id;
                     if let Some(marker) = quests.marker_for_giver(*giver, zone, my_faction) {
+                        let dist = pos.0.xy().distance(player_pos.xy());
+                        // Disminuir distancia de visión de misiones disponibles ('!'):
+                        // solo mostrarlas a corta distancia (<= 60m) y no repetir el mismo oficio cerca
+                        if marker == common::quest::QuestMarker::Available {
+                            if dist > 60.0 {
+                                continue;
+                            }
+                            let too_close_to_same_giver = quest_targets.iter().any(|qt| {
+                                qt.marker == marker && qt.wpos.distance(pos.0.xy()) < 35.0
+                            });
+                            if too_close_to_same_giver {
+                                continue;
+                            }
+                        }
                         quest_targets.push(QuestTargetItem {
                             wpos: pos.0.xy(),
                             marker,
@@ -1094,10 +1109,13 @@ impl Widget for MiniMap<'_> {
                                 .or_else(|| zone_def.map(|zd| zd.center_wpos.map(|e| e as f32)))
                                 .unwrap_or(player_pos.xy());
 
-                            quest_targets.push(QuestTargetItem {
-                                wpos: target_pos,
-                                marker: target_marker,
-                            });
+                            // Disminuir la distancia de visión de los anuncios en el mapa (máximo 300m)
+                            if target_pos.distance(player_pos.xy()) <= 300.0 {
+                                quest_targets.push(QuestTargetItem {
+                                    wpos: target_pos,
+                                    marker: target_marker,
+                                });
+                            }
                         }
                     }
                 }
@@ -1127,6 +1145,16 @@ impl Widget for MiniMap<'_> {
                 let compass_radius = (map_size.x as f32 / 2.0) - 14.0 * scale as f32;
                 let dist_px = rpos_unclamped.magnitude();
                 let is_clamped = dist_px > compass_radius;
+
+                // Para misiones disponibles ('!'), no fijar anuncios en el borde de la brújula si quedan fuera del círculo del minimapa
+                if is_clamped && target.marker == common::quest::QuestMarker::Available {
+                    continue;
+                }
+
+                // Disminuir distancia máxima de visión para anuncios/indicadores fuera de pantalla (máximo 300 metros)
+                if is_clamped && dist_meters > 300 {
+                    continue;
+                }
 
                 let rpos = if is_clamped {
                     (rpos_unclamped / dist_px) * compass_radius

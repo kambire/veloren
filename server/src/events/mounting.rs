@@ -168,5 +168,20 @@ fn handle_mount_volume(server: &mut Server, rider: EcsEntity, volume_pos: Volume
 fn handle_unmount(server: &mut Server, rider: EcsEntity) {
     let state = server.state_mut();
     state.ecs().write_storage::<Is<Rider>>().remove(rider);
-    state.ecs().write_storage::<Is<VolumeRider>>().remove(rider);
+    let was_volume_rider = state
+        .ecs()
+        .write_storage::<Is<VolumeRider>>()
+        .remove(rider)
+        .is_some();
+
+    if was_volume_rider {
+        let mut positions = state.ecs().write_storage::<comp::Pos>();
+        let orientations = state.ecs().read_storage::<comp::Ori>();
+        if let Some(pos) = positions.get_mut(rider) {
+            let forward = orientations
+                .get(rider)
+                .map_or(Vec3::unit_y(), |ori| ori.to_quat() * Vec3::unit_y());
+            pos.0 += forward * 0.4 + Vec3::unit_z() * 0.6;
+        }
+    }
 }

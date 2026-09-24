@@ -593,10 +593,25 @@ impl<'a> System<'a> for Sys {
                         health.set_fraction(presence.health_fraction);
                     }
 
-                    // Los aldeanos con profesión pueden dar misiones
+                    // Reducir la cantidad de NPCs que dan misiones para evitar repeticiones excesivas en pueblos
                     let quest_giver = actor
                         .profession()
-                        .and_then(|profession| QuestGiver::from_profession(&profession));
+                        .and_then(|profession| QuestGiver::from_profession(&profession))
+                        .filter(|giver| {
+                            use std::hash::{Hash, Hasher};
+                            let mut h = std::collections::hash_map::DefaultHasher::new();
+                            actor_id.hash(&mut h);
+                            let hash = h.finish();
+                            match giver {
+                                // Especialistas (herreros, alquimistas, cocineros, herbolarios): ~1 de cada 2
+                                QuestGiver::Blacksmith
+                                | QuestGiver::Alchemist
+                                | QuestGiver::Chef
+                                | QuestGiver::Herbalist => (hash % 2) == 0,
+                                // Profesiones muy abundantes en aldeas (guardias, granjeros, cazadores, mercaderes): solo ~1 de cada 4
+                                _ => (hash % 4) == 0,
+                            }
+                        });
 
                     create_npc_emitter.emit(CreateNpcEvent {
                         pos,

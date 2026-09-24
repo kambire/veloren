@@ -61,9 +61,10 @@ widget_ids! {
         inv_alignment,
         spacing_above,
         slot_grid,
-        //coin_ico,
         space_txt,
-        //coin_txt,
+        gold_txt,
+        silver_txt,
+        bronze_txt,
         inventory_title,
         inventory_title_bg,
         scrollbar_bg,
@@ -405,37 +406,33 @@ impl<'a> InventoryScroller<'a> {
         let space_max = self.inventory.slots().count();
         let bag_space = format!("{}/{}", space_used, space_max);
         let bag_space_percentage = space_used as f32 / space_max as f32;
-        //let coin_itemdef =
-        // Arc::<ItemDef>::load_expect_cloned("common.items.utility.coins"); let
-        // coin_count = self.inventory.item_count(&coin_itemdef); TODO: Reuse
-        // this to generally count a stackable item the player selected
-        // let cheese_itemdef =
-        // Arc::<ItemDef>::load_expect_cloned("common.items.food.cheese");
-        // let cheese_count = self.inventory.item_count(&cheese_itemdef);
 
-        // Coin Icon and Coin Text
-        /*Image::new(self.imgs.coin_ico)
-            .w_h(16.0, 17.0)
-            .bottom_left_with_margins_on(self.bg_ids.bg_frame, 2.0, 43.0)
-            .set(state.ids.coin_ico, ui);
-        Text::new(&format!("{}", coin_count))
-            .bottom_left_with_margins_on(self.bg_ids.bg_frame, 6.0, 64.0)
+        let (gold, silver, bronze) = self.inventory.currency_denominations();
+        let gold_str = format!("{} Oro", gold);
+        let silver_str = format!("{} Plata", silver);
+        let bronze_str = format!("{} Bronce", bronze);
+
+        Text::new(&gold_str)
+            .bottom_left_with_margins_on(self.bg_ids.bg_frame, 6.0, 32.0)
             .font_id(self.fonts.cyri.conrod_id)
             .font_size(self.fonts.cyri.scale(14))
-            .color(Color::Rgba(0.871, 0.863, 0.05, 1.0))
-            .set(state.ids.coin_txt, ui);*/
-        // TODO: Add a customizable counter for stackable items here
-        // TODO: Cheese is funny until it's real
-        /*Image::new(self.imgs.cheese_ico)
-            .w_h(16.0, 17.0)
-            .bottom_left_with_margins_on(self.bg_ids.bg_frame, 2.0, 110.0)
-            .set(state.ids.cheese_ico, ui);
-        Text::new(&format!("{}", cheese_count))
-            .bottom_left_with_margins_on(self.bg_ids.bg_frame, 6.0, 144.0)
+            .color(Color::Rgba(0.96, 0.78, 0.22, 1.0))
+            .set(state.ids.gold_txt, ui);
+
+        Text::new(&silver_str)
+            .right_from(state.ids.gold_txt, 14.0)
             .font_id(self.fonts.cyri.conrod_id)
             .font_size(self.fonts.cyri.scale(14))
-            .color(Color::Rgba(0.871, 0.863, 0.05, 1.0))
-            .set(state.ids.cheese_txt, ui);*/
+            .color(Color::Rgba(0.82, 0.86, 0.90, 1.0))
+            .set(state.ids.silver_txt, ui);
+
+        Text::new(&bronze_str)
+            .right_from(state.ids.silver_txt, 14.0)
+            .font_id(self.fonts.cyri.conrod_id)
+            .font_size(self.fonts.cyri.scale(14))
+            .color(Color::Rgba(0.85, 0.55, 0.30, 1.0))
+            .set(state.ids.bronze_txt, ui);
+
         //Free Bag-Space
         Text::new(&bag_space)
             .bottom_right_with_margins_on(self.bg_ids.bg_frame, 6.0, 43.0)
@@ -809,6 +806,10 @@ widget_ids! {
         left_button,
         right_button,
         draggable_area,
+        money_anchor,
+        gold_txt,
+        silver_txt,
+        bronze_txt,
     }
 }
 
@@ -1382,6 +1383,37 @@ impl Widget for BagWindow<'_> {
                     }
                 },
             }
+
+            // Display currency (gold, silver, bronze) in the bag window footer
+            let (gold, silver, bronze) = inventory.currency_denominations();
+            let gold_str = format!("{} Oro", gold);
+            let silver_str = format!("{} Plata", silver);
+            let bronze_str = format!("{} Bronce", bronze);
+
+            Rectangle::fill_with([0.0, 0.0], color::TRANSPARENT)
+                .bottom_left_with_margins_on(self.bg_ids.bg_frame, 7.0, 32.0)
+                .set(state.ids.money_anchor, ui);
+
+            Text::new(&gold_str)
+                .right_from(state.ids.money_anchor, 0.0)
+                .font_id(self.fonts.cyri.conrod_id)
+                .font_size(self.fonts.cyri.scale(14))
+                .color(Color::Rgba(0.96, 0.78, 0.22, 1.0))
+                .set(state.ids.gold_txt, ui);
+
+            Text::new(&silver_str)
+                .right_from(state.ids.gold_txt, 14.0)
+                .font_id(self.fonts.cyri.conrod_id)
+                .font_size(self.fonts.cyri.scale(14))
+                .color(Color::Rgba(0.82, 0.86, 0.90, 1.0))
+                .set(state.ids.silver_txt, ui);
+
+            Text::new(&bronze_str)
+                .right_from(state.ids.silver_txt, 14.0)
+                .font_id(self.fonts.cyri.conrod_id)
+                .font_size(self.fonts.cyri.scale(14))
+                .color(Color::Rgba(0.85, 0.55, 0.30, 1.0))
+                .set(state.ids.bronze_txt, ui);
         }
 
         events
@@ -1511,11 +1543,11 @@ impl Widget for InventoryMenu<'_> {
         // However, the slot spacing has a few pixel mismatches, but shouldn't be
         // noticable
         let grid_width = 376.0;
-        let grid_height = 586.0;
+        let grid_height = 565.5;
 
         // Alignment for Grid
         Rectangle::fill_with([grid_width, grid_height], color::TRANSPARENT)
-            .mid_bottom_with_margin_on(self.bag_ids.bg_frame, 3.5)
+            .mid_bottom_with_margin_on(self.bag_ids.bg_frame, 24.0)
             .scroll_kids_vertically()
             .set(state.ids.inv_alignment, ui);
 
@@ -2119,10 +2151,10 @@ impl Widget for GearMenu<'_> {
 
         // Inventory slots (filtered to equipment only)
         let grid_width = 376.0;
-        let grid_height = 200.0;
+        let grid_height = 179.5;
 
         Rectangle::fill_with([grid_width, grid_height], color::TRANSPARENT)
-            .mid_bottom_with_margin_on(self.bag_ids.bg_frame, 3.5)
+            .mid_bottom_with_margin_on(self.bag_ids.bg_frame, 24.0)
             .scroll_kids_vertically()
             .set(state.ids.inv_alignment, ui);
 
