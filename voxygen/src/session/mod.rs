@@ -864,7 +864,7 @@ impl PlayState for SessionState {
                                 if !self.mouse_right_down && was_dragging {
                                     self.hud.set_camera_dragging(false, global_state);
                                 }
-                                let is_click = was_down && (!was_dragging || self.mouse_drag_distance < 14.0);
+                                let is_click = was_down && self.mouse_drag_distance < 25.0;
                                 if is_click {
                                     let now = std::time::Instant::now();
                                     let cursor_pos = global_state.window.cursor_position();
@@ -912,7 +912,7 @@ impl PlayState for SessionState {
                                 if !self.mouse_left_down && was_dragging {
                                     self.hud.set_camera_dragging(false, global_state);
                                 }
-                                let is_click = was_down && (!was_dragging || self.mouse_drag_distance < 14.0);
+                                let is_click = was_down && self.mouse_drag_distance < 25.0;
                                 if is_click {
                                     if can_build {
                                         if let Some(bt) = build_target {
@@ -925,6 +925,10 @@ impl PlayState for SessionState {
                                     } else if let Some(et) = entity_target {
                                         self.target_entity = Some(et.kind.0);
                                         self.selected_entity = Some((et.kind.0, std::time::Instant::now()));
+                                    } else {
+                                        // Clic derecho en espacio/terreno vacío -> deseleccionar objetivo
+                                        self.target_entity = None;
+                                        self.selected_entity = None;
                                     }
                                 }
                             },
@@ -1534,7 +1538,7 @@ impl PlayState for SessionState {
                     Event::CursorMove(delta) => {
                         if self.mouse_left_down || self.mouse_right_down {
                             self.mouse_drag_distance += delta.magnitude();
-                            if self.mouse_drag_distance >= 14.0 && !self.hud.is_camera_dragging() {
+                            if self.mouse_drag_distance >= 25.0 && !self.hud.is_camera_dragging() {
                                 self.hud.set_camera_dragging(true, global_state);
                             }
                         }
@@ -1663,7 +1667,45 @@ impl PlayState for SessionState {
                                     matches!(char_state, comp::CharacterState::Throw(_))
                                 });
 
-                        let dir = if is_aiming
+                        let target_pos = self.target_entity.and_then(|t| {
+                            let positions = client.state().read_storage::<comp::Pos>();
+                            let bodies = client.state().read_storage::<comp::Body>();
+                            positions.get(t).map(|p| {
+                                let eye_height = bodies.get(t).map_or(1.0, |b| b.eye_height(1.0) * 0.7);
+                                p.0 + Vec3::new(0.0, 0.0, eye_height)
+                            })
+                        });
+
+                        let dir = if let Some(target_pos) = target_pos {
+                            let ori = client
+                                .state()
+                                .read_storage::<comp::Ori>()
+                                .get(player_entity)
+                                .copied()
+                                .unwrap();
+                            let scale = client
+                                .state()
+                                .read_storage::<comp::Scale>()
+                                .get(player_entity)
+                                .copied()
+                                .unwrap_or(comp::Scale(1.0));
+                            let body = client
+                                .state()
+                                .read_storage::<comp::Body>()
+                                .get(player_entity)
+                                .copied()
+                                .unwrap();
+                            let body_offsets = body.projectile_offsets(ori.look_vec(), scale.0);
+
+                            let player_pos = client
+                                .state()
+                                .read_storage::<Pos>()
+                                .get(player_entity)
+                                .copied()
+                                .unwrap();
+
+                            target_pos - (player_pos.0 + body_offsets)
+                        } else if is_aiming
                             && holding_ranged
                             && self.scene.camera().get_mode() == CameraMode::ThirdPerson
                         {
@@ -1720,7 +1762,7 @@ impl PlayState for SessionState {
 
                         drop(client);
                         let is_left_orbit = self.mouse_left_down && !self.mouse_right_down;
-                        if !is_left_orbit {
+                        if self.target_entity.is_some() || !is_left_orbit {
                             self.inputs.look_dir = Dir::from_unnormalized(dir).unwrap_or(self.inputs.look_dir);
                         }
                     }
@@ -1821,13 +1863,22 @@ impl PlayState for SessionState {
                     let target_pos = self.target_entity
                         .and_then(|t| {
                             let client = self.client.borrow();
-                            client
-                                .state()
-                                .read_storage::<comp::Pos>()
-                                .get(t)
-                                .map(|p| p.0 + Vec3::new(0.0, 0.0, 1.0))
+                            let positions = client.state().read_storage::<comp::Pos>();
+                            let bodies = client.state().read_storage::<comp::Body>();
+                            positions.get(t).map(|p| {
+                                let eye = bodies.get(t).map_or(1.0, |b| b.eye_height(1.0) * 0.7);
+                                p.0 + Vec3::new(0.0, 0.0, eye)
+                            })
                         });
                     let select_pos = target_pos.or(default_select_pos);
+                    if let Some(t_pos) = target_pos {
+                        let client = self.client.borrow();
+                        if let Some(player_pos) = client.state().read_storage::<comp::Pos>().get(client.entity()) {
+                            if let Some(dir) = Dir::from_unnormalized(t_pos - player_pos.0) {
+                                self.inputs.look_dir = dir;
+                            }
+                        }
+                    }
                     self.client.borrow_mut().handle_input(
                         kind,
                         false,
@@ -2272,14 +2323,23 @@ impl PlayState for SessionState {
                         let target_pos = self.target_entity
                             .and_then(|t| {
                                 let client = self.client.borrow();
-                                client
-                                    .state()
-                                    .read_storage::<comp::Pos>()
-                                    .get(t)
-                                    .map(|p| p.0 + Vec3::new(0.0, 0.0, 1.0))
+                                let positions = client.state().read_storage::<comp::Pos>();
+                                let bodies = client.state().read_storage::<comp::Body>();
+                                positions.get(t).map(|p| {
+                                    let eye = bodies.get(t).map_or(1.0, |b| b.eye_height(1.0) * 0.7);
+                                    p.0 + Vec3::new(0.0, 0.0, eye)
+                                })
                             });
                         let select_pos = target_pos.or(default_select_pos);
                         let target = self.target_entity;
+                        if let Some(t_pos) = target_pos {
+                            let client = self.client.borrow();
+                            if let Some(player_pos) = client.state().read_storage::<comp::Pos>().get(client.entity()) {
+                                if let Some(dir) = Dir::from_unnormalized(t_pos - player_pos.0) {
+                                    self.inputs.look_dir = dir;
+                                }
+                            }
+                        }
                         if state {
                             self.auto_charge_kind = Some(InputKind::Ability(idx));
                             self.auto_charge_start = Some(std::time::Instant::now());
@@ -2305,14 +2365,23 @@ impl PlayState for SessionState {
                         let target_pos = self.target_entity
                             .and_then(|t| {
                                 let client = self.client.borrow();
-                                client
-                                    .state()
-                                    .read_storage::<comp::Pos>()
-                                    .get(t)
-                                    .map(|p| p.0 + Vec3::new(0.0, 0.0, 1.0))
+                                let positions = client.state().read_storage::<comp::Pos>();
+                                let bodies = client.state().read_storage::<comp::Body>();
+                                positions.get(t).map(|p| {
+                                    let eye = bodies.get(t).map_or(1.0, |b| b.eye_height(1.0) * 0.7);
+                                    p.0 + Vec3::new(0.0, 0.0, eye)
+                                })
                             });
                         let select_pos = target_pos.or(default_select_pos);
                         let target = self.target_entity;
+                        if let Some(t_pos) = target_pos {
+                            let client = self.client.borrow();
+                            if let Some(player_pos) = client.state().read_storage::<comp::Pos>().get(client.entity()) {
+                                if let Some(dir) = Dir::from_unnormalized(t_pos - player_pos.0) {
+                                    self.inputs.look_dir = dir;
+                                }
+                            }
+                        }
                         self.client.borrow_mut().handle_input(
                             InputKind::Primary,
                             state,
@@ -2325,14 +2394,23 @@ impl PlayState for SessionState {
                         let target_pos = self.target_entity
                             .and_then(|t| {
                                 let client = self.client.borrow();
-                                client
-                                    .state()
-                                    .read_storage::<comp::Pos>()
-                                    .get(t)
-                                    .map(|p| p.0 + Vec3::new(0.0, 0.0, 1.0))
+                                let positions = client.state().read_storage::<comp::Pos>();
+                                let bodies = client.state().read_storage::<comp::Body>();
+                                positions.get(t).map(|p| {
+                                    let eye = bodies.get(t).map_or(1.0, |b| b.eye_height(1.0) * 0.7);
+                                    p.0 + Vec3::new(0.0, 0.0, eye)
+                                })
                             });
                         let select_pos = target_pos.or(default_select_pos);
                         let target = self.target_entity;
+                        if let Some(t_pos) = target_pos {
+                            let client = self.client.borrow();
+                            if let Some(player_pos) = client.state().read_storage::<comp::Pos>().get(client.entity()) {
+                                if let Some(dir) = Dir::from_unnormalized(t_pos - player_pos.0) {
+                                    self.inputs.look_dir = dir;
+                                }
+                            }
+                        }
                         if state {
                             self.auto_charge_kind = Some(InputKind::Secondary);
                             self.auto_charge_start = Some(std::time::Instant::now());

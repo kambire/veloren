@@ -24,6 +24,7 @@ use crate::{
 use client::{Client, ServerInfo};
 use common::{
     LoadoutBuilder,
+    class::{CharacterClass, CombatRole},
     character::{CharacterId, CharacterItem, MAX_CHARACTERS_PER_PLAYER, MAX_NAME_LENGTH},
     comp::{self, Inventory, Item, humanoid, inventory::slot::EquipSlot},
     map::Marker,
@@ -57,13 +58,8 @@ const BANNER_ALPHA: u8 = 210;
 // Buttons in the bottom corners
 const SMALL_BUTTON_HEIGHT: u16 = 31;
 
-const STARTER_HAMMER: &str = "common.items.weapons.hammer.starter_hammer";
-const STARTER_BOW: &str = "common.items.weapons.bow.starter";
-const STARTER_AXE: &str = "common.items.weapons.axe.starter_axe";
-const STARTER_STAFF: &str = "common.items.weapons.staff.starter_staff";
-const STARTER_SWORD: &str = "common.items.weapons.sword.starter";
-const STARTER_SWORDS: &str = "common.items.weapons.sword_1h.starter";
-const STARTER_SCEPTRE: &str = "common.items.weapons.sceptre.starter_sceptre";
+/// Clase seleccionada por defecto al crear un personaje nuevo
+const DEFAULT_CLASS: CharacterClass = CharacterClass::Warrior;
 
 // TODO: use for info popup frame/background
 const UI_MAIN: Rgba<u8> = Rgba::new(156, 179, 179, 255); // Greenish Blue
@@ -90,14 +86,13 @@ image_ids_ice! {
 
         name_input: "voxygen.element.ui.generic.textbox",
 
-        // Tool Icons
-        swords: "voxygen.element.weapons.swords",
-        sword: "voxygen.element.weapons.sword",
-        axe: "voxygen.element.weapons.axe",
+        // Iconos de clase (arma inicial de cada clase)
+        swordshield: "voxygen.element.weapons.swordshield",
         hammer: "voxygen.element.weapons.hammer",
-        bow: "voxygen.element.weapons.bow",
-        staff: "voxygen.element.weapons.staff",
         sceptre: "voxygen.element.weapons.sceptre",
+        staff: "voxygen.element.weapons.staff",
+        bow: "voxygen.element.weapons.bow",
+        daggers: "voxygen.element.weapons.daggers",
 
         // Hardcore icon
         hardcore: "voxygen.element.ui.map.icons.dif_map_icon",
@@ -186,7 +181,7 @@ enum Mode {
 
         body_type_buttons: [button::State; 2],
         species_buttons: [button::State; 6],
-        tool_buttons: [button::State; 7],
+        class_buttons: [button::State; 6],
         sliders: Sliders,
         hardcore_enabled: bool,
         left_scroll: scrollable::State,
@@ -223,8 +218,7 @@ impl Mode {
     pub fn create(name: String) -> Self {
         // TODO: Load these from the server (presumably from a .ron) to allow for easier
         // modification of custom starting weapons
-        let mainhand = Some(STARTER_SWORD);
-        let offhand = None;
+        let (mainhand, offhand) = DEFAULT_CLASS.starter_weapons();
 
         let loadout = LoadoutBuilder::empty()
             .defaults()
@@ -244,7 +238,7 @@ impl Mode {
             offhand,
             body_type_buttons: Default::default(),
             species_buttons: Default::default(),
-            tool_buttons: Default::default(),
+            class_buttons: Default::default(),
             sliders: Default::default(),
             hardcore_enabled: false,
             left_scroll: Default::default(),
@@ -273,7 +267,7 @@ impl Mode {
             offhand: None,
             body_type_buttons: Default::default(),
             species_buttons: Default::default(),
-            tool_buttons: Default::default(),
+            class_buttons: Default::default(),
             sliders: Default::default(),
             hardcore_enabled: false,
             left_scroll: Default::default(),
@@ -954,12 +948,12 @@ impl Controls {
                 body,
                 inventory: _,
                 mainhand,
-                offhand: _,
+                offhand,
                 left_scroll,
                 right_scroll,
                 body_type_buttons,
                 species_buttons,
-                tool_buttons,
+                class_buttons,
                 sliders,
                 hardcore_enabled,
                 name_input,
@@ -1119,82 +1113,84 @@ impl Controls {
                         .into(),
                     ])
                     .spacing(1);
+                    // Selector de clases fijas estilo MMORPG. La clase se envía al
+                    // servidor como su par de armas iniciales, que el servidor
+                    // vuelve a convertir en clase con `CharacterClass::from_weapons`.
+                    let selected_class = CharacterClass::from_weapons(*mainhand, *offhand);
+                    let role_color = |role: CombatRole| match role {
+                        CombatRole::Tank => Color::from_rgb(0.45, 0.65, 1.0),
+                        CombatRole::Healer => Color::from_rgb(0.4, 0.9, 0.45),
+                        CombatRole::Dps => Color::from_rgb(1.0, 0.45, 0.4),
+                    };
+                    let class_button = |button, class: CharacterClass| {
+                        let img = match class {
+                            CharacterClass::Warrior => imgs.swordshield,
+                            CharacterClass::Paladin => imgs.hammer,
+                            CharacterClass::Priest => imgs.sceptre,
+                            CharacterClass::Mage => imgs.staff,
+                            CharacterClass::Hunter => imgs.bow,
+                            CharacterClass::Rogue => imgs.daggers,
+                        };
+                        icon_button(
+                            button,
+                            selected_class == class,
+                            Message::Tool(class.starter_weapons()),
+                            img,
+                        )
+                        .with_tooltip(tooltip_manager, move || {
+                            let tooltip_text = format!(
+                                "{} - {}\n{}",
+                                class.name(),
+                                class.role().name(),
+                                class.description()
+                            );
+                            tooltip::text(&tooltip_text, tooltip_style)
+                        })
+                    };
                     let [
-                        sword_button,
-                        swords_button,
-                        axe_button,
-                        hammer_button,
-                        bow_button,
-                        staff_button,
-                        sceptre_button,
-                    ] = tool_buttons;
+                        warrior_button,
+                        paladin_button,
+                        priest_button,
+                        mage_button,
+                        hunter_button,
+                        rogue_button,
+                    ] = class_buttons;
                     let tool = Column::with_children(vec![
+                        // Tanques y sanador
                         Row::with_children(vec![
-                            icon_button_tooltip(
-                                sword_button,
-                                *mainhand == Some(STARTER_SWORD),
-                                Message::Tool((Some(STARTER_SWORD), None)),
-                                imgs.sword,
-                                "common-weapons-greatsword",
-                            )
-                            .into(),
-                            icon_button_tooltip(
-                                hammer_button,
-                                *mainhand == Some(STARTER_HAMMER),
-                                Message::Tool((Some(STARTER_HAMMER), None)),
-                                imgs.hammer,
-                                "common-weapons-hammer",
-                            )
-                            .into(),
-                            icon_button_tooltip(
-                                axe_button,
-                                *mainhand == Some(STARTER_AXE),
-                                Message::Tool((Some(STARTER_AXE), None)),
-                                imgs.axe,
-                                "common-weapons-axe",
-                            )
-                            .into(),
-                            icon_button_tooltip(
-                                swords_button,
-                                *mainhand == Some(STARTER_SWORDS),
-                                Message::Tool((Some(STARTER_SWORDS), Some(STARTER_SWORDS))),
-                                imgs.swords,
-                                "common-weapons-shortswords",
-                            )
-                            .into(),
+                            class_button(warrior_button, CharacterClass::Warrior).into(),
+                            class_button(paladin_button, CharacterClass::Paladin).into(),
+                            class_button(priest_button, CharacterClass::Priest).into(),
                         ])
                         .spacing(1)
                         .into(),
+                        // DPS
                         Row::with_children(vec![
-                            icon_button_tooltip(
-                                bow_button,
-                                *mainhand == Some(STARTER_BOW),
-                                Message::Tool((Some(STARTER_BOW), None)),
-                                imgs.bow,
-                                "common-weapons-bow",
-                            )
-                            .into(),
-                            icon_button_tooltip(
-                                staff_button,
-                                *mainhand == Some(STARTER_STAFF),
-                                Message::Tool((Some(STARTER_STAFF), None)),
-                                imgs.staff,
-                                "common-weapons-staff",
-                            )
-                            .into(),
-                            icon_button_tooltip(
-                                sceptre_button,
-                                *mainhand == Some(STARTER_SCEPTRE),
-                                Message::Tool((Some(STARTER_SCEPTRE), None)),
-                                imgs.sceptre,
-                                "common-weapons-sceptre",
-                            )
-                            .into(),
+                            class_button(mage_button, CharacterClass::Mage).into(),
+                            class_button(hunter_button, CharacterClass::Hunter).into(),
+                            class_button(rogue_button, CharacterClass::Rogue).into(),
                         ])
                         .spacing(1)
                         .into(),
+                        Text::new(format!(
+                            "{} - {}",
+                            selected_class.name(),
+                            selected_class.role().name()
+                        ))
+                        .size(fonts.cyri.scale(22))
+                        .color(role_color(selected_class.role()))
+                        .width(Length::Units(185))
+                        .horizontal_alignment(HorizontalAlignment::Center)
+                        .into(),
+                        Text::new(selected_class.description())
+                            .size(fonts.cyri.scale(15))
+                            .color(TEXT_COLOR)
+                            .width(Length::Units(185))
+                            .horizontal_alignment(HorizontalAlignment::Center)
+                            .into(),
                     ])
-                    .spacing(1);
+                    .spacing(1)
+                    .align_items(Align::Center);
 
                     (tool, species, body_type)
                 };
