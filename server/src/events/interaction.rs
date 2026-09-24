@@ -2,7 +2,9 @@ use std::{f32::consts::PI, ops::Mul};
 
 use common::{comp::loot_owner::ONWERSHIP_TIMEOUT_FAST, rtsim::DialogueKind};
 use common_state::{BlockChange, ScheduledBlockChange};
-use specs::{DispatcherBuilder, Join, ReadExpect, ReadStorage, WriteExpect, WriteStorage};
+use specs::{
+    DispatcherBuilder, Join, ReadExpect, ReadStorage, WorldExt, WriteExpect, WriteStorage,
+};
 use tracing::error;
 use vek::*;
 
