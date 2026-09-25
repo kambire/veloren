@@ -631,11 +631,12 @@ impl<'a> Skillbar<'a> {
     }
 
     fn show_riding_message(&self, state: &State, ui: &mut UiCell) {
-        let is_steering = self.client.is_volume_controller();
-        let prompt = if is_steering {
-            "[F / Espacio] Soltar timón / Levantarse"
+        let prompt = if self.client.is_volume_controller() {
+            "[E] Soltar timón"
+        } else if self.client.is_volume_rider() {
+            "[E] Levantarse del asiento"
         } else {
-            "[Espacio / F / WASD] Levantarse del asiento"
+            "[E] Desmontar"
         };
 
         Text::new(prompt)

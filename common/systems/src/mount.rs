@@ -5,7 +5,7 @@ use common::{
         ControlAction, Controller, InputKind, Mass, Ori, PhysicsState, Pos, Scale, Stats, Vel,
         buff::DestInfo,
     },
-    event::{BuffEvent, EmitExt, MountEvent},
+    event::{BuffEvent, EmitExt},
     event_emitters,
     link::Is,
     mounting::{Mount, Rider, VolumeRider},
@@ -20,7 +20,6 @@ use vek::*;
 event_emitters! {
     struct Events[EventEmitters] {
         buff: BuffEvent,
-        mount: MountEvent,
     }
 }
 
@@ -327,22 +326,6 @@ impl<'a> System<'a> for Sys {
                         },
                         common::mounting::Volume::Terrain => {},
                     }
-                }
-            } else if let Some((actions, inputs)) = &inputs {
-                // If seated on a passenger seat, bench, chair or bed, pressing Jump or WASD stands up
-                let wants_jump = actions.iter().any(|action| {
-                    matches!(
-                        action,
-                        ControlAction::StartInput {
-                            input: InputKind::Jump,
-                            ..
-                        }
-                    )
-                });
-                let wants_move = inputs.move_dir.magnitude_squared() > 0.05;
-
-                if wants_jump || wants_move {
-                    emitters.emit(MountEvent::Unmount(entity));
                 }
             }
         }
