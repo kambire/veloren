@@ -11,24 +11,20 @@ pub enum DayPeriod {
 impl From<f64> for DayPeriod {
     fn from(time_of_day: f64) -> Self {
         let tod = time_of_day.rem_euclid(60.0 * 60.0 * 24.0);
-        if tod < 60.0 * 60.0 * 6.0 {
-            DayPeriod::Night
-        } else if tod < 60.0 * 60.0 * 11.0 {
+        if tod < 60.0 * 60.0 * 11.0 {
             DayPeriod::Morning
         } else if tod < 60.0 * 60.0 * 16.0 {
             DayPeriod::Noon
-        } else if tod < 60.0 * 60.0 * 19.0 {
-            DayPeriod::Evening
         } else {
-            DayPeriod::Night
+            DayPeriod::Evening
         }
     }
 }
 
 impl DayPeriod {
-    pub fn is_dark(&self) -> bool { *self == DayPeriod::Night }
+    pub fn is_dark(&self) -> bool { false }
 
-    pub fn is_light(&self) -> bool { !self.is_dark() }
+    pub fn is_light(&self) -> bool { true }
 }
 
 pub const DAYS_IN_MONTH: f64 = 40.0;

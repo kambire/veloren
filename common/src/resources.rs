@@ -18,9 +18,42 @@ impl TimeOfDay {
     }
 
     /// Computes the direction of light from the sun based on the time of day.
+    /// In Azeria, the day cycle is designed for perpetual adventure:
+    /// it transitions smoothly between bright daylight and warm golden sunset / twilight,
+    /// never dipping into pitch-black night so gameplay dynamics never stall.
     pub fn get_sun_dir(self) -> Vec3<f32> {
-        let angle_rad = self.get_angle_rad();
-        Vec3::new(-angle_rad.sin(), 0.0, angle_rad.cos())
+        let tau = (self.0.rem_euclid(crate::resources::DAY) / crate::resources::DAY) as f32;
+        // Azimuth angle (horizontal 360-degree rotation across the day):
+        let theta = tau * core::f32::consts::PI * 2.0;
+
+        // Daytime window: 04:48 (tau = 0.20) to 19:12 (tau = 0.80)
+        // Peak noon is at 12:00 (tau = 0.50).
+        // Outside daytime, the sun hovers just above the horizon in a perpetual
+        // golden sunset / dusk twilight (atardecer), never dropping below the horizon.
+        const DAY_START: f32 = 0.20;
+        const DAY_END: f32 = 0.80;
+        const MIN_SIN_ELEVATION: f32 = 0.07; // ~4 degrees above horizon (golden sunset)
+        const MAX_SIN_ELEVATION: f32 = 0.96; // ~74 degrees above horizon (bright noon)
+
+        let sin_elevation = if tau >= DAY_START && tau <= DAY_END {
+            let s = (tau - DAY_START) / (DAY_END - DAY_START);
+            // Smooth sine curve over daytime: 0 at dawn, 1 at noon, 0 at sunset
+            let curve = (s * core::f32::consts::PI).sin();
+            let curve_smooth = curve * curve;
+            MIN_SIN_ELEVATION + (MAX_SIN_ELEVATION - MIN_SIN_ELEVATION) * curve_smooth
+        } else {
+            MIN_SIN_ELEVATION
+        };
+
+        let cos_elevation = (1.0 - sin_elevation * sin_elevation).max(0.0).sqrt();
+
+        // Sunlight points downwards from the sky, so Z is negative (-sin_elevation).
+        // X points West when positive (dusk / sunset) and East when negative (dawn / morning).
+        let z = -sin_elevation;
+        let x = -cos_elevation * theta.sin();
+        let y = cos_elevation * theta.cos();
+
+        Vec3::new(x, y, z)
     }
 
     /// Computes the direction of light from the moon based on the time of day.

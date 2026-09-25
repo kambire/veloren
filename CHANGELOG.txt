@@ -2,6 +2,16 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.13] - 2026-09-25
+-------------------------------------------------------------------------------
+* MODO DÍA PERPETUO Y ATARDECER DORADO (PERPETUAL DAYLIGHT & GOLDEN SUNSET - NO NIGHT):
+  - Eliminada por completo la noche oscura y opaca del juego para evitar frenar la dinámica de combate, exploración y jugabilidad.
+  - Rediseñada la mecánica astronómica y el vector 3D del sol (`get_sun_dir`): el sol orbita continuamente en 360 grados manteniéndose siempre sobre el horizonte.
+  - El ciclo transiciona suavemente de una mañana luminosa a un mediodía brillante con sombras nítidas, una tarde cálida y un atardecer dorado espectacular (golden twilight).
+  - Al llegar las horas tardías, el sol permanece iluminando el mundo en un atardecer radiante, sin descender bajo la tierra ni sumir el juego en la ceguera de la noche.
+  - Actualizado el sombreador de cielo y atmósfera (`sky.glsl`): se eliminó la mezcla con iluminación nocturna oscura (`NIGHT_LIGHT`, `SKY_NIGHT`), garantizando un brillo mínimo de 0.5 y cielos limpios con gradientes entre azul diurno y atardecer rojizo/dorado.
+  - Adaptado el sistema de períodos (`DayPeriod`): `is_dark()` retorna siempre falso, manteniendo a los NPCs, fauna, tiendas y música diurna activos en todo momento sin interrupciones.
+
 [v0.18.12] - 2026-09-25
 -------------------------------------------------------------------------------
 * MARCO DE UNIDAD DE MASCOTA ESTILO WORLD OF WARCRAFT (TOP-LEFT PET FRAME):

@@ -58,7 +58,7 @@
           <span class="pulse-dot"></span>
           Fase Alpha Abierta
         </span>
-        <span class="badge badge-version">Parche v0.18.12</span>
+        <span class="badge badge-version">Parche v0.18.13</span>
       </div>
 
       <h1 class="hero-title">
@@ -291,14 +291,15 @@
       <div class="section-header">
         <span class="section-tag">Historial de Actualizaciones</span>
         <h2 class="section-title">Registro de Cambios Oficial</h2>
-        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.12.</p>
+        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.13.</p>
       </div>
 
       <!-- Controles de Filtro y Búsqueda -->
       <div class="changelog-controls">
         <div class="changelog-filters">
           <button class="changelog-filter-btn active" data-filter="all">Todas las Versiones</button>
-          <button class="changelog-filter-btn" data-filter="v0.18.12">v0.18.12 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.13">v0.18.13 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.12">v0.18.12</button>
           <button class="changelog-filter-btn" data-filter="v0.18.11">v0.18.11</button>
           <button class="changelog-filter-btn" data-filter="v0.18.10">v0.18.10</button>
           <button class="changelog-filter-btn" data-filter="v0.18.9">v0.18.9</button>
@@ -315,8 +316,38 @@
 
       <!-- Timeline de Tarjetas Detalladas -->
       <div class="changelog-timeline" id="changelogTimeline">
+        <!-- v0.18.13 -->
+        <article class="changelog-card latest" data-version="v0.18.13">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-alpha">v0.18.13</span>
+              <h3 class="changelog-version-title">☀️ Modo Día Perpetuo & Atardecer Dorado (Sin Noche Oscura)</h3>
+            </div>
+            <span class="changelog-date">25 de Septiembre, 2026</span>
+          </div>
+          
+          <h4 class="changelog-section-title">🌅 Eliminación Total de la Noche & Continuidad de Juego</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Dinámica de Juego Imparable:</strong> Se eliminó la noche oscura del mundo de Azeria que reducía drásticamente la visibilidad, frenaba el ritmo de la partida e interrumpía el combate y la exploración libre.</li>
+            <li><strong>Órbita Solar en 3D Elevada (get_sun_dir):</strong> La posición astronómica del sol se rediseñó para circular en 360 grados manteniéndose siempre sobre el horizonte. Pasa de una mañana dorada a un mediodía brillante y luego a un impresionante atardecer rojizo (golden hour / twilight).</li>
+            <li><strong>Atardecer Permanente en Horas Tardías:</strong> Al caer la tarde, el sol reposa suavemente sobre la línea del horizonte proyectando sombras cálidas y doradas, sin descender jamás bajo tierra ni sumergir el juego en la oscuridad absoluta.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">🎨 Sombreador Atmosférico y Cielo Radiante (sky.glsl)</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Adiós a la Oscuridad:</strong> Eliminados los cálculos de luz negra y tinieblas nocturnas en los shaders de la atmósfera. El brillo ambiental solar se garantiza en un mínimo constante de 0.5 a cualquier hora.</li>
+            <li><strong>Gradientes Limpios:</strong> El cielo realiza una transición suave entre el azul celeste diurno y el resplandor anaranjado/dorado del atardecer, permitiendo ver a gran distancia en todo momento.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">🌍 Ecosistema Activo 24/7 (DayPeriod)</h4>
+          <ul class="changelog-sublist">
+            <li><strong>NPCs y Fauna Siempre Activos:</strong> El estado de oscuridad (is_dark) retorna siempre falso, garantizando que aldeanos, comerciantes y criaturas continúen sus rutinas y dinámicas sin interrupciones ni estados de sueño forzados.</li>
+            <li><strong>Banda Sonora Diurna:</strong> La música ambiental mantiene melodías activas y dinámicas de aventura, evitando los silencios o tonadas sombrías de la noche.</li>
+          </ul>
+        </article>
+
         <!-- v0.18.12 -->
-        <article class="changelog-card latest" data-version="v0.18.12">
+        <article class="changelog-card" data-version="v0.18.12">
           <div class="changelog-card-header">
             <div class="changelog-version-meta">
               <span class="badge badge-alpha">v0.18.12</span>

@@ -148,37 +148,29 @@ float emission_br() {
 
 
 float get_sun_brightness() {
-    return max(-sun_dir.z + 0.5, 0.0);
+    return max(-sun_dir.z + 0.5, 0.5);
 }
 
 float get_moon_brightness() {
-    return max(sun_dir.z + 0.6, 0.0) * 0.1;
+    return 0.05;
 }
 
 vec3 get_sun_color() {
     vec3 light = (sun_dir.x > 0) ? DUSK_LIGHT : DAWN_LIGHT;
 
     return mix(
-        mix(
-            light * magnetosphere_tint(),
-            NIGHT_LIGHT,
-            max(sun_dir.z, 0)
-        ),
+        light * magnetosphere_tint(),
         DAY_LIGHT,
-        max(-sun_dir.z, 0)
+        clamp(-sun_dir.z, 0.0, 1.0)
     );
 }
 
 // Average sky colour (i.e: perfectly scattered light from the sky)
 vec3 get_sky_color() {
     return mix(
-        mix(
-            (SKY_DUSK_TOP + SKY_DUSK_MID) / 2 * magnetosphere_tint(),
-            (SKY_NIGHT_TOP + SKY_NIGHT_MID) / 2,
-            max(sun_dir.z, 0)
-        ),
+        (SKY_DUSK_TOP + SKY_DUSK_MID) / 2 * magnetosphere_tint(),
         (SKY_DAY_TOP + SKY_DAY_MID) / 2,
-        max(-sun_dir.z, 0)
+        clamp(-sun_dir.z, 0.0, 1.0)
     );
 }
 
@@ -450,33 +442,21 @@ vec3 get_sky_light(vec3 dir, bool with_stars, float is_moon) {
     }
 
     vec3 sky_top = mix(
-        mix(
-            sky_twilight_top * magnetosphere_tint(),
-            SKY_NIGHT_TOP,
-            pow(max(sun_dir.z, 0.0), 0.2)
-        ) + star,
+        sky_twilight_top * magnetosphere_tint() + star * 0.1,
         SKY_DAY_TOP,
-        max(-sun_dir.z, 0)
+        clamp(-sun_dir.z, 0.0, 1.0)
     );
 
     vec3 sky_mid = mix(
-        mix(
-            sky_twilight_mid * magnetosphere_tint(),
-            SKY_NIGHT_MID,
-            pow(max(sun_dir.z, 0.0), 0.1)
-        ),
+        sky_twilight_mid * magnetosphere_tint(),
         SKY_DAY_MID,
-        max(-sun_dir.z, 0)
+        clamp(-sun_dir.z, 0.0, 1.0)
     );
 
     vec3 sky_bot = mix(
-        mix(
-            sky_twilight_bot * magnetosphere_tint(),
-            SKY_NIGHT_BOT,
-            pow(max(sun_dir.z, 0.0), 0.2)
-        ),
+        sky_twilight_bot * magnetosphere_tint(),
         SKY_DAY_BOT,
-        max(-sun_dir.z, 0)
+        clamp(-sun_dir.z, 0.0, 1.0)
     );
 
     vec3 sky_color = mix(
