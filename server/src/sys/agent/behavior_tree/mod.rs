@@ -4,14 +4,14 @@ use common::{
         ControlAction, ControlEvent, Controller, InputKind, InventoryEvent, PetMode, Pos,
         PresenceKind, UtteranceKind,
         agent::{
-            AgentEvent, AwarenessState, DEFAULT_INTERACTION_TIME, TRADE_INTERACTION_TIME, Target,
-            TimerAction,
+            ActionState, AgentEvent, Awareness, AwarenessState, DEFAULT_INTERACTION_TIME,
+            TRADE_INTERACTION_TIME, Target, TimerAction,
         },
         body, is_downed,
     },
     consts::MAX_INTERACT_RANGE,
     interaction::InteractionKind,
-    path::TraversalConfig,
+    path::{Chaser, TraversalConfig},
     rtsim::{self, NpcAction},
 };
 use rand::{RngExt, prelude::ThreadRng};
@@ -175,6 +175,7 @@ impl BehaviorTree {
                 set_owner_if_no_target,
                 handle_rtsim_actions,
                 handle_timed_events,
+                do_idle_wandering,
             ],
         }
     }
@@ -299,6 +300,21 @@ fn react_if_on_fire(bdata: &mut BehaviorData) -> bool {
 /// Target an entity that's attacking us if the attack was recent and we have
 /// a health component
 fn target_if_attacked(bdata: &mut BehaviorData) -> bool {
+    // If we are a pet and our owner is dead, leave combat and do not engage
+    if let Some(Alignment::Owned(owner_uid)) = bdata.agent_data.alignment {
+        if get_entity_by_id(*owner_uid, bdata.read_data)
+            .and_then(|owner| bdata.read_data.healths.get(owner))
+            .is_some_and(|h| h.is_dead)
+        {
+            bdata.agent.target = None;
+            bdata.agent.awareness = Awareness::new(0.0);
+            bdata.agent.combat_state = ActionState::default();
+            bdata.agent.chaser = Chaser::default();
+            bdata.controller.push_action(ControlAction::Unwield);
+            return false;
+        }
+    }
+
     match bdata.agent_data.health {
         Some(health)
             if bdata.read_data.time.0 - health.last_change.time.0 < DAMAGE_MEMORY_DURATION
@@ -307,9 +323,20 @@ fn target_if_attacked(bdata: &mut BehaviorData) -> bool {
             if let Some(by) = health.last_change.damage_by()
                 && let Some(attacker) = bdata.read_data.id_maps.uid_entity(by.uid())
             {
+                let attacker_owner_dead = if let Some(Alignment::Owned(owner_uid)) =
+                    bdata.read_data.alignments.get(attacker)
+                {
+                    get_entity_by_id(*owner_uid, bdata.read_data)
+                        .and_then(|o| bdata.read_data.healths.get(o))
+                        .is_some_and(|h| h.is_dead)
+                } else {
+                    false
+                };
+
                 // If target is dead or invulnerable (for now, this only
-                // means safezone), untarget them and idle.
+                // means safezone) or owner dead, untarget them and idle.
                 if is_dead_or_invulnerable(attacker, bdata.read_data)
+                    || attacker_owner_dead
                     || (matches!(bdata.agent_data.alignment, Some(Alignment::Enemy))
                         && bdata
                             .read_data
@@ -318,6 +345,10 @@ fn target_if_attacked(bdata: &mut BehaviorData) -> bool {
                             .is_some_and(|p| common::zone::is_in_safe_zone(p.0.xy().as_())))
                 {
                     bdata.agent.target = None;
+                    bdata.agent.awareness = Awareness::new(0.0);
+                    bdata.agent.combat_state = ActionState::default();
+                    bdata.agent.chaser = Chaser::default();
+                    bdata.controller.push_action(ControlAction::Unwield);
                 } else {
                     if bdata.agent.target.is_none() {
                         bdata
@@ -385,12 +416,12 @@ fn do_target_tree_if_target_else_do_idle_tree(bdata: &mut BehaviorData) -> bool 
 /// This function can stop the BehaviorTree
 fn do_idle_tree(bdata: &mut BehaviorData) -> bool { BehaviorTree::idle().run(bdata) }
 
-/// If target is dead, forget them
+/// If target is dead or owner is dead, forget them and clear combat state
 fn untarget_if_dead(bdata: &mut BehaviorData) -> bool {
     if let Some(Target { target, .. }) = bdata.agent.target {
         // If target is dead or no longer exists, forget them. If the target is an item
         // we don't expect it to have a health.
-        if bdata
+        let target_is_dead = bdata
             .read_data
             .bodies
             .get(target)
@@ -399,14 +430,35 @@ fn untarget_if_dead(bdata: &mut BehaviorData) -> bool {
                 .read_data
                 .healths
                 .get(target)
-                .is_none_or(|tgt_health| tgt_health.is_dead)
+                .is_none_or(|tgt_health| tgt_health.is_dead);
+
+        let target_owner_is_dead = if let Some(Alignment::Owned(owner_uid)) =
+            bdata.read_data.alignments.get(target)
         {
-            /*
-            if let Some(tgt_stats) = bdata.rtsim_actor.and(bdata.read_data.stats.get(target)) {
-                bdata.agent.forget_enemy(&tgt_stats.name);
-            }
-            */
+            get_entity_by_id(*owner_uid, bdata.read_data)
+                .and_then(|owner| bdata.read_data.healths.get(owner))
+                .is_some_and(|h| h.is_dead)
+        } else {
+            false
+        };
+
+        let our_owner_is_dead = if let Some(Alignment::Owned(owner_uid)) =
+            bdata.agent_data.alignment
+        {
+            get_entity_by_id(*owner_uid, bdata.read_data)
+                .and_then(|owner| bdata.read_data.healths.get(owner))
+                .is_some_and(|h| h.is_dead)
+        } else {
+            false
+        };
+
+        if target_is_dead || target_owner_is_dead || our_owner_is_dead {
             bdata.agent.target = None;
+            bdata.agent.awareness = Awareness::new(0.0);
+            bdata.agent.combat_state = ActionState::default();
+            bdata.agent.chaser = Chaser::default();
+            bdata.controller.push_action(ControlAction::Unwield);
+            bdata.controller.inputs.move_dir = Vec2::zero();
             return true;
         }
     }
@@ -433,6 +485,20 @@ fn do_pet_tree_if_owned(bdata: &mut BehaviorData) -> bool {
     if let (Some(Target { target, hostile, .. }), Some(Alignment::Owned(uid))) =
         (bdata.agent.target, bdata.agent_data.alignment)
     {
+        // If owner is dead, leave combat completely
+        if let Some(owner) = get_entity_by_id(*uid, bdata.read_data)
+            && bdata.read_data.healths.get(owner).is_some_and(|h| h.is_dead)
+        {
+            bdata.agent.target = None;
+            bdata.agent.awareness = Awareness::new(0.0);
+            bdata.agent.combat_state = ActionState::default();
+            bdata.agent.chaser = Chaser::default();
+            bdata.controller.push_action(ControlAction::Unwield);
+            bdata.controller.inputs.move_dir = Vec2::zero();
+            BehaviorTree::idle().run(bdata);
+            return true;
+        }
+
         if bdata.read_data.uids.get(target) == Some(uid) {
             BehaviorTree::pet().run(bdata);
             return true;
@@ -575,6 +641,19 @@ fn pet_combat_assist(bdata: &mut BehaviorData) -> bool {
         Some(e) => e,
         None => return false,
     };
+
+    // If owner is dead, pet leaves combat completely and never engages
+    if bdata.read_data.healths.get(owner).is_some_and(|h| h.is_dead) {
+        if bdata.agent.target.is_some() {
+            bdata.agent.target = None;
+            bdata.agent.awareness = Awareness::new(0.0);
+            bdata.agent.combat_state = ActionState::default();
+            bdata.agent.chaser = Chaser::default();
+            bdata.controller.push_action(ControlAction::Unwield);
+            bdata.controller.inputs.move_dir = Vec2::zero();
+        }
+        return false;
+    }
 
     let owner_pos = match bdata.read_data.positions.get(owner) {
         Some(p) => p.0,
@@ -1104,9 +1183,16 @@ fn do_combat(bdata: &mut BehaviorData) -> bool {
                     agent.flee_from_pos = None;
                     agent_data.idle(agent, controller, read_data, emitters, rng);
                 }
-            } else if is_dead(target, read_data) {
+            } else if is_dead(target, read_data)
+                || (matches!(read_data.alignments.get(target), Some(Alignment::Owned(owner_uid)) if get_entity_by_id(*owner_uid, read_data).and_then(|o| read_data.healths.get(o)).is_some_and(|h| h.is_dead)))
+            {
                 agent_data.exclaim_relief_about_enemy_dead(agent, emitters);
                 agent.target = None;
+                agent.awareness = Awareness::new(0.0);
+                agent.combat_state = ActionState::default();
+                agent.chaser = Chaser::default();
+                controller.push_action(ControlAction::Unwield);
+                controller.inputs.move_dir = Vec2::zero();
                 agent_data.idle(agent, controller, read_data, emitters, rng);
             } else if is_invulnerable(target, read_data)
                 || (matches!(agent_data.alignment, Some(Alignment::Enemy))
@@ -1123,6 +1209,11 @@ fn do_combat(bdata: &mut BehaviorData) -> bool {
                 )
             {
                 agent.target = None;
+                agent.awareness = Awareness::new(0.0);
+                agent.combat_state = ActionState::default();
+                agent.chaser = Chaser::default();
+                controller.push_action(ControlAction::Unwield);
+                controller.inputs.move_dir = Vec2::zero();
                 agent_data.idle(agent, controller, read_data, emitters, rng);
             } else {
                 let is_time_to_retarget =
@@ -1165,19 +1256,43 @@ fn do_combat(bdata: &mut BehaviorData) -> bool {
     false
 }
 
+/// Idle wandering and return to spawn/patrol origin
+fn do_idle_wandering(bdata: &mut BehaviorData) -> bool {
+    let BehaviorData {
+        agent,
+        agent_data,
+        controller,
+        read_data,
+        emitters,
+        rng,
+    } = bdata;
+
+    // If an enemy mob has a patrol origin (spawn point) and is far from it, walk back home
+    if matches!(agent_data.alignment, Some(Alignment::Enemy))
+        && let Some(patrol_origin) = agent.patrol_origin
+    {
+        let dist_sqrd = agent_data.pos.0.distance_squared(patrol_origin);
+        if dist_sqrd > 12.0_f32.powi(2) {
+            agent_data.follow(agent, controller, read_data, &Pos(patrol_origin));
+            if matches!(
+                read_data.char_states.get(*agent_data.entity),
+                Some(CharacterState::Wielding(_))
+            ) {
+                controller.push_action(ControlAction::Unwield);
+            }
+            return true;
+        }
+    }
+
+    agent_data.idle(agent, controller, read_data, emitters, rng);
+    true
+}
+
 fn remembers_fight_with(
     _rtsim_actor: Option<&rtsim::ActorId>,
     _read_data: &ReadData,
     _other: EcsEntity,
 ) -> bool {
-    // TODO: implement for rtsim2
-    // let name = || read_data.stats.get(other).map(|stats| stats.name.clone());
-
-    // rtsim_actor.map_or(false, |rtsim_actor| {
-    //     name().map_or(false, |name| {
-    //         rtsim_actor.brain.remembers_fight_with_character(&name)
-    //     })
-    // })
     false
 }
 

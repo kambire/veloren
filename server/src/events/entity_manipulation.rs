@@ -1612,6 +1612,9 @@ impl ServerEvent for RespawnEvent {
         ReadStorage<'a, Client>,
         ReadStorage<'a, Hardcore>,
         ReadStorage<'a, comp::Waypoint>,
+        Entities<'a>,
+        ReadStorage<'a, Uid>,
+        ReadStorage<'a, Alignment>,
     );
 
     fn handle(
@@ -1627,6 +1630,9 @@ impl ServerEvent for RespawnEvent {
             clients,
             hardcore,
             waypoints,
+            entities,
+            uids,
+            alignments,
         ): Self::SystemData<'_>,
     ) {
         for RespawnEvent(entity) in events {
@@ -1655,6 +1661,23 @@ impl ServerEvent for RespawnEvent {
                 force_updates
                     .get_mut(entity)
                     .map(|force_update| force_update.update());
+
+                // Bring owned pets to respawn point and revive them so they don't stay locked in combat
+                if let Some(player_uid) = uids.get(entity) {
+                    for (pet_entity, align) in (&entities, &alignments).join() {
+                        if let comp::Alignment::Owned(owner) = align {
+                            if *owner == *player_uid {
+                                positions
+                                    .get_mut(pet_entity)
+                                    .map(|pos| pos.0 = respawn_point + Vec3::new(1.0, 1.0, 0.0));
+                                healths.get_mut(pet_entity).map(|mut health| health.revive());
+                                force_updates
+                                    .get_mut(pet_entity)
+                                    .map(|force_update| force_update.update());
+                            }
+                        }
+                    }
+                }
             }
         }
     }
