@@ -22,6 +22,11 @@
   - Cuando un personaje cae abatido o muere, todos los enemigos que lo atacaban solapan el objetivo, enfundan sus armas y finalizan el combate.
   - Al reaparecer en el cementerio, se reinicia el estado de alerta (awareness = 0.0) y la máquina de persecución (chaser) de cualquier enemigo que hubiera estado hostil hacia el jugador o su mascota.
 
+* LIMPIEZA DE HUD Y REUBICACIÓN DE BOTÓN DE HABILIDADES [P]:
+  - Eliminada la barra horizontal de experiencia que flotaba de forma intrusiva sobre la barra de habilidades.
+  - Reposicionado el botón del Libro de Habilidades / Diario ([P]) a la izquierda del Slot 1, logrando una interfaz limpia y simétrica con la Bolsa ([B]) a la derecha del Slot 10.
+  - Reubicada la barra táctica de mascotas para situarse directamente y con espacio ergonómico sobre la barra de acción sin solapamientos.
+
 [v0.18.10] - 2026-09-25
 -------------------------------------------------------------------------------
 * SISTEMA DE COMBATE Y DESENGANCHE (ESTILO WORLD OF WARCRAFT):

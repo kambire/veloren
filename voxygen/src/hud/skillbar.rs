@@ -1,7 +1,7 @@
 use super::{
     BLACK, BarNumbers, CRITICAL_HP_COLOR, HP_COLOR, HudInfo, LOW_HP_COLOR, POISE_COLOR,
     POISEBAR_TICK_COLOR, QUALITY_EPIC, QUALITY_LEGENDARY, STAMINA_COLOR, ShortcutNumbers,
-    TEXT_COLOR, TEXT_VELORITE, UI_HIGHLIGHT_0, XP_COLOR, hotbar,
+    TEXT_COLOR, TEXT_VELORITE, UI_HIGHLIGHT_0, hotbar,
     img_ids::{Imgs, ImgsRot},
     item_imgs::ItemImgs,
     slots, util,
@@ -31,7 +31,7 @@ use common::{
         Health, Inventory, Poise, PoiseState, SkillSet, Stats,
         ability::{AbilityInput, Stance},
         is_downed,
-        item::{ItemDesc, ItemI18n, MaterialStatManifest, tool::ToolKind},
+        item::{ItemDesc, ItemI18n, MaterialStatManifest},
         skillset::SkillGroupKind,
     },
     recipe::RecipeBookManifest,
@@ -1201,10 +1201,67 @@ impl<'a> Skillbar<'a> {
 
         // Exp Type and Level Display
 
-        // Unspent SP indicator (only show if we can spend SP)
+        // Spellbook / Diary Button [P] (A la izquierda del Slot 1, simétrico con la Bolsa a la derecha del Slot 10)
+        let selected_experience = self
+            .global_state
+            .settings
+            .interface
+            .xp_bar_skillgroup
+            .unwrap_or(SkillGroupKind::General);
+        let level = (1 + self.skillset.earned_sp(selected_experience) as u32).min(60);
+        let level_txt = level.to_string();
+
+        Image::new(self.imgs.selected_exp_bg)
+            .w_h(34.0, 38.0)
+            .bottom_left_with_margins_on(state.ids.slot1, 0.0, -37.0)
+            .color(Some(Color::Rgba(1.0, 1.0, 1.0, 1.0)))
+            .set(state.ids.exp_img_frame_bg, ui);
+
+        if Button::image(self.imgs.selected_exp)
+            .w_h(34.0, 38.0)
+            .middle_of(state.ids.exp_img_frame_bg)
+            .set(state.ids.exp_img_frame, ui)
+            .was_clicked()
+        {
+            events.push(Event::OpenDiary(selected_experience));
+        }
+
+        // Nivel en la base del botón [P]
+        Text::new(&level_txt)
+            .mid_bottom_with_margin_on(state.ids.exp_img_frame, 2.0)
+            .font_size(11)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(QUALITY_LEGENDARY)
+            .graphics_for(state.ids.exp_img_frame)
+            .set(state.ids.exp_lvl, ui);
+
+        // Ícono del Libro de Habilidades / Hechizos
+        Image::new(self.imgs.spellbook_ico0)
+            .w_h(24.0, 24.0)
+            .graphics_for(state.ids.exp_img_frame)
+            .mid_bottom_with_margin_on(state.ids.exp_img_frame, 13.0)
+            .set(state.ids.exp_img, ui);
+
+        // Atajo de teclado [P] con sombra
+        if let Some(diary) = &self
+            .global_state
+            .settings
+            .controls
+            .get_binding(GameInput::Diary)
+        {
+            self.create_new_button_with_shadow(
+                ui,
+                diary,
+                state.ids.exp_img,
+                state.ids.diary_txt_bg,
+                state.ids.diary_txt,
+            );
+        }
+
+        // Indicador de Puntos de Habilidad sin gastar (animación sobre el botón [P])
         let unspent_sp = self.skillset.can_unlock_any_skill();
         if unspent_sp {
-            let arrow_ani = animation_timer(self.pulse); //Animation timer
+            let arrow_ani = animation_timer(self.pulse);
             Image::new(self.imgs.sp_indicator_arrow)
                 .w_h(20.0, 11.0)
                 .graphics_for(state.ids.exp_img_frame)
@@ -1225,138 +1282,6 @@ impl<'a> Skillbar<'a> {
                 .font_size(self.fonts.cyri.scale(14))
                 .color(QUALITY_LEGENDARY)
                 .set(state.ids.sp_arrow_txt, ui);
-        }
-
-        if self
-            .global_state
-            .settings
-            .interface
-            .xp_bar_skillgroup
-            .is_some()
-        {
-            let offset = -81.0;
-            let selected_experience = &self
-                .global_state
-                .settings
-                .interface
-                .xp_bar_skillgroup
-                .unwrap_or(SkillGroupKind::General);
-            let current_exp = self.skillset.available_experience(*selected_experience) as f64;
-            let max_exp = self.skillset.skill_point_cost(*selected_experience) as f64;
-            let exp_percentage = current_exp / max_exp.max(1.0);
-            let level = (1 + self.skillset.earned_sp(*selected_experience) as u32).min(60);
-            let level_txt = level.to_string();
-
-            // Exp Bar
-            Image::new(self.imgs.exp_frame_bg)
-                .w_h(594.0, 8.0)
-                .mid_top_with_margin_on(state.ids.frame, -offset)
-                .color(Some(Color::Rgba(1.0, 1.0, 1.0, 0.9)))
-                .set(state.ids.exp_frame_bg, ui);
-            Image::new(self.imgs.exp_frame)
-                .w_h(594.0, 8.0)
-                .middle_of(state.ids.exp_frame_bg)
-                .set(state.ids.exp_frame, ui);
-
-            Image::new(self.imgs.bar_content)
-                .w_h(590.0 * exp_percentage, 4.0)
-                .color(Some(XP_COLOR))
-                .top_left_with_margins_on(state.ids.exp_frame, 2.0, 2.0)
-                .set(state.ids.exp_filling, ui);
-            // Exp Type and Level Display
-            Image::new(self.imgs.selected_exp_bg)
-                .w_h(34.0, 38.0)
-                .top_left_with_margins_on(state.ids.exp_frame, -39.0, 3.0)
-                .color(Some(Color::Rgba(1.0, 1.0, 1.0, 1.0)))
-                .set(state.ids.exp_img_frame_bg, ui);
-
-            if Button::image(self.imgs.selected_exp)
-                .w_h(34.0, 38.0)
-                .middle_of(state.ids.exp_img_frame_bg)
-                .set(state.ids.exp_img_frame, ui)
-                .was_clicked()
-            {
-                events.push(Event::OpenDiary(*selected_experience));
-            }
-
-            Text::new(&level_txt)
-                .mid_bottom_with_margin_on(state.ids.exp_img_frame, 2.0)
-                .font_size(11)
-                .font_id(self.fonts.cyri.conrod_id)
-                .color(QUALITY_LEGENDARY)
-                .graphics_for(state.ids.exp_img_frame)
-                .set(state.ids.exp_lvl, ui);
-
-            Image::new(match selected_experience {
-                SkillGroupKind::General => self.imgs.swords_crossed,
-                SkillGroupKind::Weapon(ToolKind::Sword) => self.imgs.sword,
-                SkillGroupKind::Weapon(ToolKind::Hammer) => self.imgs.hammer,
-                SkillGroupKind::Weapon(ToolKind::Axe) => self.imgs.axe,
-                SkillGroupKind::Weapon(ToolKind::Sceptre) => self.imgs.sceptre,
-                SkillGroupKind::Weapon(ToolKind::Bow) => self.imgs.bow,
-                SkillGroupKind::Weapon(ToolKind::Staff) => self.imgs.staff,
-                SkillGroupKind::Weapon(ToolKind::Pick) => self.imgs.mining,
-                SkillGroupKind::Tamer => self.imgs.tamer_class,
-                _ => self.imgs.nothing,
-            })
-            .w_h(24.0, 24.0)
-            .graphics_for(state.ids.exp_img_frame)
-            .mid_bottom_with_margin_on(state.ids.exp_img_frame, 13.0)
-            .set(state.ids.exp_img, ui);
-
-            // Show Shortcut
-            if let Some(diary) = &self
-                .global_state
-                .settings
-                .controls
-                .get_binding(GameInput::Diary)
-            {
-                self.create_new_button_with_shadow(
-                    ui,
-                    diary,
-                    state.ids.exp_img,
-                    state.ids.diary_txt_bg,
-                    state.ids.diary_txt,
-                );
-            }
-        } else {
-            // Only show Spellbook ico
-            Image::new(self.imgs.selected_exp_bg)
-                .w_h(34.0, 38.0)
-                .bottom_left_with_margins_on(state.ids.slot1, 0.0, -37.0)
-                .color(Some(Color::Rgba(1.0, 1.0, 1.0, 1.0)))
-                .set(state.ids.exp_img_frame_bg, ui);
-
-            if Button::image(self.imgs.selected_exp)
-                .w_h(34.0, 38.0)
-                .middle_of(state.ids.exp_img_frame_bg)
-                .set(state.ids.exp_img_frame, ui)
-                .was_clicked()
-            {
-                events.push(Event::OpenDiary(SkillGroupKind::General));
-            }
-
-            Image::new(self.imgs.spellbook_ico0)
-                .w_h(24.0, 24.0)
-                .graphics_for(state.ids.exp_img_frame)
-                .mid_bottom_with_margin_on(state.ids.exp_img_frame, 13.0)
-                .set(state.ids.exp_img, ui);
-
-            // Show Shortcut
-            if let Some(diary) = &self
-                .global_state
-                .settings
-                .controls
-                .get_binding(GameInput::Diary)
-            {
-                self.create_new_button_with_shadow(
-                    ui,
-                    diary,
-                    state.ids.exp_img,
-                    state.ids.diary_txt_bg,
-                    state.ids.diary_txt,
-                );
-            }
         }
 
         // Bar Text
@@ -1968,7 +1893,11 @@ impl<'a> Skillbar<'a> {
             .hover_image(self.imgs.skillbar_index)
             .press_image(self.imgs.skillbar_slot)
             .w_h(btn_size, btn_size)
-            .up_from(state.ids.slot11, 5.0)
+            // Separado bastante de la barra de acción (S1-S0) de abajo: el área de
+            // "hit-testing" real de esos slots (drag & drop, cooldown, etc.) es más
+            // alta que el icono visible y con poco margen se solapaba con esta fila,
+            // robándole los clics.
+            .up_from(state.ids.slot11, 10.0)
             .with_tooltip(self.tooltip_manager, summon_title, summon_desc, &tooltip, TEXT_COLOR)
             .set(state.ids.pet_btn_summon, ui)
             .was_clicked()
@@ -2004,8 +1933,15 @@ impl<'a> Skillbar<'a> {
         } else {
             Color::Rgba(0.65, 0.65, 0.65, 0.75)
         };
+        // NOTA: este rótulo queda ANCHO (cubre toda la fila de botones) pero solo
+        // ALTO como el texto. Antes tenía apenas 4px de separación vertical con la
+        // fila de botones; con el padding real de line-height del texto, su caja de
+        // hit-testing llegaba a pisar los botones de abajo y —por el
+        // `graphics_for(pet_btn_summon)`— cualquier clic ahí se redirigía a
+        // "Invocar", dando la falsa sensación de que solo ese botón respondía. Se
+        // aleja bastante más (22px) para que ya no pueda solaparse con la fila.
         Text::new(header_txt)
-            .up_from(state.ids.pet_btn_summon, 4.0)
+            .up_from(state.ids.pet_btn_summon, 22.0)
             .font_size(self.fonts.cyri.scale(8))
             .font_id(self.fonts.cyri.conrod_id)
             .graphics_for(state.ids.pet_btn_summon)

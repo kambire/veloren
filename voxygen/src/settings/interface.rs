@@ -113,7 +113,7 @@ impl Default for InterfaceSettings {
             minimap_scale: 1.5,
             minimap_colored_player_marker: false,
             accum_experience: true,
-            xp_bar_skillgroup: Some(SkillGroupKind::General),
+            xp_bar_skillgroup: None,
             row_background_opacity: 0.025,
             pause_menu_overlay_opacity: 0.6,
             toggle_draggable_windows: true,
