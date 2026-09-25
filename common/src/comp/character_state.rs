@@ -1432,6 +1432,8 @@ pub struct CharacterActivity {
     /// If true, the owner has set this pet to stay at a fixed location and
     /// to not engage in combat
     pub is_pet_staying: bool,
+    /// Mode of the pet (Passive, Defensive, Aggressive)
+    pub pet_mode: super::pet::PetMode,
 }
 
 impl Component for CharacterActivity {

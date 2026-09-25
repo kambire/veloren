@@ -35,6 +35,7 @@ use common::{
 };
 use common_base::{prof_span, span};
 use common_net::{msg::server::InviteAnswer, sync::WorldSyncExt};
+use specs::Join;
 
 use crate::{
     Direction, GlobalState, PlayState, PlayStateResult,
@@ -2048,6 +2049,37 @@ impl PlayState for SessionState {
                         self.client.borrow_mut().remove_buff(buff_id);
                     },
                     HudEvent::LeaveStance => self.client.borrow_mut().leave_stance(),
+                    HudEvent::CommandPet(mut command) => {
+                        let pet_entity = {
+                            let client = self.client.borrow();
+                            let ecs = client.state().ecs();
+                            let alignments = ecs.read_storage::<comp::Alignment>();
+                            let entities = ecs.entities();
+                            let client_uid = client.uid();
+                            client_uid.and_then(|my_uid| {
+                                (&entities, &alignments).join().find_map(|(e, align)| {
+                                    if e != client.entity() {
+                                        if let comp::Alignment::Owned(owner) = align {
+                                            if *owner == my_uid {
+                                                return Some(e);
+                                            }
+                                        }
+                                    }
+                                    None
+                                })
+                            })
+                        };
+                        if let Some(pet) = pet_entity {
+                            if let comp::PetCommand::Attack(target_uid) = &mut command {
+                                if target_uid.is_none() {
+                                    *target_uid = self.target_entity.and_then(|e| {
+                                        self.client.borrow().state().read_component_copied::<common::uid::Uid>(e)
+                                    });
+                                }
+                            }
+                            self.client.borrow_mut().command_pet(pet, command);
+                        }
+                    },
                     HudEvent::UnlockSkill(skill) => {
                         self.client.borrow_mut().unlock_skill(skill);
                     },

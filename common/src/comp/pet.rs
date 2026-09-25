@@ -1,9 +1,26 @@
-use crate::comp::{body::Body, quadruped_medium};
+use crate::{comp::{body::Body, quadruped_medium}, uid::Uid};
 use crossbeam_utils::atomic::AtomicCell;
+use serde::{Deserialize, Serialize};
 use specs::Component;
 use std::{num::NonZeroU64, sync::Arc};
 
 use super::Mass;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum PetMode {
+    Passive,
+    #[default]
+    Defensive,
+    Aggressive,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PetCommand {
+    Attack(Option<Uid>),
+    Follow,
+    Stay,
+    SetMode(PetMode),
+}
 
 pub type PetId = AtomicCell<Option<NonZeroU64>>;
 

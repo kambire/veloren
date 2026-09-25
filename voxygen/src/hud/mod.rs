@@ -741,6 +741,7 @@ pub enum Event {
     RemoveBuff(BuffKind),
     LeaveStance,
     UnlockSkill(Skill),
+    CommandPet(comp::PetCommand),
     SelectExpBar(Option<SkillGroupKind>),
 
     RequestSiteInfo(SiteId),
@@ -3355,6 +3356,7 @@ impl Hud {
                         self.show.open_skill_tree(skillgroup);
                     },
                     skillbar::Event::OpenBag => self.show.bag(!self.show.bag),
+                    skillbar::Event::CommandPet(cmd) => events.push(Event::CommandPet(cmd)),
                 }
             }
         }
@@ -5046,6 +5048,22 @@ impl Hud {
             // If not showing the ui don't allow keys that change the ui state but do listen for
             // hotbar keys
             WinEvent::InputUpdate(key, state) if !self.show.ui => {
+                let is_ctrl = global_state.window.modifiers().control_key();
+                if is_ctrl && state {
+                    let pet_command = match key {
+                        GameInput::Slot1 => Some(comp::PetCommand::Attack(None)),
+                        GameInput::Slot2 => Some(comp::PetCommand::Follow),
+                        GameInput::Slot3 => Some(comp::PetCommand::Stay),
+                        GameInput::Slot4 => Some(comp::PetCommand::SetMode(comp::PetMode::Aggressive)),
+                        GameInput::Slot5 => Some(comp::PetCommand::SetMode(comp::PetMode::Defensive)),
+                        GameInput::Slot6 => Some(comp::PetCommand::SetMode(comp::PetMode::Passive)),
+                        _ => None,
+                    };
+                    if let Some(cmd) = pet_command {
+                        self.events.push(Event::CommandPet(cmd));
+                        return true;
+                    }
+                }
                 let is_shift = global_state.window.modifiers().shift_key();
                 if let Some(slot) = try_hotbar_slot_from_input(key, is_shift) {
                     handle_slot(
@@ -5243,6 +5261,22 @@ impl Hud {
                     },
                     // Skillbar
                     input => {
+                        let is_ctrl = global_state.window.modifiers().control_key();
+                        if is_ctrl && state {
+                            let pet_command = match input {
+                                GameInput::Slot1 => Some(comp::PetCommand::Attack(None)),
+                                GameInput::Slot2 => Some(comp::PetCommand::Follow),
+                                GameInput::Slot3 => Some(comp::PetCommand::Stay),
+                                GameInput::Slot4 => Some(comp::PetCommand::SetMode(comp::PetMode::Aggressive)),
+                                GameInput::Slot5 => Some(comp::PetCommand::SetMode(comp::PetMode::Defensive)),
+                                GameInput::Slot6 => Some(comp::PetCommand::SetMode(comp::PetMode::Passive)),
+                                _ => None,
+                            };
+                            if let Some(cmd) = pet_command {
+                                self.events.push(Event::CommandPet(cmd));
+                                return true;
+                            }
+                        }
                         let is_shift = global_state.window.modifiers().shift_key();
                         if let Some(slot) = try_hotbar_slot_from_input(input, is_shift) {
                             handle_slot(

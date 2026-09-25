@@ -41,6 +41,7 @@ use conrod_core::{
     widget::{self, Button, Image, Rectangle, RoundedRectangle, Text},
     widget_ids,
 };
+use specs::{Join, WorldExt};
 use vek::*;
 
 widget_ids! {
@@ -199,6 +200,50 @@ widget_ids! {
         slot20_text,
         slot20_text_bg,
         slot_highlight,
+        // WoW Pet Control Bar
+        pet_info_name_bg,
+        pet_info_name,
+        pet_btn_attack,
+        pet_btn_attack_border,
+        pet_btn_attack_txt_bg,
+        pet_btn_attack_txt,
+        pet_btn_attack_sc_bg,
+        pet_btn_attack_sc,
+
+        pet_btn_follow,
+        pet_btn_follow_border,
+        pet_btn_follow_txt_bg,
+        pet_btn_follow_txt,
+        pet_btn_follow_sc_bg,
+        pet_btn_follow_sc,
+
+        pet_btn_stay,
+        pet_btn_stay_border,
+        pet_btn_stay_txt_bg,
+        pet_btn_stay_txt,
+        pet_btn_stay_sc_bg,
+        pet_btn_stay_sc,
+
+        pet_btn_aggro,
+        pet_btn_aggro_border,
+        pet_btn_aggro_txt_bg,
+        pet_btn_aggro_txt,
+        pet_btn_aggro_sc_bg,
+        pet_btn_aggro_sc,
+
+        pet_btn_def,
+        pet_btn_def_border,
+        pet_btn_def_txt_bg,
+        pet_btn_def_txt,
+        pet_btn_def_sc_bg,
+        pet_btn_def_sc,
+
+        pet_btn_passive,
+        pet_btn_passive_border,
+        pet_btn_passive_txt_bg,
+        pet_btn_passive_txt,
+        pet_btn_passive_sc_bg,
+        pet_btn_passive_sc,
     }
 }
 
@@ -428,6 +473,7 @@ fn slot_entries(state: &State, slot_offset: f64) -> [SlotEntry; 20] {
 pub enum Event {
     OpenDiary(SkillGroupKind),
     OpenBag,
+    CommandPet(comp::PetCommand),
 }
 
 #[derive(WidgetCommon)]
@@ -632,7 +678,7 @@ impl<'a> Skillbar<'a> {
 
     fn show_riding_message(&self, state: &State, ui: &mut UiCell) {
         let prompt = if self.client.is_volume_controller() {
-            "[E] Soltar timón"
+            "[E] Soltar timÃ³n"
         } else if self.client.is_volume_rider() {
             "[E] Levantarse del asiento"
         } else {
@@ -793,7 +839,7 @@ impl<'a> Skillbar<'a> {
             self.energy.maximum().round() as u32
         );
 
-        // 1. Marco exterior con borde dorado/metálico estilo WoW
+        // 1. Marco exterior con borde dorado/metÃ¡lico estilo WoW
         RoundedRectangle::fill_with([244.0, 70.0], 8.0, Color::Rgba(0.55, 0.45, 0.20, 0.95))
             .top_left_with_margins_on(ui.window, 16.0, 16.0)
             .set(state.ids.player_frame_border, ui);
@@ -803,7 +849,7 @@ impl<'a> Skillbar<'a> {
             .middle_of(state.ids.player_frame_border)
             .set(state.ids.player_frame_bg, ui);
 
-        // 2. Medallón Circular de Retrato
+        // 2. MedallÃ³n Circular de Retrato
         RoundedRectangle::fill_with([56.0, 56.0], 28.0, Color::Rgba(0.85, 0.70, 0.22, 1.0))
             .top_left_with_margins_on(state.ids.player_frame_bg, 5.0, 6.0)
             .set(state.ids.player_portrait_border, ui);
@@ -883,7 +929,7 @@ impl<'a> Skillbar<'a> {
             .color(Color::Rgba(1.0, 1.0, 1.0, 0.95))
             .set(state.ids.player_hp_txt, ui);
 
-        // 6. Barra de Maná / Energía (Mana Bar)
+        // 6. Barra de ManÃ¡ / EnergÃ­a (Mana Bar)
         RoundedRectangle::fill_with([160.0, 12.0], 2.0, Color::Rgba(0.04, 0.04, 0.04, 0.95))
             .top_left_with_margins_on(state.ids.player_frame_bg, 39.0, 68.0)
             .set(state.ids.player_mana_bg, ui);
@@ -905,7 +951,7 @@ impl<'a> Skillbar<'a> {
             .color(Color::Rgba(0.9, 0.95, 1.0, 0.95))
             .set(state.ids.player_mana_txt, ui);
 
-        // 7. Pequeña Barra de Nivel / Exp (Mini XP Bar)
+        // 7. PequeÃ±a Barra de Nivel / Exp (Mini XP Bar)
         RoundedRectangle::fill_with([160.0, 6.0], 1.0, Color::Rgba(0.04, 0.04, 0.04, 0.95))
             .top_left_with_margins_on(state.ids.player_frame_bg, 53.0, 68.0)
             .set(state.ids.player_xp_bg, ui);
@@ -1832,6 +1878,299 @@ impl<'a> Skillbar<'a> {
                 .set(state.ids.combo, ui);
         }
     }
+
+    fn show_pet_bar(&mut self, state: &State, ui: &mut UiCell, events: &mut Vec<Event>) {
+        let client_entity = self.client.entity();
+        let ecs = self.client.state().ecs();
+        let alignments = ecs.read_storage::<comp::Alignment>();
+        let entities = ecs.entities();
+        let client_uid = match self.client.uid() {
+            Some(u) => u,
+            None => return,
+        };
+
+        let pet_entity = (&entities, &alignments).join().find_map(|(e, align)| {
+            if e != client_entity {
+                if let comp::Alignment::Owned(owner) = align {
+                    if *owner == client_uid {
+                        return Some(e);
+                    }
+                }
+            }
+            None
+        });
+
+        let pet = match pet_entity {
+            Some(p) => p,
+            None => return,
+        };
+
+        let activities = ecs.read_storage::<comp::CharacterActivity>();
+        let activity = activities.get(pet);
+        let is_staying = activity.map_or(false, |a| a.is_pet_staying);
+        let pet_mode = activity.map_or(comp::PetMode::Defensive, |a| a.pet_mode);
+
+        // Header Label: [ MASCOTA ]
+        Text::new("[ MASCOTA ]")
+            .up_from(state.ids.slot11, 44.0)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_info_name_bg, ui);
+        Text::new("[ MASCOTA ]")
+            .bottom_left_with_margins_on(state.ids.pet_info_name_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(1.0, 0.85, 0.35, 1.0))
+            .set(state.ids.pet_info_name, ui);
+
+        // 1. Attack Button (Ctrl+1)
+        if Button::image(self.imgs.skillbar_slot)
+            .hover_image(self.imgs.skillbar_index)
+            .press_image(self.imgs.skillbar_slot)
+            .w_h(34.0, 34.0)
+            .up_from(state.ids.slot11, 6.0)
+            .set(state.ids.pet_btn_attack, ui)
+            .was_clicked()
+        {
+            let target_uid = self.info.target_entity.and_then(|e| {
+                self.client.state().read_component_copied::<common::uid::Uid>(e)
+            });
+            events.push(Event::CommandPet(comp::PetCommand::Attack(target_uid)));
+        }
+        Text::new("ATK")
+            .middle_of(state.ids.pet_btn_attack)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_attack_txt_bg, ui);
+        Text::new("ATK")
+            .bottom_left_with_margins_on(state.ids.pet_btn_attack_txt_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(1.0, 0.45, 0.45, 1.0))
+            .set(state.ids.pet_btn_attack_txt, ui);
+        Text::new("^1")
+            .top_left_with_margins_on(state.ids.pet_btn_attack, 2.0, 3.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_attack_sc_bg, ui);
+        Text::new("^1")
+            .bottom_left_with_margins_on(state.ids.pet_btn_attack_sc_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(QUALITY_LEGENDARY)
+            .set(state.ids.pet_btn_attack_sc, ui);
+
+        // 2. Follow Button (Ctrl+2)
+        if Button::image(self.imgs.skillbar_slot)
+            .hover_image(self.imgs.skillbar_index)
+            .press_image(self.imgs.skillbar_slot)
+            .w_h(34.0, 34.0)
+            .right_from(state.ids.pet_btn_attack, 4.0)
+            .set(state.ids.pet_btn_follow, ui)
+            .was_clicked()
+        {
+            events.push(Event::CommandPet(comp::PetCommand::Follow));
+        }
+        Text::new("SIG")
+            .middle_of(state.ids.pet_btn_follow)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_follow_txt_bg, ui);
+        Text::new("SIG")
+            .bottom_left_with_margins_on(state.ids.pet_btn_follow_txt_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(0.55, 0.95, 0.55, 1.0))
+            .set(state.ids.pet_btn_follow_txt, ui);
+        Text::new("^2")
+            .top_left_with_margins_on(state.ids.pet_btn_follow, 2.0, 3.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_follow_sc_bg, ui);
+        Text::new("^2")
+            .bottom_left_with_margins_on(state.ids.pet_btn_follow_sc_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(QUALITY_LEGENDARY)
+            .set(state.ids.pet_btn_follow_sc, ui);
+
+        // 3. Stay Button (Ctrl+3)
+        if Button::image(self.imgs.skillbar_slot)
+            .hover_image(self.imgs.skillbar_index)
+            .press_image(self.imgs.skillbar_slot)
+            .w_h(34.0, 34.0)
+            .right_from(state.ids.pet_btn_follow, 4.0)
+            .set(state.ids.pet_btn_stay, ui)
+            .was_clicked()
+        {
+            events.push(Event::CommandPet(comp::PetCommand::Stay));
+        }
+        if is_staying {
+            Image::new(self.imgs.inv_slot_sel)
+                .w_h(36.0, 36.0)
+                .middle_of(state.ids.pet_btn_stay)
+                .graphics_for(state.ids.pet_btn_stay)
+                .set(state.ids.pet_btn_stay_border, ui);
+        }
+        Text::new("QUI")
+            .middle_of(state.ids.pet_btn_stay)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_stay_txt_bg, ui);
+        Text::new("QUI")
+            .bottom_left_with_margins_on(state.ids.pet_btn_stay_txt_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(0.95, 0.85, 0.45, 1.0))
+            .set(state.ids.pet_btn_stay_txt, ui);
+        Text::new("^3")
+            .top_left_with_margins_on(state.ids.pet_btn_stay, 2.0, 3.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_stay_sc_bg, ui);
+        Text::new("^3")
+            .bottom_left_with_margins_on(state.ids.pet_btn_stay_sc_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(QUALITY_LEGENDARY)
+            .set(state.ids.pet_btn_stay_sc, ui);
+
+        // 4. Aggressive Mode Button (Ctrl+4)
+        if Button::image(self.imgs.skillbar_slot)
+            .hover_image(self.imgs.skillbar_index)
+            .press_image(self.imgs.skillbar_slot)
+            .w_h(34.0, 34.0)
+            .right_from(state.ids.pet_btn_stay, 8.0)
+            .set(state.ids.pet_btn_aggro, ui)
+            .was_clicked()
+        {
+            events.push(Event::CommandPet(comp::PetCommand::SetMode(comp::PetMode::Aggressive)));
+        }
+        if pet_mode == comp::PetMode::Aggressive {
+            Image::new(self.imgs.inv_slot_sel)
+                .w_h(36.0, 36.0)
+                .middle_of(state.ids.pet_btn_aggro)
+                .graphics_for(state.ids.pet_btn_aggro)
+                .set(state.ids.pet_btn_aggro_border, ui);
+        }
+        Text::new("AGR")
+            .middle_of(state.ids.pet_btn_aggro)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_aggro_txt_bg, ui);
+        Text::new("AGR")
+            .bottom_left_with_margins_on(state.ids.pet_btn_aggro_txt_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(1.0, 0.35, 0.35, 1.0))
+            .set(state.ids.pet_btn_aggro_txt, ui);
+        Text::new("^4")
+            .top_left_with_margins_on(state.ids.pet_btn_aggro, 2.0, 3.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_aggro_sc_bg, ui);
+        Text::new("^4")
+            .bottom_left_with_margins_on(state.ids.pet_btn_aggro_sc_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(QUALITY_LEGENDARY)
+            .set(state.ids.pet_btn_aggro_sc, ui);
+
+        // 5. Defensive Mode Button (Ctrl+5)
+        if Button::image(self.imgs.skillbar_slot)
+            .hover_image(self.imgs.skillbar_index)
+            .press_image(self.imgs.skillbar_slot)
+            .w_h(34.0, 34.0)
+            .right_from(state.ids.pet_btn_aggro, 4.0)
+            .set(state.ids.pet_btn_def, ui)
+            .was_clicked()
+        {
+            events.push(Event::CommandPet(comp::PetCommand::SetMode(comp::PetMode::Defensive)));
+        }
+        if pet_mode == comp::PetMode::Defensive {
+            Image::new(self.imgs.inv_slot_sel)
+                .w_h(36.0, 36.0)
+                .middle_of(state.ids.pet_btn_def)
+                .graphics_for(state.ids.pet_btn_def)
+                .set(state.ids.pet_btn_def_border, ui);
+        }
+        Text::new("DEF")
+            .middle_of(state.ids.pet_btn_def)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_def_txt_bg, ui);
+        Text::new("DEF")
+            .bottom_left_with_margins_on(state.ids.pet_btn_def_txt_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(0.45, 0.75, 1.0, 1.0))
+            .set(state.ids.pet_btn_def_txt, ui);
+        Text::new("^5")
+            .top_left_with_margins_on(state.ids.pet_btn_def, 2.0, 3.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_def_sc_bg, ui);
+        Text::new("^5")
+            .bottom_left_with_margins_on(state.ids.pet_btn_def_sc_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(QUALITY_LEGENDARY)
+            .set(state.ids.pet_btn_def_sc, ui);
+
+        // 6. Passive Mode Button (Ctrl+6)
+        if Button::image(self.imgs.skillbar_slot)
+            .hover_image(self.imgs.skillbar_index)
+            .press_image(self.imgs.skillbar_slot)
+            .w_h(34.0, 34.0)
+            .right_from(state.ids.pet_btn_def, 4.0)
+            .set(state.ids.pet_btn_passive, ui)
+            .was_clicked()
+        {
+            events.push(Event::CommandPet(comp::PetCommand::SetMode(comp::PetMode::Passive)));
+        }
+        if pet_mode == comp::PetMode::Passive {
+            Image::new(self.imgs.inv_slot_sel)
+                .w_h(36.0, 36.0)
+                .middle_of(state.ids.pet_btn_passive)
+                .graphics_for(state.ids.pet_btn_passive)
+                .set(state.ids.pet_btn_passive_border, ui);
+        }
+        Text::new("PAS")
+            .middle_of(state.ids.pet_btn_passive)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_passive_txt_bg, ui);
+        Text::new("PAS")
+            .bottom_left_with_margins_on(state.ids.pet_btn_passive_txt_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(9))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(0.85, 0.85, 0.95, 1.0))
+            .set(state.ids.pet_btn_passive_txt, ui);
+        Text::new("^6")
+            .top_left_with_margins_on(state.ids.pet_btn_passive, 2.0, 3.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_passive_sc_bg, ui);
+        Text::new("^6")
+            .bottom_left_with_margins_on(state.ids.pet_btn_passive_sc_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(QUALITY_LEGENDARY)
+            .set(state.ids.pet_btn_passive_sc, ui);
+    }
 }
 
 pub struct State {
@@ -1896,6 +2235,9 @@ impl Widget for Skillbar<'_> {
 
         // Slots
         self.show_slotbar(state, ui, slot_offset);
+
+        // WoW Pet Action Bar (Encima de las habilidades)
+        self.show_pet_bar(state, ui, &mut events);
 
         // Combo Counter
         if let Some(combo_floater) = self.combo_floater {

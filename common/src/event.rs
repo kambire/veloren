@@ -456,6 +456,8 @@ pub enum MountEvent {
 
 pub struct SetPetStayEvent(pub EcsEntity, pub EcsEntity, pub bool);
 
+pub struct CommandPetEvent(pub EcsEntity, pub EcsEntity, pub comp::PetCommand);
+
 pub struct PossessEvent(pub Uid, pub Uid);
 
 pub struct TransformEvent {

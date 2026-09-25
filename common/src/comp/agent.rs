@@ -649,6 +649,7 @@ pub struct Agent {
     pub flee_from_pos: Option<Pos>,
     pub awareness: Awareness,
     pub stay_pos: Option<Pos>,
+    pub pet_mode: super::pet::PetMode,
     /// Inputs sent up to rtsim
     pub rtsim_outbox: Option<VecDeque<NpcInput>>,
 }
@@ -762,6 +763,7 @@ impl Agent {
             multi_pid_controllers: None,
             flee_from_pos: None,
             stay_pos: None,
+            pet_mode: Default::default(),
             awareness: Awareness::new(0.0),
             rtsim_outbox: None,
         }

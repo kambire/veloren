@@ -156,6 +156,10 @@ pub enum ControlEvent {
     MountVolume(VolumePos),
     Unmount,
     SetPetStay(Uid, bool),
+    CommandPet {
+        pet: Uid,
+        command: super::pet::PetCommand,
+    },
     InventoryEvent(InventoryEvent),
     GroupManip(GroupManip),
     RemoveBuff(BuffKind),

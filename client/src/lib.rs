@@ -1937,6 +1937,15 @@ impl Client {
         }
     }
 
+    pub fn command_pet(&mut self, entity: EcsEntity, command: comp::PetCommand) {
+        if let Some(uid) = self.state.read_component_copied(entity) {
+            self.send_msg(ClientGeneral::ControlEvent(ControlEvent::CommandPet {
+                pet: uid,
+                command,
+            }));
+        }
+    }
+
     pub fn give_up(&mut self) {
         if comp::is_downed(self.current().as_ref(), self.current().as_ref()) {
             self.send_msg(ClientGeneral::ControlEvent(ControlEvent::GiveUp));

@@ -3,7 +3,8 @@ use std::{f32::consts::PI, ops::Mul};
 use common::{comp::loot_owner::ONWERSHIP_TIMEOUT_FAST, rtsim::DialogueKind};
 use common_state::{BlockChange, ScheduledBlockChange};
 use specs::{
-    DispatcherBuilder, Join, ReadExpect, ReadStorage, WorldExt, WriteExpect, WriteStorage,
+    DispatcherBuilder, Entities, Join, Read, ReadExpect, ReadStorage, WorldExt, WriteExpect,
+    WriteStorage,
 };
 use tracing::error;
 use vek::*;
@@ -21,16 +22,16 @@ use common::{
     },
     consts::{MAX_INTERACT_RANGE, MAX_NPCINTERACT_RANGE, SOUND_TRAVEL_DIST_PER_VOLUME},
     event::{
-        CreateItemDropEvent, CreateSpriteEvent, DialogueEvent, EventBus, MineBlockEvent,
-        NpcInteractEvent, SetLanternEvent, SetPetStayEvent, SoundEvent, TamePetEvent,
-        ToggleSpriteLightEvent,
+        CommandPetEvent, CreateItemDropEvent, CreateSpriteEvent, DialogueEvent, EventBus,
+        MineBlockEvent, NpcInteractEvent, SetLanternEvent, SetPetStayEvent, SoundEvent,
+        TamePetEvent, ToggleSpriteLightEvent,
     },
     link::Is,
     mounting::Mount,
     outcome::Outcome,
     resources::ProgramTime,
     terrain::{self, Block, SpriteKind, TerrainGrid},
-    uid::Uid,
+    uid::{IdMaps, Uid},
     util::Dir,
     vol::ReadVol,
 };
@@ -48,6 +49,7 @@ pub(super) fn register_event_systems(builder: &mut DispatcherBuilder) {
     event_dispatch::<NpcInteractEvent>(builder, &[]);
     event_dispatch::<DialogueEvent>(builder, &[]);
     event_dispatch::<SetPetStayEvent>(builder, &[]);
+    event_dispatch::<CommandPetEvent>(builder, &[]);
     event_dispatch::<MineBlockEvent>(builder, &[]);
     event_dispatch::<SoundEvent>(builder, &[]);
     event_dispatch::<CreateSpriteEvent>(builder, &[]);
@@ -272,6 +274,130 @@ impl ServerEvent for SetPetStayEvent {
                 agents
                     .get_mut(pet)
                     .map(|s| s.stay_pos = current_pet_position.filter(|_| stay));
+            }
+        }
+    }
+}
+
+impl ServerEvent for CommandPetEvent {
+    type SystemData<'a> = (
+        WriteStorage<'a, comp::Agent>,
+        WriteStorage<'a, comp::CharacterActivity>,
+        ReadStorage<'a, comp::Pos>,
+        ReadStorage<'a, comp::Alignment>,
+        ReadStorage<'a, Is<Mount>>,
+        ReadStorage<'a, Uid>,
+        Read<'a, IdMaps>,
+        ReadExpect<'a, Time>,
+        Entities<'a>,
+    );
+
+    fn handle(
+        events: impl ExactSizeIterator<Item = Self>,
+        (
+            mut agents,
+            mut character_activities,
+            positions,
+            alignments,
+            is_mounts,
+            uids,
+            id_maps,
+            time,
+            entities,
+        ): Self::SystemData<'_>,
+    ) {
+        for CommandPetEvent(command_giver, pet, command) in events {
+            let is_owner = uids.get(command_giver).is_some_and(|owner_uid| {
+                matches!(
+                    alignments.get(pet),
+                    Some(comp::Alignment::Owned(pet_owner)) if *pet_owner == *owner_uid,
+                )
+            });
+
+            if !is_owner || is_mounts.get(pet).is_some() {
+                continue;
+            }
+
+            match command {
+                comp::PetCommand::Attack(target_uid) => {
+                    let target_entity = target_uid
+                        .and_then(|uid| id_maps.uid_entity(uid))
+                        .or_else(|| {
+                            let pet_pos = positions.get(pet)?;
+                            let owner_uid = uids.get(command_giver).copied()?;
+                            let mut closest = None;
+                            let mut closest_dist_sq = 40.0 * 40.0;
+                            for (e, tgt_pos, tgt_align) in (&entities, &positions, &alignments).join() {
+                                if e != pet && e != command_giver {
+                                    if comp::Alignment::Owned(owner_uid)
+                                        .hostile_towards(*tgt_align)
+                                    {
+                                        let dist_sq = pet_pos.0.distance_squared(tgt_pos.0);
+                                        if dist_sq < closest_dist_sq {
+                                            closest_dist_sq = dist_sq;
+                                            closest = Some(e);
+                                        }
+                                    }
+                                }
+                            }
+                            closest
+                        });
+
+                    if let Some(target) = target_entity {
+                        let target_pos = positions.get(target).map(|p| p.0);
+                        if let Some(agent) = agents.get_mut(pet) {
+                            agent.stay_pos = None;
+                            agent.awareness.set_maximally_aware();
+                            agent.target = Some(comp::agent::Target::new(
+                                target,
+                                true,
+                                time.0,
+                                true,
+                                target_pos,
+                            ));
+                        }
+                        if let Some(mut activity) = character_activities.get_mut(pet) {
+                            activity.is_pet_staying = false;
+                        }
+                    }
+                },
+                comp::PetCommand::Follow => {
+                    let owner_pos = positions.get(command_giver).map(|p| p.0);
+                    if let Some(agent) = agents.get_mut(pet) {
+                        agent.stay_pos = None;
+                        agent.target = Some(comp::agent::Target::new(
+                            command_giver,
+                            false,
+                            time.0,
+                            false,
+                            owner_pos,
+                        ));
+                    }
+                    if let Some(mut activity) = character_activities.get_mut(pet) {
+                        activity.is_pet_staying = false;
+                    }
+                },
+                comp::PetCommand::Stay => {
+                    let current_pet_position = positions.get(pet).copied();
+                    if let Some(mut activity) = character_activities.get_mut(pet) {
+                        activity.is_pet_staying = true;
+                    }
+                    if let Some(agent) = agents.get_mut(pet) {
+                        agent.stay_pos = current_pet_position;
+                        agent.target = None;
+                    }
+                },
+                comp::PetCommand::SetMode(mode) => {
+                    if let Some(agent) = agents.get_mut(pet) {
+                        agent.pet_mode = mode;
+                        if mode == comp::PetMode::Passive {
+                            agent.target = None;
+                        }
+                    }
+                    if let Some(mut activity) = character_activities.get_mut(pet) {
+                        activity.pet_mode = mode;
+                    }
+                },
             }
         }
     }

@@ -95,7 +95,7 @@ pub use self::{
     melee::{Melee, MeleeConstructor, MeleeConstructorKind},
     misc::Object,
     ori::Ori,
-    pet::Pet,
+    pet::{Pet, PetCommand, PetMode},
     phys::{
         CapsulePrism, Collider, Density, ForceUpdate, Immovable, Mass, PhysicsState, Pos,
         PosVelOriDefer, PreviousPhysCache, Scale, Sticky, Vel,

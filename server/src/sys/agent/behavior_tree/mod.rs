@@ -1,8 +1,8 @@
 use common::{
     comp::{
         Agent, Alignment, BehaviorCapability, BehaviorState, Body, BuffKind, CharacterState,
-        ControlAction, ControlEvent, Controller, InputKind, InventoryEvent, Pos, PresenceKind,
-        UtteranceKind,
+        ControlAction, ControlEvent, Controller, InputKind, InventoryEvent, PetMode, Pos,
+        PresenceKind, UtteranceKind,
         agent::{
             AgentEvent, AwarenessState, DEFAULT_INTERACTION_TIME, TRADE_INTERACTION_TIME, Target,
             TimerAction,
@@ -561,6 +561,11 @@ fn pet_combat_assist(bdata: &mut BehaviorData) -> bool {
         return false;
     }
 
+    // In passive mode, pet never automatically engages in combat
+    if bdata.agent.pet_mode == PetMode::Passive {
+        return false;
+    }
+
     let owner_uid = match bdata.agent_data.alignment {
         Some(Alignment::Owned(owner_uid)) => *owner_uid,
         _ => return false,
@@ -645,12 +650,14 @@ fn pet_combat_assist(bdata: &mut BehaviorData) -> bool {
             }
         }
 
-        // Is this an Enemy alignment entity within 16m of the owner?
-        if let Some(Alignment::Enemy) = bdata.read_data.alignments.get(entity) {
-            if let Some(pos) = bdata.read_data.positions.get(entity) {
-                let dist_sqrd = pos.0.distance_squared(owner_pos);
-                if dist_sqrd < 16.0_f32.powi(2) {
-                    return engage(bdata, entity);
+        // In Aggressive mode, engage any hostile entity in area
+        if bdata.agent.pet_mode == PetMode::Aggressive {
+            if let Some(Alignment::Enemy) = bdata.read_data.alignments.get(entity) {
+                if let Some(pos) = bdata.read_data.positions.get(entity) {
+                    let dist_sqrd = pos.0.distance_squared(owner_pos);
+                    if dist_sqrd < 25.0_f32.powi(2) {
+                        return engage(bdata, entity);
+                    }
                 }
             }
         }
@@ -690,6 +697,10 @@ fn follow_if_far_away(bdata: &mut BehaviorData) -> bool {
 /// Attack target's attacker (if there is one)
 /// Target is the owner in this case
 fn attack_if_owner_hurt(bdata: &mut BehaviorData) -> bool {
+    if bdata.agent.pet_mode == PetMode::Passive {
+        return false;
+    }
+
     if let Some(Target { target, .. }) = bdata.agent.target
         && bdata.read_data.positions.get(target).is_some()
     {
