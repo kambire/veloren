@@ -10,6 +10,8 @@ jobs:
   build-client:
     name: Build Veloren Client (Windows)
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Code

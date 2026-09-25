@@ -220,27 +220,32 @@ fn check_github(state_arc: &Arc<Mutex<AppState>>) {
             }
         }
         Err(ureq::Error::Status(404, _)) => {
-            // No hay releases creados todavía en el repo: consultar el último commit de master
+            // Si aún no hay release .zip en GitHub, consultar version.json y el commit de master
+            let url_raw_ver = format!("https://raw.githubusercontent.com/{}/master/version.json", GITHUB_REPO);
+            let raw_ver: Option<LocalVersion> = agent
+                .get(&url_raw_ver)
+                .set("User-Agent", "WorldOfAzeria-Launcher/1.0")
+                .call()
+                .ok()
+                .and_then(|r| r.into_json::<LocalVersion>().ok());
+
             let url_commits = format!("https://api.github.com/repos/{}/commits/master", GITHUB_REPO);
-            if let Ok(res_c) = agent
+            let commit_sha: Option<String> = agent
                 .get(&url_commits)
                 .set("User-Agent", "WorldOfAzeria-Launcher/1.0")
                 .call()
-            {
-                if let Ok(commit) = res_c.into_json::<GitHubCommit>() {
-                    let short_sha = if commit.sha.len() >= 7 {
-                        format!("master ({})", &commit.sha[..7])
-                    } else {
-                        commit.sha
-                    };
-                    let mut st = state_arc.lock().unwrap();
-                    st.remote_version = short_sha;
-                    st.status = UpdateStatus::UpToDate;
-                    return;
-                }
-            }
+                .ok()
+                .and_then(|r| r.into_json::<GitHubCommit>().ok())
+                .map(|c| if c.sha.len() >= 7 { c.sha[..7].to_string() } else { c.sha });
+
             let mut st = state_arc.lock().unwrap();
-            st.remote_version = "v0.18.0 (Al día)".to_string();
+            let remote_display = match (raw_ver, commit_sha) {
+                (Some(v), Some(sha)) => format!("{} ({})", v.tag, sha),
+                (Some(v), None) => v.tag,
+                (None, Some(sha)) => format!("master ({})", sha),
+                (None, None) => "v0.18.1".to_string(),
+            };
+            st.remote_version = remote_display;
             st.status = UpdateStatus::UpToDate;
             return;
         }
