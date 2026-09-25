@@ -58,7 +58,7 @@
           <span class="pulse-dot"></span>
           Fase Alpha Abierta
         </span>
-        <span class="badge badge-version">Parche v0.18.11</span>
+        <span class="badge badge-version">Parche v0.18.12</span>
       </div>
 
       <h1 class="hero-title">
@@ -291,14 +291,15 @@
       <div class="section-header">
         <span class="section-tag">Historial de Actualizaciones</span>
         <h2 class="section-title">Registro de Cambios Oficial</h2>
-        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.11.</p>
+        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.12.</p>
       </div>
 
       <!-- Controles de Filtro y Búsqueda -->
       <div class="changelog-controls">
         <div class="changelog-filters">
           <button class="changelog-filter-btn active" data-filter="all">Todas las Versiones</button>
-          <button class="changelog-filter-btn" data-filter="v0.18.11">v0.18.11 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.12">v0.18.12 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.11">v0.18.11</button>
           <button class="changelog-filter-btn" data-filter="v0.18.10">v0.18.10</button>
           <button class="changelog-filter-btn" data-filter="v0.18.9">v0.18.9</button>
           <button class="changelog-filter-btn" data-filter="v0.18.8">v0.18.8</button>
@@ -314,8 +315,34 @@
 
       <!-- Timeline de Tarjetas Detalladas -->
       <div class="changelog-timeline" id="changelogTimeline">
+        <!-- v0.18.12 -->
+        <article class="changelog-card latest" data-version="v0.18.12">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-alpha">v0.18.12</span>
+              <h3 class="changelog-version-title">Marco de Mascota WoW & Limpieza de Barras Flotantes</h3>
+            </div>
+            <span class="changelog-date">25 de Septiembre, 2026</span>
+          </div>
+          
+          <h4 class="changelog-section-title">🐾 Marco de Unidad de Mascota Estilo WoW (Top-Left Pet Frame)</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Ubicación Superior Izquierda:</strong> Incorporado marco de unidad de mascota situado directamente debajo del retrato del jugador, siguiendo fielmente el diseño de World of Warcraft.</li>
+            <li><strong>Medallón de Retrato:</strong> Marco circular con reborde dorado y fondo oscuro (icono de bestia o raza correspondiente si es humanoide).</li>
+            <li><strong>Salud y Energía Visual:</strong> Barra de vida verde con valores exactos (vida actual / máxima) y barra de energía/enfoque en tono dorado/naranja (Focus de cazador) con sus respectivas cifras.</li>
+            <li><strong>Detección Contextual:</strong> El marco aparece automáticamente en cuanto el jugador invoca o domestica una mascota, y se oculta cuando no hay mascota activa.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">🧹 Eliminación de Barras Flotantes del Centro Inferior</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Despeje de Pantalla:</strong> Eliminadas las barras flotantes centrales (salud verde de 484px, estamina y aplomo) que aparecían en el medio de la pantalla sobre la barra de habilidades.</li>
+            <li><strong>Integración en Retratos:</strong> Todas las estadísticas vitales quedan ordenadas exclusivamente en los marcos superiores izquierdos del jugador y la mascota.</li>
+            <li><strong>Visibilidad Limpia de Controles:</strong> La barra táctica de mascota y los 20 slots de habilidades permanecen completamente despejados y accesibles.</li>
+          </ul>
+        </article>
+
         <!-- v0.18.11 -->
-        <article class="changelog-card latest" data-version="v0.18.11">
+        <article class="changelog-card" data-version="v0.18.11">
           <div class="changelog-card-header">
             <div class="changelog-version-meta">
               <span class="badge badge-alpha">v0.18.11</span>

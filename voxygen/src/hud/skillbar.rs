@@ -1,7 +1,6 @@
 use super::{
-    BLACK, BarNumbers, CRITICAL_HP_COLOR, HP_COLOR, HudInfo, LOW_HP_COLOR, POISE_COLOR,
-    POISEBAR_TICK_COLOR, QUALITY_EPIC, QUALITY_LEGENDARY, STAMINA_COLOR, ShortcutNumbers,
-    TEXT_COLOR, TEXT_VELORITE, UI_HIGHLIGHT_0, hotbar,
+    BLACK, CRITICAL_HP_COLOR, HP_COLOR, HudInfo, LOW_HP_COLOR, QUALITY_EPIC, QUALITY_LEGENDARY,
+    ShortcutNumbers, TEXT_COLOR, TEXT_VELORITE, hotbar,
     img_ids::{Imgs, ImgsRot},
     item_imgs::ItemImgs,
     slots, util,
@@ -13,7 +12,6 @@ use crate::{
         ComboFloater, Position, PositionSpecifier, animation::animation_timer,
         controller_icons as icon_utils,
     },
-    key_state::GIVE_UP_HOLD_TIME,
     ui::{
         ImageFrame, ItemTooltip, ItemTooltipManager, ItemTooltipable, Tooltip, TooltipManager,
         Tooltipable,
@@ -28,9 +26,8 @@ use client::{self, Client};
 use common::{
     comp::{
         self, Ability, ActiveAbilities, Body, Buffs, CharacterState, Combo, Energy, Hardcore,
-        Health, Inventory, Poise, PoiseState, SkillSet, Stats,
+        Health, Inventory, Poise, SkillSet, Stats,
         ability::{AbilityInput, Stance},
-        is_downed,
         item::{ItemDesc, ItemI18n, MaterialStatManifest},
         skillset::SkillGroupKind,
     },
@@ -78,6 +75,22 @@ widget_ids! {
         player_mana_txt,
         player_xp_bg,
         player_xp_fill,
+        // WoW Pet Frame (Debajo del marco de jugador arriba a la izquierda)
+        pet_frame_border,
+        pet_frame_bg,
+        pet_portrait_border,
+        pet_portrait_bg,
+        pet_portrait,
+        pet_name_txt_bg,
+        pet_name_txt,
+        pet_hp_bg,
+        pet_hp_fill,
+        pet_hp_txt_bg,
+        pet_hp_txt,
+        pet_mana_bg,
+        pet_mana_fill,
+        pet_mana_txt_bg,
+        pet_mana_txt,
         // Skillbar
         frame,
         bg_health,
@@ -498,6 +511,7 @@ pub struct Skillbar<'a> {
     health: &'a Health,
     inventory: &'a Inventory,
     energy: &'a Energy,
+    #[expect(dead_code)]
     poise: &'a Poise,
     skillset: &'a SkillSet,
     active_abilities: Option<&'a ActiveAbilities>,
@@ -972,150 +986,184 @@ impl<'a> Skillbar<'a> {
             .set(state.ids.player_xp_fill, ui);
     }
 
+    fn show_wow_pet_frame(&self, state: &State, ui: &mut UiCell) {
+        let client_entity = self.client.entity();
+        let ecs = self.client.state().ecs();
+        let alignments = ecs.read_storage::<comp::Alignment>();
+        let entities = ecs.entities();
+        let client_uid = match self.client.uid() {
+            Some(u) => u,
+            None => return,
+        };
+
+        let pet_entity = (&entities, &alignments).join().find_map(|(e, align)| {
+            if e != client_entity {
+                if let comp::Alignment::Owned(owner) = align {
+                    if *owner == client_uid {
+                        return Some(e);
+                    }
+                }
+            }
+            None
+        });
+
+        // Solo se muestra el marco si hay una mascota activa, exactamente como en WoW
+        let pet_entity = match pet_entity {
+            Some(p) => p,
+            None => return,
+        };
+
+        let healths = ecs.read_storage::<comp::Health>();
+        let energies = ecs.read_storage::<comp::Energy>();
+        let stats = ecs.read_storage::<comp::Stats>();
+        let bodies = ecs.read_storage::<comp::Body>();
+
+        let pet_health = healths.get(pet_entity);
+        let pet_energy = energies.get(pet_entity);
+        let pet_stats = stats.get(pet_entity);
+        let pet_body = bodies.get(pet_entity);
+
+        let hp_ani = (self.pulse * 4.0).cos() * 0.5 + 0.8;
+        let crit_hp_color = Color::Rgba(0.79, 0.19, 0.17, hp_ani);
+
+        let (pet_hp_pct, pet_hp_txt, pet_health_col) = if let Some(h) = pet_health {
+            if h.is_dead {
+                (0.0, "MUERTO".to_string(), crit_hp_color)
+            } else {
+                let max_hp = f64::from(h.base_max().max(h.maximum()));
+                let current_hp = f64::from(h.current());
+                let pct = (current_hp / max_hp.max(1.0) * 100.0).clamp(0.0, 100.0);
+                let col = match pct as u8 {
+                    0..=20 => crit_hp_color,
+                    21..=40 => LOW_HP_COLOR,
+                    _ => HP_COLOR,
+                };
+                let txt = format!("{}/{}", h.current().round() as u32, h.maximum().round() as u32);
+                (pct, txt, col)
+            }
+        } else {
+            (100.0, "100/100".to_string(), HP_COLOR)
+        };
+
+        let (pet_energy_pct, pet_energy_txt) = if let Some(en) = pet_energy {
+            let pct = f64::from(en.fraction() * 100.0).clamp(0.0, 100.0);
+            let txt = format!("{}/{}", en.current().round() as u32, en.maximum().round() as u32);
+            (pct, txt)
+        } else {
+            (100.0, "100/100".to_string())
+        };
+
+        let pet_name = pet_stats.map_or_else(
+            || "Mascota".to_string(),
+            |s| self.localized_strings.get_content(&s.name),
+        );
+
+        let portrait_img = match pet_body {
+            Some(comp::Body::Humanoid(h)) => {
+                use comp::humanoid::{BodyType, Species};
+                match (h.species, h.body_type) {
+                    (Species::Human, BodyType::Male) => self.imgs.portrait_human_m,
+                    (Species::Human, BodyType::Female) => self.imgs.portrait_human_f,
+                    (Species::Orc, BodyType::Male) => self.imgs.portrait_orc_m,
+                    (Species::Orc, BodyType::Female) => self.imgs.portrait_orc_f,
+                    (Species::Dwarf, BodyType::Male) => self.imgs.portrait_dwarf_m,
+                    (Species::Dwarf, BodyType::Female) => self.imgs.portrait_dwarf_f,
+                    (Species::Draugr, BodyType::Male) => self.imgs.portrait_draugr_m,
+                    (Species::Draugr, BodyType::Female) => self.imgs.portrait_draugr_f,
+                    (Species::Elf, BodyType::Male) => self.imgs.portrait_elf_m,
+                    (Species::Elf, BodyType::Female) => self.imgs.portrait_elf_f,
+                    (Species::Danari, BodyType::Male) => self.imgs.portrait_danari_m,
+                    (Species::Danari, BodyType::Female) => self.imgs.portrait_danari_f,
+                }
+            },
+            _ => self.imgs.tamer_class,
+        };
+
+        // 1. Marco exterior con borde estilo WoW (debajo del marco del jugador)
+        // Posición: top: 16.0 (player top) + 70.0 (player height) + 6.0 = 92.0
+        RoundedRectangle::fill_with([184.0, 48.0], 6.0, Color::Rgba(0.55, 0.45, 0.20, 0.95))
+            .top_left_with_margins_on(ui.window, 92.0, 16.0)
+            .set(state.ids.pet_frame_border, ui);
+
+        // Fondo interior oscuro del panel
+        RoundedRectangle::fill_with([180.0, 44.0], 4.0, Color::Rgba(0.07, 0.08, 0.11, 0.90))
+            .middle_of(state.ids.pet_frame_border)
+            .set(state.ids.pet_frame_bg, ui);
+
+        // 2. Medallón Circular de Retrato de Mascota
+        RoundedRectangle::fill_with([38.0, 38.0], 19.0, Color::Rgba(0.85, 0.70, 0.22, 1.0))
+            .top_left_with_margins_on(state.ids.pet_frame_bg, 3.0, 3.0)
+            .set(state.ids.pet_portrait_border, ui);
+
+        RoundedRectangle::fill_with([34.0, 34.0], 17.0, Color::Rgba(0.05, 0.05, 0.07, 1.0))
+            .middle_of(state.ids.pet_portrait_border)
+            .set(state.ids.pet_portrait_bg, ui);
+
+        Image::new(portrait_img)
+            .w_h(30.0, 30.0)
+            .middle_of(state.ids.pet_portrait_bg)
+            .set(state.ids.pet_portrait, ui);
+
+        // 3. Nombre de la Mascota
+        Text::new(&pet_name)
+            .top_left_with_margins_on(state.ids.pet_frame_bg, 3.0, 46.0)
+            .font_size(10)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_name_txt_bg, ui);
+        Text::new(&pet_name)
+            .bottom_right_with_margins_on(state.ids.pet_name_txt_bg, 1.0, 1.0)
+            .font_size(10)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(1.0, 0.95, 0.85, 1.0))
+            .set(state.ids.pet_name_txt, ui);
+
+        // 4. Barra de Vida de la Mascota (Verde estilo WoW)
+        RoundedRectangle::fill_with([126.0, 12.0], 2.0, Color::Rgba(0.04, 0.04, 0.04, 0.95))
+            .top_left_with_margins_on(state.ids.pet_frame_bg, 17.0, 46.0)
+            .set(state.ids.pet_hp_bg, ui);
+        Image::new(self.imgs.bar_content)
+            .w_h(124.0 * (pet_hp_pct / 100.0).clamp(0.0, 1.0), 10.0)
+            .color(Some(pet_health_col))
+            .top_left_with_margins_on(state.ids.pet_hp_bg, 1.0, 1.0)
+            .set(state.ids.pet_hp_fill, ui);
+        Text::new(&pet_hp_txt)
+            .middle_of(state.ids.pet_hp_bg)
+            .font_size(9)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_hp_txt_bg, ui);
+        Text::new(&pet_hp_txt)
+            .bottom_right_with_margins_on(state.ids.pet_hp_txt_bg, 1.0, 1.0)
+            .font_size(9)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(1.0, 1.0, 1.0, 0.95))
+            .set(state.ids.pet_hp_txt, ui);
+
+        // 5. Barra de Energía / Enfoque de la Mascota (Dorado/Naranja como WoW Focus)
+        RoundedRectangle::fill_with([126.0, 10.0], 2.0, Color::Rgba(0.04, 0.04, 0.04, 0.95))
+            .top_left_with_margins_on(state.ids.pet_frame_bg, 31.0, 46.0)
+            .set(state.ids.pet_mana_bg, ui);
+        Image::new(self.imgs.bar_content)
+            .w_h(124.0 * (pet_energy_pct / 100.0).clamp(0.0, 1.0), 8.0)
+            .color(Some(Color::Rgba(0.92, 0.65, 0.15, 1.0)))
+            .top_left_with_margins_on(state.ids.pet_mana_bg, 1.0, 1.0)
+            .set(state.ids.pet_mana_fill, ui);
+        Text::new(&pet_energy_txt)
+            .middle_of(state.ids.pet_mana_bg)
+            .font_size(8)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_mana_txt_bg, ui);
+        Text::new(&pet_energy_txt)
+            .bottom_right_with_margins_on(state.ids.pet_mana_txt_bg, 1.0, 1.0)
+            .font_size(8)
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(Color::Rgba(1.0, 0.95, 0.85, 0.95))
+            .set(state.ids.pet_mana_txt, ui);
+    }
+
     fn show_stat_bars(&self, state: &State, ui: &mut UiCell, events: &mut Vec<Event>) {
-        let (hp_percentage, energy_percentage, poise_percentage): (f64, f64, f64) =
-            if self.health.is_dead {
-                (0.0, 0.0, 0.0)
-            } else {
-                let max_hp = f64::from(self.health.base_max().max(self.health.maximum()));
-                let current_hp = f64::from(self.health.current());
-                (
-                    current_hp / max_hp * 100.0,
-                    f64::from(self.energy.fraction() * 100.0),
-                    f64::from(self.poise.fraction() * 100.0),
-                )
-            };
-
-        // Animation timer
-        let hp_ani = (self.pulse * 4.0/* speed factor */).cos() * 0.5 + 0.8;
-        let crit_hp_color: Color = Color::Rgba(0.79, 0.19, 0.17, hp_ani);
-        let bar_values = self.global_state.settings.interface.bar_numbers;
-        let is_downed = is_downed(Some(self.health), self.char_state);
-        let show_health = self.global_state.settings.interface.always_show_bars
-            || is_downed
-            || (self.health.current() - self.health.maximum()).abs() > Health::HEALTH_EPSILON;
-        let show_energy = self.global_state.settings.interface.always_show_bars
-            || (self.energy.current() - self.energy.maximum()).abs() > Energy::ENERGY_EPSILON;
-        let show_poise = self.global_state.settings.interface.enable_poise_bar
-            && (self.global_state.settings.interface.always_show_bars
-                || (self.poise.current() - self.poise.maximum()).abs() > Poise::POISE_EPSILON);
-        let decayed_health = 1.0 - self.health.maximum() as f64 / self.health.base_max() as f64;
-
-        if show_health && !self.health.is_dead || decayed_health > 0.0 {
-            let offset = 1.0;
-            let hp_percentage = if is_downed {
-                100.0
-                    * (1.0 - self.info.key_state.give_up.unwrap_or(0.0) / GIVE_UP_HOLD_TIME)
-                        .clamp(0.0, 1.0) as f64
-            } else {
-                hp_percentage
-            };
-
-            Image::new(self.imgs.health_bg)
-                .w_h(484.0, 24.0)
-                .mid_top_with_margin_on(state.ids.frame, -offset)
-                .set(state.ids.bg_health, ui);
-            Rectangle::fill_with([480.0, 18.0], color::TRANSPARENT)
-                .top_left_with_margins_on(state.ids.bg_health, 2.0, 2.0)
-                .set(state.ids.hp_alignment, ui);
-            let health_col = match hp_percentage as u8 {
-                _ if is_downed => crit_hp_color,
-                0..=20 => crit_hp_color,
-                21..=40 => LOW_HP_COLOR,
-                _ => HP_COLOR,
-            };
-            Image::new(self.imgs.bar_content)
-                .w_h(480.0 * hp_percentage / 100.0, 18.0)
-                .color(Some(health_col))
-                .top_left_with_margins_on(state.ids.hp_alignment, 0.0, 0.0)
-                .set(state.ids.hp_filling, ui);
-
-            if decayed_health > 0.0 {
-                let decay_bar_len = 480.0 * decayed_health;
-                Image::new(self.imgs.bar_content)
-                    .w_h(decay_bar_len, 18.0)
-                    .color(Some(QUALITY_EPIC))
-                    .top_right_with_margins_on(state.ids.hp_alignment, 0.0, 0.0)
-                    .crop_kids()
-                    .set(state.ids.hp_decayed, ui);
-
-                Image::new(self.imgs.decayed_bg)
-                    .w_h(480.0, 18.0)
-                    .color(Some(Color::Rgba(0.58, 0.29, 0.93, (hp_ani + 0.6).min(1.0))))
-                    .top_left_with_margins_on(state.ids.hp_alignment, 0.0, 0.0)
-                    .parent(state.ids.hp_decayed)
-                    .set(state.ids.decay_overlay, ui);
-            }
-            Image::new(self.imgs.health_frame)
-                .w_h(484.0, 24.0)
-                .color(Some(UI_HIGHLIGHT_0))
-                .middle_of(state.ids.bg_health)
-                .set(state.ids.frame_health, ui);
-        }
-        if show_energy && !self.health.is_dead {
-            let offset = if show_health || decayed_health > 0.0 {
-                33.0
-            } else {
-                1.0
-            };
-            Image::new(self.imgs.energy_bg)
-                .w_h(323.0, 16.0)
-                .mid_top_with_margin_on(state.ids.frame, -offset)
-                .set(state.ids.bg_energy, ui);
-            Rectangle::fill_with([319.0, 10.0], color::TRANSPARENT)
-                .top_left_with_margins_on(state.ids.bg_energy, 2.0, 2.0)
-                .set(state.ids.energy_alignment, ui);
-            Image::new(self.imgs.bar_content)
-                .w_h(319.0 * energy_percentage / 100.0, 10.0)
-                .color(Some(STAMINA_COLOR))
-                .top_left_with_margins_on(state.ids.energy_alignment, 0.0, 0.0)
-                .set(state.ids.energy_filling, ui);
-            Image::new(self.imgs.energy_frame)
-                .w_h(323.0, 16.0)
-                .color(Some(UI_HIGHLIGHT_0))
-                .middle_of(state.ids.bg_energy)
-                .set(state.ids.frame_energy, ui);
-        }
-        if show_poise && !self.health.is_dead {
-            let offset = 16.0;
-
-            let poise_colour = match self.poise.previous_state {
-                self::PoiseState::KnockedDown => BLACK,
-                self::PoiseState::Dazed => Color::Rgba(0.25, 0.0, 0.15, 1.0),
-                self::PoiseState::Stunned => Color::Rgba(0.40, 0.0, 0.30, 1.0),
-                self::PoiseState::Interrupted => Color::Rgba(0.55, 0.0, 0.45, 1.0),
-                _ => POISE_COLOR,
-            };
-
-            Image::new(self.imgs.poise_bg)
-                .w_h(323.0, 14.0)
-                .mid_top_with_margin_on(state.ids.frame, -offset)
-                .set(state.ids.bg_poise, ui);
-            Rectangle::fill_with([319.0, 10.0], color::TRANSPARENT)
-                .top_left_with_margins_on(state.ids.bg_poise, 2.0, 2.0)
-                .set(state.ids.poise_alignment, ui);
-            Image::new(self.imgs.bar_content)
-                .w_h(319.0 * poise_percentage / 100.0, 10.0)
-                .color(Some(poise_colour))
-                .top_left_with_margins_on(state.ids.poise_alignment, 0.0, 0.0)
-                .set(state.ids.poise_filling, ui);
-            for i in 0..state.ids.poise_ticks.len() {
-                Image::new(self.imgs.poise_tick)
-                    .w_h(3.0, 10.0)
-                    .color(Some(POISEBAR_TICK_COLOR))
-                    .top_left_with_margins_on(
-                        state.ids.poise_alignment,
-                        0.0,
-                        319.0f64 * (self::Poise::POISE_THRESHOLDS[i] / self.poise.maximum()) as f64,
-                    )
-                    .set(state.ids.poise_ticks[i], ui);
-            }
-            Image::new(self.imgs.poise_frame)
-                .w_h(323.0, 16.0)
-                .color(Some(UI_HIGHLIGHT_0))
-                .middle_of(state.ids.bg_poise)
-                .set(state.ids.frame_poise, ui);
-        }
         // Bag button and indicator
         Image::new(self.imgs.selected_exp_bg)
             .w_h(34.0, 38.0)
@@ -1282,86 +1330,6 @@ impl<'a> Skillbar<'a> {
                 .font_size(self.fonts.cyri.scale(14))
                 .color(QUALITY_LEGENDARY)
                 .set(state.ids.sp_arrow_txt, ui);
-        }
-
-        // Bar Text
-        let bar_text = if self.health.is_dead {
-            Some((
-                self.localized_strings
-                    .get_msg("hud-group-dead")
-                    .into_owned(),
-                self.localized_strings
-                    .get_msg("hud-group-dead")
-                    .into_owned(),
-                self.localized_strings
-                    .get_msg("hud-group-dead")
-                    .into_owned(),
-            ))
-        } else if let BarNumbers::Values = bar_values {
-            Some((
-                format!(
-                    "{}/{}",
-                    self.health.current().round().max(1.0) as u32, /* Don't show 0 health for
-                                                                    * living players */
-                    self.health.maximum().round() as u32
-                ),
-                format!(
-                    "{}/{}",
-                    self.energy.current().round() as u32,
-                    self.energy.maximum().round() as u32
-                ),
-                String::new(), // Don't obscure the tick mark
-            ))
-        } else if let BarNumbers::Percent = bar_values {
-            Some((
-                format!("{}%", hp_percentage as u32),
-                format!("{}%", energy_percentage as u32),
-                String::new(), // Don't obscure the tick mark
-            ))
-        } else {
-            None
-        };
-        if let Some((hp_txt, energy_txt, poise_txt)) = bar_text {
-            let hp_txt = if is_downed { String::new() } else { hp_txt };
-
-            Text::new(&hp_txt)
-                .middle_of(state.ids.frame_health)
-                .font_size(self.fonts.cyri.scale(12))
-                .font_id(self.fonts.cyri.conrod_id)
-                .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
-                .set(state.ids.hp_txt_bg, ui);
-            Text::new(&hp_txt)
-                .bottom_left_with_margins_on(state.ids.hp_txt_bg, 2.0, 2.0)
-                .font_size(self.fonts.cyri.scale(12))
-                .font_id(self.fonts.cyri.conrod_id)
-                .color(TEXT_COLOR)
-                .set(state.ids.hp_txt, ui);
-
-            Text::new(&energy_txt)
-                .middle_of(state.ids.frame_energy)
-                .font_size(self.fonts.cyri.scale(12))
-                .font_id(self.fonts.cyri.conrod_id)
-                .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
-                .set(state.ids.energy_txt_bg, ui);
-            Text::new(&energy_txt)
-                .bottom_left_with_margins_on(state.ids.energy_txt_bg, 2.0, 2.0)
-                .font_size(self.fonts.cyri.scale(12))
-                .font_id(self.fonts.cyri.conrod_id)
-                .color(TEXT_COLOR)
-                .set(state.ids.energy_txt, ui);
-
-            Text::new(&poise_txt)
-                .middle_of(state.ids.frame_poise)
-                .font_size(self.fonts.cyri.scale(12))
-                .font_id(self.fonts.cyri.conrod_id)
-                .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
-                .set(state.ids.poise_txt_bg, ui);
-            Text::new(&poise_txt)
-                .bottom_left_with_margins_on(state.ids.poise_txt_bg, 2.0, 2.0)
-                .font_size(self.fonts.cyri.scale(12))
-                .font_id(self.fonts.cyri.conrod_id)
-                .color(TEXT_COLOR)
-                .set(state.ids.poise_txt, ui);
         }
     }
 
@@ -2375,7 +2343,10 @@ impl Widget for Skillbar<'_> {
         // WoW Player Frame (Arriba a la izquierda)
         self.show_wow_player_frame(state, ui);
 
-        // Health, Energy and Poise bars
+        // WoW Pet Frame (Debajo del marco de jugador arriba a la izquierda)
+        self.show_wow_pet_frame(state, ui);
+
+        // Health, Energy and Poise bars (Bolsa y Libro de Hechizos)
         self.show_stat_bars(state, ui, &mut events);
 
         // Slots

@@ -2,6 +2,21 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.12] - 2026-09-25
+-------------------------------------------------------------------------------
+* MARCO DE UNIDAD DE MASCOTA ESTILO WORLD OF WARCRAFT (TOP-LEFT PET FRAME):
+  - Añadido marco de unidad para la mascota (WoW Pet Unit Frame) ubicado arriba a la izquierda, exactamente debajo del marco del jugador.
+  - Medallón circular de retrato de la mascota con borde dorado y fondo oscuro (icono de bestia o raza si es humanoide).
+  - Nombre de la mascota con tipografía de alto contraste y sombra oscura.
+  - Barra de Salud (Health Bar) en verde brillante con valores numéricos exactos (actual/máximo) y estado de "MUERTO" si cae abatida.
+  - Barra de Energía / Enfoque (Pet Focus Bar) en tono dorado/naranja idéntico al Focus de cazador de WoW con valores numéricos.
+  - Visibilidad contextual inteligente: el marco solo se muestra cuando el jugador posee una mascota activa domesticada o invocada.
+
+* ELIMINACIÓN DE BARRAS FLOTANTES DEL CENTRO INFERIOR:
+  - Eliminadas por completo las barras flotantes redundantes (barra verde de salud de 484px, barra de estamina/energía y barra de aplomo/poise) que aparecían sobre la barra de acción al recibir daño o gastar recursos.
+  - La barra de acción y la barra táctica de control de mascotas quedan ahora totalmente despejadas, sin elementos intrusivos ni superposiciones visuales.
+  - Todas las estadísticas vitales del jugador se consultan de forma limpia y consolidada en el marco de personaje de la esquina superior izquierda.
+
 [v0.18.11] - 2026-09-25
 -------------------------------------------------------------------------------
 * ACTIVACIÓN DE HABILIDADES Y PODERES POR CLIC DE RATÓN (CLICK-TO-CAST):
