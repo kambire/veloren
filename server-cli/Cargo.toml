@@ -17,6 +17,10 @@ It is inspired by games such as Cube World, Legend of Zelda: Breath of the Wild,
 This package includes the official server CLI.
 """
 
+[[bin]]
+name = "AzeriaServer"
+path = "src/main.rs"
+
 [features]
 worldgen = ["server/worldgen"]
 persistent_world = ["server/persistent_world"]

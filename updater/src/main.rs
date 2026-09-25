@@ -3,7 +3,7 @@
 //! Comprueba en GitHub si hay una versión nueva, la descarga e instala, y
 //! arranca el juego. La interfaz se dibuja en `ui.rs` y la red está en `net.rs`.
 //!
-//! `veloren-updater --captura <archivo.png> [estado]` dibuja la interfaz en un
+//! `AzeriaLauncher --captura <archivo.png> [estado]` dibuja la interfaz en un
 //! PNG sin abrir la ventana (estados: listo, comprobando, actualizar,
 //! descargando, sin-conexion, error).
 
@@ -46,7 +46,7 @@ fn capture(path: &str, state_name: &str) {
     let mut st = initial_state();
     st.local_version = "v0.18.0".to_string();
     st.remote_version = "v0.18.0".to_string();
-    st.game_binary = Some("veloren-voxygen.exe".into());
+    st.game_binary = Some(net::GAME_EXECUTABLE.into());
     st.news = Some(vec![
         NewsItem {
             date: "25/09".into(),

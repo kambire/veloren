@@ -15,6 +15,12 @@ pub const GITHUB_REPO: &str = "kambire/veloren";
 const VERSION_FILE: &str = "version.json";
 const USER_AGENT: &str = "WorldOfAzeria-Launcher/2.0";
 pub const GAME_EXECUTABLE: &str = if cfg!(target_os = "windows") {
+    "WorldOfAzeria.exe"
+} else {
+    "WorldOfAzeria"
+};
+/// Nombre anterior del ejecutable, para instalaciones que aún no se actualizaron
+const LEGACY_GAME_EXECUTABLE: &str = if cfg!(target_os = "windows") {
     "veloren-voxygen.exe"
 } else {
     "veloren-voxygen"
@@ -136,16 +142,19 @@ fn save_local_version(dir: &Path, version: &LocalVersion) {
 }
 
 pub fn find_game_binary(dir: &Path) -> Option<PathBuf> {
-    [
-        // 1. Junto al lanzador (versión descargada)
-        dir.join(GAME_EXECUTABLE),
-        // 2. Compilación de desarrollo
-        dir.join("target").join("debug").join(GAME_EXECUTABLE),
-        // 3. Compilación optimizada
-        dir.join("target").join("release").join(GAME_EXECUTABLE),
-    ]
-    .into_iter()
-    .find(|path| path.exists())
+    [GAME_EXECUTABLE, LEGACY_GAME_EXECUTABLE]
+        .into_iter()
+        .flat_map(|exe| {
+            [
+                // 1. Junto al lanzador (versión descargada)
+                dir.join(exe),
+                // 2. Compilación de desarrollo
+                dir.join("target").join("debug").join(exe),
+                // 3. Compilación optimizada
+                dir.join("target").join("release").join(exe),
+            ]
+        })
+        .find(|path| path.exists())
 }
 
 pub fn launch_game(game_path: &Path, game_dir: &Path, args: &[String]) {

@@ -7,23 +7,28 @@ if exist "AzeriaLauncher.exe" (
     exit
 )
 
-if exist "target\debug\veloren-updater.exe" (
-    start "" "target\debug\veloren-updater.exe"
+if exist "target\release\AzeriaLauncher.exe" (
+    start "" "target\release\AzeriaLauncher.exe"
     exit
 )
 
-if exist "target\release\veloren-updater.exe" (
-    start "" "target\release\veloren-updater.exe"
+if exist "target\debug\AzeriaLauncher.exe" (
+    start "" "target\debug\AzeriaLauncher.exe"
     exit
 )
 
-if exist "target\debug\veloren-voxygen.exe" (
-    start "" "target\debug\veloren-voxygen.exe"
+if exist "WorldOfAzeria.exe" (
+    start "" "WorldOfAzeria.exe"
     exit
 )
 
-if exist "target\release\veloren-voxygen.exe" (
-    start "" "target\release\veloren-voxygen.exe"
+if exist "target\release\WorldOfAzeria.exe" (
+    start "" "target\release\WorldOfAzeria.exe"
+    exit
+)
+
+if exist "target\debug\WorldOfAzeria.exe" (
+    start "" "target\debug\WorldOfAzeria.exe"
     exit
 )
 

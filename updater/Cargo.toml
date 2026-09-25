@@ -6,6 +6,10 @@ authors = ["Veloren MMORPG Team"]
 description = "Lanzador y actualizador automático de World of Azeria"
 build = "build.rs"
 
+[[bin]]
+name = "AzeriaLauncher"
+path = "src/main.rs"
+
 [dependencies]
 ureq = { version = "2.10", features = ["json", "tls"] }
 serde = { version = "1.0", features = ["derive"] }
