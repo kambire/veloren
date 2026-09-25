@@ -3310,6 +3310,38 @@ impl Hud {
         });
         self.floaters.combo_floater = self.floaters.combo_floater.filter(|f| f.timer > 0_f64);
 
+        // Buffs (renderizados antes de la barra de habilidades para que el Skillbar y los botones de mascota queden siempre por encima)
+        if let (Some(player_buffs), Some(health), Some(energy), Some(poise)) = (
+            buffs.get(info.viewpoint_entity),
+            healths.get(entity),
+            energies.get(entity),
+            poises.get(entity),
+        ) {
+            for event in BuffsBar::new(
+                &self.imgs,
+                &self.fonts,
+                &self.rot_imgs,
+                tooltip_manager,
+                i18n,
+                player_buffs,
+                stances.get(entity),
+                self.pulse,
+                global_state,
+                health,
+                energy,
+                poise,
+                &time,
+            )
+            .set(self.ids.buffs, ui_widgets)
+            {
+                match event {
+                    buffs::Event::RemoveBuff(buff_id) => events.push(Event::RemoveBuff(buff_id)),
+                    buffs::Event::LeaveStance => events.push(Event::LeaveStance),
+                }
+            }
+        }
+
+        // Skillbar (Action Bar, Pet Control Bar y Marcos WoW)
         if let (
             Some(health),
             Some(inventory),
@@ -3384,37 +3416,6 @@ impl Hud {
                     skillbar::Event::UseSecondaryAbility => {
                         events.push(Event::Secondary { state: true });
                     },
-                }
-            }
-        }
-
-        // Buffs
-        if let (Some(player_buffs), Some(health), Some(energy), Some(poise)) = (
-            buffs.get(info.viewpoint_entity),
-            healths.get(entity),
-            energies.get(entity),
-            poises.get(entity),
-        ) {
-            for event in BuffsBar::new(
-                &self.imgs,
-                &self.fonts,
-                &self.rot_imgs,
-                tooltip_manager,
-                i18n,
-                player_buffs,
-                stances.get(entity),
-                self.pulse,
-                global_state,
-                health,
-                energy,
-                poise,
-                &time,
-            )
-            .set(self.ids.buffs, ui_widgets)
-            {
-                match event {
-                    buffs::Event::RemoveBuff(buff_id) => events.push(Event::RemoveBuff(buff_id)),
-                    buffs::Event::LeaveStance => events.push(Event::LeaveStance),
                 }
             }
         }

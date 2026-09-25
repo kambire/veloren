@@ -1894,35 +1894,6 @@ impl<'a> Skillbar<'a> {
             .color(QUALITY_LEGENDARY)
             .set(state.ids.pet_btn_summon_sc, ui);
 
-        // Header Label: [ CONTROL DE MASCOTA ]
-        let header_txt = if has_pet { "[ CONTROL DE MASCOTA ]" } else { "[ MASCOTA (INACTIVA) ]" };
-        let header_col = if has_pet {
-            Color::Rgba(1.0, 0.85, 0.35, 1.0)
-        } else {
-            Color::Rgba(0.65, 0.65, 0.65, 0.75)
-        };
-        // NOTA: este rótulo queda ANCHO (cubre toda la fila de botones) pero solo
-        // ALTO como el texto. Antes tenía apenas 4px de separación vertical con la
-        // fila de botones; con el padding real de line-height del texto, su caja de
-        // hit-testing llegaba a pisar los botones de abajo y —por el
-        // `graphics_for(pet_btn_summon)`— cualquier clic ahí se redirigía a
-        // "Invocar", dando la falsa sensación de que solo ese botón respondía. Se
-        // aleja bastante más (22px) para que ya no pueda solaparse con la fila.
-        Text::new(header_txt)
-            .up_from(state.ids.pet_btn_summon, 22.0)
-            .font_size(self.fonts.cyri.scale(8))
-            .font_id(self.fonts.cyri.conrod_id)
-            .graphics_for(state.ids.pet_btn_summon)
-            .color(BLACK)
-            .set(state.ids.pet_info_name_bg, ui);
-        Text::new(header_txt)
-            .bottom_left_with_margins_on(state.ids.pet_info_name_bg, 1.0, 1.0)
-            .font_size(self.fonts.cyri.scale(8))
-            .font_id(self.fonts.cyri.conrod_id)
-            .graphics_for(state.ids.pet_btn_summon)
-            .color(header_col)
-            .set(state.ids.pet_info_name, ui);
-
         // 1. Attack Button (Ctrl+1)
         let (atk_title, atk_desc) = (
             "Atacar (Ctrl+1)",
@@ -2336,7 +2307,7 @@ impl Widget for Skillbar<'_> {
 
         // Alignment and BG
         let alignment_size = 40.0 * 12.0 + slot_offset * 11.0;
-        Rectangle::fill_with([alignment_size, 160.0], color::TRANSPARENT)
+        Rectangle::fill_with([alignment_size, 88.0], color::TRANSPARENT)
             .mid_bottom_with_margin_on(ui.window, 10.0)
             .set(state.ids.frame, ui);
 

@@ -12,6 +12,13 @@
   - Barra de Energía / Enfoque (Pet Focus Bar) en tono dorado/naranja idéntico al Focus de cazador de WoW con valores numéricos.
   - Visibilidad contextual inteligente: el marco solo se muestra cuando el jugador posee una mascota activa domesticada o invocada.
 
+* CORRECCIÓN DEFINITIVA DE CLICS EN BOTONES DE MASCOTA (HIT-TEST OVERLAY FIX):
+  - Identificada y eliminada la causa raíz del bloqueo de clics en la barra de control de mascotas: el widget `BuffsBar` (barra de estados/efectos) generaba tres rectángulos transparentes de 484x100px que, por orden de dibujado, se situaban por delante de los botones y absorbían el cursor e inputs de ratón.
+  - Reordenado el renderizado en `voxygen/src/hud/mod.rs` para que la barra de habilidades y los botones de mascota se dibujen siempre por encima de cualquier otro elemento de la interfaz.
+  - La barra de buffs ahora solo genera su contenedor cuando realmente hay estados o desventajas activas, situándose a una altura segura (offset = 180px) por encima de los controles.
+  - Ajustada la altura del marco base (`state.ids.frame`) de 160px a 88px exactos para que jamás invada el área de interacción de las órdenes de mascota.
+  - Retirado el rótulo flotante redundante de encabezado que capturaba eventos hacia el botón de invocación. Los 8 botones de la mascota ahora responden en el 100% de su superficie a cualquier clic.
+
 * ELIMINACIÓN DE BARRAS FLOTANTES DEL CENTRO INFERIOR:
   - Eliminadas por completo las barras flotantes redundantes (barra verde de salud de 484px, barra de estamina/energía y barra de aplomo/poise) que aparecían sobre la barra de acción al recibir daño o gastar recursos.
   - La barra de acción y la barra táctica de control de mascotas quedan ahora totalmente despejadas, sin elementos intrusivos ni superposiciones visuales.

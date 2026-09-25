@@ -50,8 +50,11 @@ pub struct BuffsBar<'a> {
     stance: Option<&'a Stance>,
     pulse: f32,
     global_state: &'a GlobalState,
+    #[expect(dead_code)]
     health: &'a Health,
+    #[expect(dead_code)]
     energy: &'a Energy,
+    #[expect(dead_code)]
     poise: &'a Poise,
     time: &'a Time,
 }
@@ -144,33 +147,13 @@ impl Widget for BuffsBar<'_> {
         .desc_text_color(TEXT_COLOR);
         let buff_icons = BuffIcon::icons_vec(self.buffs, self.stance);
         if let BuffPosition::Bar = buff_position {
-            let decayed_health = 1.0 - self.health.maximum() / self.health.base_max();
-            let show_health = self.global_state.settings.interface.always_show_bars
-                || (self.health.current() - self.health.maximum()).abs() > Health::HEALTH_EPSILON
-                || decayed_health > 0.0;
-            let show_poise = self.global_state.settings.interface.always_show_bars
-                || (self.poise.current() - self.poise.maximum()).abs() > Poise::POISE_EPSILON;
-            let show_energy = self.global_state.settings.interface.always_show_bars
-                || (self.energy.current() - self.energy.maximum()).abs() > Energy::ENERGY_EPSILON;
+            if !buff_icons.is_empty() {
+                let offset = 180.0;
 
-            let offset = if show_health {
-                if show_energy {
-                    128.0
-                } else if show_poise {
-                    112.0
-                } else {
-                    96.0
-                }
-            } else if show_energy {
-                96.0
-            } else {
-                55.0
-            };
-
-            // Alignment
-            Rectangle::fill_with([484.0, 100.0], color::TRANSPARENT)
-                .mid_bottom_with_margin_on(ui.window, offset)
-                .set(state.ids.align, ui);
+                // Alignment
+                Rectangle::fill_with([484.0, 100.0], color::TRANSPARENT)
+                    .mid_bottom_with_margin_on(ui.window, offset)
+                    .set(state.ids.align, ui);
             Rectangle::fill_with([484.0 / 2.0, 90.0], color::TRANSPARENT)
                 .bottom_left_with_margins_on(state.ids.align, 0.0, 0.0)
                 .set(state.ids.debuffs_align, ui);
@@ -377,6 +360,7 @@ impl Widget for BuffsBar<'_> {
                         )
                         .set(*timer_id, ui);
                 });
+            }
         }
 
         if let BuffPosition::Map = buff_position {
