@@ -2595,7 +2595,15 @@ impl Hud {
                 let height_offset = body.height() * scale.map_or(1.0, |s| s.0) + 0.5;
                 let ingame_pos = pos + Vec3::unit_z() * height_offset;
 
-                let interaction_options =
+                let is_pet = quest_alignments.get(entity).is_some_and(|align| match align {
+                    comp::Alignment::Owned(owner) => uids.get(entity).is_some_and(|uid| uid != owner),
+                    comp::Alignment::Tame => true,
+                    _ => false,
+                });
+
+                let interaction_options = if is_pet {
+                    Vec::new()
+                } else {
                     entity_interactables
                         .get(&entity)
                         .map_or_else(Vec::new, |interactions| {
@@ -2626,7 +2634,8 @@ impl Hud {
                                     ))
                                 })
                                 .collect()
-                        });
+                        })
+                };
 
                 // Speech bubble, name, level, and hp bars
                 overhead::Overhead::new(

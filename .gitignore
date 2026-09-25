@@ -2,6 +2,7 @@
 ## Veloren
 *.log
 *.rar
+*.exe
 assets/tweak/
 maps
 notes.md

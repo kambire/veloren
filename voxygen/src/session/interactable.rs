@@ -272,7 +272,7 @@ pub(super) fn get_interactables(
                 let trade = (!is_downed
                     && alignment.is_some_and(|alignment| match alignment {
                         Alignment::Npc => true,
-                        Alignment::Owned(other_uid) => other_uid == uid || player_uid == *other_uid,
+                        Alignment::Owned(other_uid) => other_uid == uid,
                         _ => false,
                     }))
                 .then_some(EntityInteraction::Trade);
