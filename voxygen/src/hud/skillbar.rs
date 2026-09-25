@@ -228,6 +228,12 @@ widget_ids! {
         pet_btn_stay_sc_bg,
         pet_btn_stay_sc,
 
+        pet_btn_heal,
+        pet_btn_heal_icon,
+        pet_btn_heal_border,
+        pet_btn_heal_sc_bg,
+        pet_btn_heal_sc,
+
         pet_btn_aggro,
         pet_btn_aggro_icon,
         pet_btn_aggro_border,
@@ -2123,7 +2129,50 @@ impl<'a> Skillbar<'a> {
             .color(QUALITY_LEGENDARY)
             .set(state.ids.pet_btn_stay_sc, ui);
 
-        // 4. Aggressive Mode Button (Ctrl+4)
+        // 4. Heal / Life Transfer Button (Ctrl+7)
+        let (heal_title, heal_desc) = (
+            "Transfusión Vital (Ctrl+7)",
+            if has_pet {
+                "Transfiere un 20 % de tu salud a tu mascota para sanarla intensamente (cura 2.5x el sacrificio). Requiere más de 15 de vida."
+            } else {
+                "Sin mascota activa. Invoca o domestica una criatura para usar los controles."
+            },
+        );
+        if Button::image(self.imgs.skillbar_slot)
+            .hover_image(self.imgs.skillbar_index)
+            .press_image(self.imgs.skillbar_slot)
+            .w_h(btn_size, btn_size)
+            .right_from(state.ids.pet_btn_stay, 3.0)
+            .with_tooltip(self.tooltip_manager, heal_title, heal_desc, &tooltip, TEXT_COLOR)
+            .set(state.ids.pet_btn_heal, ui)
+            .was_clicked()
+        {
+            events.push(Event::CommandPet(comp::PetCommand::Heal));
+        }
+        Image::new(self.imgs.health_ico)
+            .w_h(icon_size, icon_size)
+            .color(Some(if has_pet {
+                Color::Rgba(1.0, 0.28, 0.28, 1.0)
+            } else {
+                Color::Rgba(0.6, 0.6, 0.6, 0.45)
+            }))
+            .middle_of(state.ids.pet_btn_heal)
+            .graphics_for(state.ids.pet_btn_heal)
+            .set(state.ids.pet_btn_heal_icon, ui);
+        Text::new("^7")
+            .top_left_with_margins_on(state.ids.pet_btn_heal, 1.0, 2.0)
+            .font_size(self.fonts.cyri.scale(7))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_heal_sc_bg, ui);
+        Text::new("^7")
+            .bottom_left_with_margins_on(state.ids.pet_btn_heal_sc_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(7))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(QUALITY_LEGENDARY)
+            .set(state.ids.pet_btn_heal_sc, ui);
+
+        // 5. Aggressive Mode Button (Ctrl+4)
         let (aggro_title, aggro_desc) = (
             "Modo Agresivo (Ctrl+4)",
             if has_pet {
@@ -2136,7 +2185,7 @@ impl<'a> Skillbar<'a> {
             .hover_image(self.imgs.skillbar_index)
             .press_image(self.imgs.skillbar_slot)
             .w_h(btn_size, btn_size)
-            .right_from(state.ids.pet_btn_stay, 6.0)
+            .right_from(state.ids.pet_btn_heal, 6.0)
             .with_tooltip(self.tooltip_manager, aggro_title, aggro_desc, &tooltip, TEXT_COLOR)
             .set(state.ids.pet_btn_aggro, ui)
             .was_clicked()

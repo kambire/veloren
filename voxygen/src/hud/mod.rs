@@ -5067,6 +5067,7 @@ impl Hud {
                         GameInput::Slot4 => Some(comp::PetCommand::SetMode(comp::PetMode::Aggressive)),
                         GameInput::Slot5 => Some(comp::PetCommand::SetMode(comp::PetMode::Defensive)),
                         GameInput::Slot6 => Some(comp::PetCommand::SetMode(comp::PetMode::Passive)),
+                        GameInput::Slot7 => Some(comp::PetCommand::Heal),
                         _ => None,
                     };
                     if let Some(cmd) = pet_command {
@@ -5281,6 +5282,7 @@ impl Hud {
                                 GameInput::Slot4 => Some(comp::PetCommand::SetMode(comp::PetMode::Aggressive)),
                                 GameInput::Slot5 => Some(comp::PetCommand::SetMode(comp::PetMode::Defensive)),
                                 GameInput::Slot6 => Some(comp::PetCommand::SetMode(comp::PetMode::Passive)),
+                                GameInput::Slot7 => Some(comp::PetCommand::Heal),
                                 _ => None,
                             };
                             if let Some(cmd) = pet_command {

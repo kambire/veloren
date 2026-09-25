@@ -290,6 +290,8 @@ impl ServerEvent for CommandPetEvent {
         ReadStorage<'a, comp::Alignment>,
         ReadStorage<'a, Is<Mount>>,
         ReadStorage<'a, Uid>,
+        ReadStorage<'a, Client>,
+        ReadStorage<'a, comp::SkillSet>,
         Read<'a, IdMaps>,
         ReadExpect<'a, Time>,
         ReadExpect<'a, TerrainGrid>,
@@ -308,6 +310,8 @@ impl ServerEvent for CommandPetEvent {
             alignments,
             is_mounts,
             uids,
+            clients,
+            skill_sets,
             id_maps,
             time,
             terrain,
@@ -320,7 +324,7 @@ impl ServerEvent for CommandPetEvent {
                 None => continue,
             };
 
-            let pet_entity = if matches!(command, comp::PetCommand::Summon) {
+            let pet_entity = if matches!(command, comp::PetCommand::Summon | comp::PetCommand::Heal) {
                 if alignments.get(pet).is_some_and(|a| matches!(a, comp::Alignment::Owned(owner) if *owner == owner_uid)) {
                     Some(pet)
                 } else {
@@ -381,6 +385,94 @@ impl ServerEvent for CommandPetEvent {
                         }
                         if let Some(mut activity) = character_activities.get_mut(pet) {
                             activity.is_pet_staying = false;
+                        }
+                    }
+                },
+                comp::PetCommand::Heal => {
+                    let pet_health_info = healths.get(pet).map(|h| (h.current(), h.maximum(), h.is_dead));
+                    if let Some((pet_cur, pet_max, pet_is_dead)) = pet_health_info {
+                        if !pet_is_dead && pet_cur >= pet_max {
+                            if let Some(client) = clients.get(command_giver) {
+                                client.send_fallible(ServerGeneral::server_msg(
+                                    comp::ChatType::Meta,
+                                    comp::Content::Plain("Tu mascota ya tiene la salud al máximo.".to_string()),
+                                ));
+                            }
+                            continue;
+                        }
+
+                        let owner_cur_hp = healths.get(command_giver).map(|h| h.current()).unwrap_or(0.0);
+                        let min_hp = 15.0;
+                        if owner_cur_hp <= min_hp {
+                            if let Some(client) = clients.get(command_giver) {
+                                client.send_fallible(ServerGeneral::server_msg(
+                                    comp::ChatType::Meta,
+                                    comp::Content::Plain("¡No tienes suficiente vida para transferir a tu mascota! (Mínimo 15 de salud)".to_string()),
+                                ));
+                            }
+                            continue;
+                        }
+
+                        let sacrifice = ((owner_cur_hp * 0.20).clamp(15.0, 45.0)).min(owner_cur_hp - min_hp);
+                        if sacrifice <= 0.0 {
+                            continue;
+                        }
+
+                        let heal_mult = if let Some(skillset) = skill_sets.get(command_giver) {
+                            if let Ok(lvl) = skillset.skill_level(comp::skills::Skill::Tamer(comp::skills::TamerSkill::VitalHeal)) {
+                                2.5 * comp::skills::SKILL_MODIFIERS.tamer_tree.vital_heal.powi(lvl.into())
+                            } else {
+                                2.5
+                            }
+                        } else {
+                            2.5
+                        };
+
+                        let heal_amount = sacrifice * heal_mult;
+
+                        // 1. Drain health from owner
+                        let self_damage = comp::HealthChange {
+                            amount: -sacrifice,
+                            by: None,
+                            cause: Some(combat::DamageSource::Other),
+                            time: *time,
+                            precise: false,
+                            instance: rand::random(),
+                        };
+                        if let Some(mut h) = healths.get_mut(command_giver) {
+                            h.change_by(self_damage);
+                        }
+
+                        // 2. Heal pet
+                        let pet_heal = comp::HealthChange {
+                            amount: heal_amount,
+                            by: Some(combat::DamageContributor::Solo(owner_uid)),
+                            cause: None,
+                            time: *time,
+                            precise: false,
+                            instance: rand::random(),
+                        };
+                        if let Some(mut h) = healths.get_mut(pet) {
+                            if h.is_dead {
+                                h.revive();
+                            }
+                            h.change_by(pet_heal);
+                        }
+
+                        if let Some(force_update) = force_updates.get_mut(pet) {
+                            force_update.update();
+                        } else {
+                            let _ = force_updates.insert(pet, comp::ForceUpdate::forced());
+                        }
+
+                        if let Some(client) = clients.get(command_giver) {
+                            client.send_fallible(ServerGeneral::server_msg(
+                                comp::ChatType::Meta,
+                                comp::Content::Plain(format!(
+                                    "¡Transfusión Vital! Has transferido {:.0} de salud a tu mascota (+{:.0} curación).",
+                                    sacrifice, heal_amount
+                                )),
+                            ));
                         }
                     }
                 },

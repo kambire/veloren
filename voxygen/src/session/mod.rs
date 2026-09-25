@@ -2078,7 +2078,7 @@ impl PlayState for SessionState {
                                 }
                             }
                             self.client.borrow_mut().command_pet(pet, command);
-                        } else if matches!(command, comp::PetCommand::Summon) {
+                        } else if matches!(command, comp::PetCommand::Summon | comp::PetCommand::Heal) {
                             let my_entity = self.client.borrow().entity();
                             self.client.borrow_mut().command_pet(my_entity, command);
                         }
