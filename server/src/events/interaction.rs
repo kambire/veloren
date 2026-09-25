@@ -15,6 +15,7 @@ use common::{
     comp::{
         self, Content, InventoryUpdateEvent,
         agent::{AgentEvent, Sound, SoundKind},
+        buff::{Buff, BuffData, BuffKind, BuffSource, DestInfo},
         inventory::slot::EquipSlot,
         item::{MaterialStatManifest, flatten_counted_items},
         loot_owner::LootOwnerKind,
@@ -29,7 +30,7 @@ use common::{
     link::Is,
     mounting::Mount,
     outcome::Outcome,
-    resources::ProgramTime,
+    resources::{ProgramTime, Secs},
     terrain::{self, Block, SpriteKind, TerrainGrid},
     uid::{IdMaps, Uid},
     util::Dir,
@@ -288,11 +289,14 @@ impl ServerEvent for CommandPetEvent {
         WriteStorage<'a, comp::Health>,
         WriteStorage<'a, comp::ForceUpdate>,
         WriteStorage<'a, comp::CharacterState>,
+        WriteStorage<'a, comp::Buffs>,
         ReadStorage<'a, comp::Alignment>,
         ReadStorage<'a, Is<Mount>>,
         ReadStorage<'a, Uid>,
         ReadStorage<'a, Client>,
         ReadStorage<'a, comp::SkillSet>,
+        ReadStorage<'a, comp::Stats>,
+        ReadStorage<'a, comp::Mass>,
         Read<'a, IdMaps>,
         ReadExpect<'a, Time>,
         ReadExpect<'a, TerrainGrid>,
@@ -309,11 +313,14 @@ impl ServerEvent for CommandPetEvent {
             mut healths,
             mut force_updates,
             mut char_states,
+            mut buffs_storage,
             alignments,
             _is_mounts,
             uids,
             clients,
             skill_sets,
+            stats,
+            masses,
             id_maps,
             time,
             terrain,
@@ -405,17 +412,30 @@ impl ServerEvent for CommandPetEvent {
                             continue;
                         }
 
+                        // Escala con el talento Tamer(VitalHeal): x1.2 por nivel (máx. nivel 3)
                         let heal_mult = if let Some(skillset) = skill_sets.get(command_giver) {
                             if let Ok(lvl) = skillset.skill_level(comp::skills::Skill::Tamer(comp::skills::TamerSkill::VitalHeal)) {
-                                2.5 * comp::skills::SKILL_MODIFIERS.tamer_tree.vital_heal.powi(lvl.into())
+                                comp::skills::SKILL_MODIFIERS.tamer_tree.vital_heal.powi(lvl.into())
                             } else {
-                                2.5
+                                1.0
                             }
                         } else {
-                            2.5
+                            1.0
                         };
 
-                        let heal_amount = sacrifice * heal_mult;
+                        // Curación instantánea: ~20% (hasta ~35% con el talento máximo) de la
+                        // vida MÁXIMA de la mascota, para que siga siendo relevante sin importar
+                        // cuán grande sea su barra de vida.
+                        const INSTANT_FRACTION: f32 = 0.20;
+                        // Curación gradual (regeneración) tras el golpe inicial: otro ~15%
+                        // repartido en varios segundos.
+                        const HOT_FRACTION: f32 = 0.15;
+                        const HOT_DURATION: f64 = 6.0;
+
+                        let missing_hp = (pet_max - pet_cur).max(0.0);
+                        let instant_heal =
+                            (pet_max * INSTANT_FRACTION * heal_mult).min(missing_hp);
+                        let hot_total = pet_max * HOT_FRACTION * heal_mult;
 
                         // 1. Drain health from owner
                         let self_damage = comp::HealthChange {
@@ -430,9 +450,9 @@ impl ServerEvent for CommandPetEvent {
                             h.change_by(self_damage);
                         }
 
-                        // 2. Heal pet
+                        // 2. Instant burst heal on the pet
                         let pet_heal = comp::HealthChange {
-                            amount: heal_amount,
+                            amount: instant_heal,
                             by: Some(combat::DamageContributor::Solo(owner_uid)),
                             cause: None,
                             time: *time,
@@ -446,6 +466,30 @@ impl ServerEvent for CommandPetEvent {
                             h.change_by(pet_heal);
                         }
 
+                        // 3. Gradual regeneration (HoT) so the pet keeps healing for a while
+                        if hot_total > 0.0 {
+                            let hot_rate = (hot_total as f64 / HOT_DURATION) as f32;
+                            if let Some(mut buffs) = buffs_storage.get_mut(pet) {
+                                let dest_info = DestInfo {
+                                    stats: stats.get(pet),
+                                    mass: masses.get(pet),
+                                };
+                                buffs.insert(
+                                    Buff::new(
+                                        BuffKind::Regeneration,
+                                        BuffData::new(hot_rate, Some(Secs(HOT_DURATION))),
+                                        vec![],
+                                        BuffSource::Character { by: owner_uid, tool_kind: None },
+                                        *time,
+                                        dest_info,
+                                        None,
+                                        None,
+                                    ),
+                                    *time,
+                                );
+                            }
+                        }
+
                         if let Some(force_update) = force_updates.get_mut(pet) {
                             force_update.update();
                         } else {
@@ -456,8 +500,8 @@ impl ServerEvent for CommandPetEvent {
                             client.send_fallible(ServerGeneral::server_msg(
                                 comp::ChatType::Meta,
                                 comp::Content::Plain(format!(
-                                    "¡Transfusión Vital! Has transferido {:.0} de salud a tu mascota (+{:.0} curación).",
-                                    sacrifice, heal_amount
+                                    "¡Transfusión Vital! Has transferido {:.0} de salud a tu mascota (+{:.0} al instante, +{:.0} regenerando durante {:.0}s).",
+                                    sacrifice, instant_heal, hot_total, HOT_DURATION
                                 )),
                             ));
                         }
