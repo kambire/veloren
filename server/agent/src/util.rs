@@ -41,6 +41,8 @@ pub fn is_steering(entity: EcsEntity, read_data: &ReadData) -> bool {
         .is_some_and(|r| r.is_steering_entity())
 }
 
+static NPC_ALIGNMENT: Alignment = Alignment::Npc;
+
 /// Gets alignment of owner if alignment given is `Owned`.
 /// Returns original alignment if not owned.
 pub fn try_owner_alignment<'a>(
@@ -50,7 +52,7 @@ pub fn try_owner_alignment<'a>(
     if let Some(&Alignment::Owned(owner_uid)) = alignment
         && let Some(owner) = get_entity_by_id(owner_uid, read_data)
     {
-        return read_data.alignments.get(owner);
+        return read_data.alignments.get(owner).or(Some(&NPC_ALIGNMENT));
     }
     alignment
 }

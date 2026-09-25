@@ -1195,6 +1195,9 @@ impl AgentData<'_> {
             }
         }
         if agent.psyche.should_stop_pursuing || target.is_some() {
+            if let Some((_, true)) = target {
+                agent.awareness.set_maximally_aware();
+            }
             agent.target = target.map(|(entity, attack_target)| Target {
                 target: entity,
                 hostile: attack_target,
@@ -2144,6 +2147,7 @@ impl AgentData<'_> {
             }
 
             let attacker_pos = read_data.positions.get(attacker).map(|pos| pos.0);
+            agent.awareness.set_maximally_aware();
             agent.target = Some(Target::new(
                 attacker,
                 true,
@@ -2164,7 +2168,7 @@ impl AgentData<'_> {
 
                     self.idle(agent, controller, read_data, emitters, rng);
                 } else {
-                    let target_data = TargetData::new(tgt_pos, target, read_data);
+                    let target_data = TargetData::new(tgt_pos, attacker, read_data);
                     // TODO: Reimplement this in rtsim
                     // if let Some(tgt_name) =
                     //     read_data.stats.get(target).map(|stats| stats.name.clone())
@@ -2327,13 +2331,19 @@ impl AgentData<'_> {
         });
         let self_owns_entity =
             matches!(entity_alignment, Some(Alignment::Owned(ouid)) if *self.uid == *ouid);
+        let is_our_owner =
+            matches!(self.alignment, Some(Alignment::Owned(ouid)) if read_data.uids.get(entity) == Some(&ouid));
+        let share_owner =
+            matches!((self.alignment.copied(), entity_alignment.copied()), (Some(Alignment::Owned(o1)), Some(Alignment::Owned(o2))) if o1 == o2);
 
         (we_are_friendly && we_share_species)
             || (is_village_guard(*self.entity, read_data) && is_villager(entity_alignment))
             || self_owns_entity
+            || is_our_owner
+            || share_owner
     }
 
-    fn passive_towards(&self, entity: EcsEntity, read_data: &ReadData) -> bool {
+    pub fn passive_towards(&self, entity: EcsEntity, read_data: &ReadData) -> bool {
         if let (Some(self_alignment), Some(other_alignment)) =
             (self.alignment, read_data.alignments.get(entity))
         {
@@ -2343,7 +2353,7 @@ impl AgentData<'_> {
         }
     }
 
-    fn friendly_towards(&self, entity: EcsEntity, read_data: &ReadData) -> bool {
+    pub fn friendly_towards(&self, entity: EcsEntity, read_data: &ReadData) -> bool {
         if let (Some(self_alignment), Some(other_alignment)) =
             (self.alignment, read_data.alignments.get(entity))
         {

@@ -29,9 +29,9 @@ use self::interaction::{
 
 use super::{
     consts::{
-        DAMAGE_MEMORY_DURATION, FLEE_DURATION, HEALING_ITEM_THRESHOLD, MAX_PATROL_DIST,
-        MAX_STAY_DISTANCE, NORMAL_FLEE_DIR_DIST, NPC_PICKUP_RANGE, RETARGETING_THRESHOLD_SECONDS,
-        STD_AWARENESS_DECAY_RATE,
+        AVG_FOLLOW_DIST, DAMAGE_MEMORY_DURATION, FLEE_DURATION, HEALING_ITEM_THRESHOLD,
+        MAX_STAY_DISTANCE, NORMAL_FLEE_DIR_DIST, NPC_PICKUP_RANGE,
+        RETARGETING_THRESHOLD_SECONDS, STD_AWARENESS_DECAY_RATE,
     },
     data::{AgentData, ReadData, TargetData},
     util::{get_entity_by_id, is_dead, is_dead_or_invulnerable, is_invulnerable, stop_pursuing},
@@ -121,7 +121,12 @@ impl BehaviorTree {
     /// Follow the owner and attack enemies
     pub fn pet() -> Self {
         Self {
-            tree: vec![follow_if_far_away, attack_if_owner_hurt, do_idle_tree],
+            tree: vec![
+                pet_combat_assist,
+                follow_if_far_away,
+                attack_if_owner_hurt,
+                do_idle_tree,
+            ],
         }
     }
 
@@ -425,16 +430,17 @@ fn do_hostile_tree_if_hostile_and_aware(bdata: &mut BehaviorData) -> bool {
 
 /// if owned, do the pet tree and stop the current BehaviorTree
 fn do_pet_tree_if_owned(bdata: &mut BehaviorData) -> bool {
-    if let (Some(Target { target, .. }), Some(Alignment::Owned(uid))) =
+    if let (Some(Target { target, hostile, .. }), Some(Alignment::Owned(uid))) =
         (bdata.agent.target, bdata.agent_data.alignment)
     {
         if bdata.read_data.uids.get(target) == Some(uid) {
             BehaviorTree::pet().run(bdata);
-        } else {
+            return true;
+        } else if !hostile {
             bdata.agent.target = None;
             BehaviorTree::idle().run(bdata);
+            return true;
         }
-        return true;
     }
     false
 }
@@ -544,6 +550,115 @@ fn do_save_allies(bdata: &mut BehaviorData) -> bool {
     false
 }
 
+/// Pet combat assist:
+/// 1. If owner was hurt recently (< 8.0s), attack the attacker.
+/// 2. If pet was hurt recently (< 8.0s), attack the attacker.
+/// 3. If owner damaged an enemy recently (< 8.0s), assist and attack that enemy.
+/// 4. If an enemy nearby (< 16.0m) is hostile and within combat range, attack it.
+fn pet_combat_assist(bdata: &mut BehaviorData) -> bool {
+    // If told to stay, do not engage automatically
+    if bdata.agent.stay_pos.is_some() {
+        return false;
+    }
+
+    let owner_uid = match bdata.agent_data.alignment {
+        Some(Alignment::Owned(owner_uid)) => *owner_uid,
+        _ => return false,
+    };
+
+    let owner = match get_entity_by_id(owner_uid, bdata.read_data) {
+        Some(e) => e,
+        None => return false,
+    };
+
+    let owner_pos = match bdata.read_data.positions.get(owner) {
+        Some(p) => p.0,
+        None => return false,
+    };
+
+    let now = bdata.read_data.time.0;
+
+    let is_attackable = |e: EcsEntity, read_data: &ReadData| {
+        !is_dead_or_invulnerable(e, read_data)
+            && !bdata.agent_data.passive_towards(e, read_data)
+            && !bdata.agent_data.friendly_towards(e, read_data)
+    };
+
+    let engage = |bdata: &mut BehaviorData, target: EcsEntity| -> bool {
+        let target_pos = bdata.read_data.positions.get(target).map(|pos| pos.0);
+        bdata.agent.awareness.set_maximally_aware();
+        bdata.agent.target = Some(Target::new(
+            target,
+            true,
+            bdata.read_data.time.0,
+            true,
+            target_pos,
+        ));
+        bdata.controller.push_utterance(UtteranceKind::Angry);
+        BehaviorTree::hostile().run(bdata);
+        true
+    };
+
+    // 1. Check if owner was recently damaged by an enemy
+    if let Some(owner_health) = bdata.read_data.healths.get(owner) {
+        if owner_health.last_change.amount < 0.0
+            && now - owner_health.last_change.time.0 < 8.0
+            && let Some(by) = owner_health.last_change.damage_by()
+            && let Some(attacker) = get_entity_by_id(by.uid(), bdata.read_data)
+            && is_attackable(attacker, bdata.read_data)
+        {
+            return engage(bdata, attacker);
+        }
+    }
+
+    // 2. Check if pet itself was recently damaged by an enemy
+    if let Some(self_health) = bdata.agent_data.health {
+        if self_health.last_change.amount < 0.0
+            && now - self_health.last_change.time.0 < 8.0
+            && let Some(by) = self_health.last_change.damage_by()
+            && let Some(attacker) = get_entity_by_id(by.uid(), bdata.read_data)
+            && is_attackable(attacker, bdata.read_data)
+        {
+            return engage(bdata, attacker);
+        }
+    }
+
+    // 3. Search nearby entities around owner
+    let common::CachedSpatialGrid(grid) = bdata.agent_data.cached_spatial_grid;
+    for entity in grid.in_circle_aabr(owner_pos.xy(), 25.0) {
+        if entity == *bdata.agent_data.entity || entity == owner {
+            continue;
+        }
+
+        if !is_attackable(entity, bdata.read_data) {
+            continue;
+        }
+
+        // Did owner hurt this entity recently?
+        if let Some(health) = bdata.read_data.healths.get(entity) {
+            if health.last_change.amount < 0.0
+                && now - health.last_change.time.0 < 8.0
+                && let Some(by) = health.last_change.damage_by()
+                && by.uid() == owner_uid
+            {
+                return engage(bdata, entity);
+            }
+        }
+
+        // Is this an Enemy alignment entity within 16m of the owner?
+        if let Some(Alignment::Enemy) = bdata.read_data.alignments.get(entity) {
+            if let Some(pos) = bdata.read_data.positions.get(entity) {
+                let dist_sqrd = pos.0.distance_squared(owner_pos);
+                if dist_sqrd < 16.0_f32.powi(2) {
+                    return engage(bdata, entity);
+                }
+            }
+        }
+    }
+
+    false
+}
+
 /// If too far away, then follow the target
 fn follow_if_far_away(bdata: &mut BehaviorData) -> bool {
     if let Some(Target { target, .. }) = bdata.agent.target
@@ -561,7 +676,7 @@ fn follow_if_far_away(bdata: &mut BehaviorData) -> bool {
         } else {
             bdata.controller.push_action(ControlAction::Stand);
             let dist_sqrd = bdata.agent_data.pos.0.distance_squared(tgt_pos.0);
-            if dist_sqrd > (MAX_PATROL_DIST * bdata.agent.psyche.idle_wander_factor).powi(2) {
+            if dist_sqrd > (AVG_FOLLOW_DIST + 2.0).powi(2) {
                 bdata
                     .agent_data
                     .follow(bdata.agent, bdata.controller, bdata.read_data, tgt_pos);
@@ -602,10 +717,7 @@ fn attack_if_owner_hurt(bdata: &mut BehaviorData) -> bool {
 
 /// Set owner if no target
 fn set_owner_if_no_target(bdata: &mut BehaviorData) -> bool {
-    let small_chance = bdata.rng.random_bool(0.1);
-
     if bdata.agent.target.is_none()
-        && small_chance
         && let Some(Alignment::Owned(owner)) = bdata.agent_data.alignment
         && let Some(owner) = get_entity_by_id(*owner, bdata.read_data)
     {
@@ -988,6 +1100,7 @@ fn do_combat(bdata: &mut BehaviorData) -> bool {
                 || (matches!(agent_data.alignment, Some(Alignment::Enemy))
                     && (common::zone::is_in_safe_zone(tgt_pos.0.xy().as_())
                         || common::zone::is_in_safe_zone(agent_data.pos.0.xy().as_())))
+                || (matches!(agent_data.alignment, Some(Alignment::Owned(owner_uid)) if get_entity_by_id(*owner_uid, read_data).and_then(|owner| read_data.positions.get(owner)).is_some_and(|pos| pos.0.distance_squared(agent_data.pos.0) > 40.0_f32.powi(2))))
                 || stop_pursuing(
                     dist_sqrd,
                     origin_dist_sqrd,
