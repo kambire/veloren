@@ -18,6 +18,10 @@
     * Si el dueño muere, la mascota cesa automáticamente cualquier ataque, suelta objetivos y queda en reposo sin mantener a los mobs en combate.
   - Reaparición Coordinada de Mascota:
     * Al revivir en el cementerio o punto de control (RespawnEvent), cualquier mascota del jugador es transportada automáticamente junto a él, curada al 100% y fuera de combate.
+* PORTAL WEB OFICIAL (ONE-SCROLL LANDING PAGE):
+  - Creada la página web oficial moderna y responsiva en HTML5, CSS3 y JavaScript para World of Azeria.
+  - Indicador prominente de Fase Alpha, panel de clases con la nueva clase Entrenador, galería interactiva de capturas de juego en pantalla completa, notas de parche y botones de descarga directa para AzeriaLauncher.exe y releases en GitHub.
+  - Estructurado en /website y /docs (para despliegue directo con GitHub Pages) y copiado en el Escritorio.
 
 [v0.18.9] - 2026-09-25
 -------------------------------------------------------------------------------
