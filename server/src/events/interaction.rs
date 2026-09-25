@@ -287,6 +287,7 @@ impl ServerEvent for CommandPetEvent {
         WriteStorage<'a, comp::Vel>,
         WriteStorage<'a, comp::Health>,
         WriteStorage<'a, comp::ForceUpdate>,
+        WriteStorage<'a, comp::CharacterState>,
         ReadStorage<'a, comp::Alignment>,
         ReadStorage<'a, Is<Mount>>,
         ReadStorage<'a, Uid>,
@@ -307,8 +308,9 @@ impl ServerEvent for CommandPetEvent {
             mut velocities,
             mut healths,
             mut force_updates,
+            mut char_states,
             alignments,
-            is_mounts,
+            _is_mounts,
             uids,
             clients,
             skill_sets,
@@ -324,37 +326,21 @@ impl ServerEvent for CommandPetEvent {
                 None => continue,
             };
 
-            let pet_entity = if matches!(command, comp::PetCommand::Summon | comp::PetCommand::Heal) {
-                if alignments.get(pet).is_some_and(|a| matches!(a, comp::Alignment::Owned(owner) if *owner == owner_uid)) {
-                    Some(pet)
-                } else {
-                    (&entities, &alignments).join().find_map(|(e, a)| {
-                        if matches!(a, comp::Alignment::Owned(owner) if *owner == owner_uid) {
-                            Some(e)
-                        } else {
-                            None
-                        }
-                    })
-                }
+            let pet_entity = if alignments.get(pet).is_some_and(|a| matches!(a, comp::Alignment::Owned(owner) if *owner == owner_uid)) {
+                Some(pet)
             } else {
-                let is_owner = matches!(
-                    alignments.get(pet),
-                    Some(comp::Alignment::Owned(pet_owner)) if *pet_owner == owner_uid,
-                );
-                if is_owner {
-                    Some(pet)
-                } else {
-                    None
-                }
+                (&entities, &alignments).join().find_map(|(e, a)| {
+                    if matches!(a, comp::Alignment::Owned(owner) if *owner == owner_uid) {
+                        Some(e)
+                    } else {
+                        None
+                    }
+                })
             };
 
             let Some(pet) = pet_entity else {
                 continue;
             };
-
-            if is_mounts.get(pet).is_some() {
-                continue;
-            }
 
             match command {
                 comp::PetCommand::Summon => {
@@ -372,6 +358,7 @@ impl ServerEvent for CommandPetEvent {
                         if let Some(mut health) = healths.get_mut(pet) {
                             health.revive();
                         }
+                        let _ = char_states.insert(pet, comp::CharacterState::default());
                         if let Some(force_update) = force_updates.get_mut(pet) {
                             force_update.update();
                         } else {

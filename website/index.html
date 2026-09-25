@@ -58,7 +58,7 @@
           <span class="pulse-dot"></span>
           Fase Alpha Abierta
         </span>
-        <span class="badge badge-version">Parche v0.18.10</span>
+        <span class="badge badge-version">Parche v0.18.11</span>
       </div>
 
       <h1 class="hero-title">
@@ -285,61 +285,361 @@
     </div>
   </section>
 
-  <!-- NOTAS DE PARCHE & CHANGELOG PREVIEW -->
+  <!-- REGISTRO DE CAMBIOS Y NOTAS DE PARCHE -->
   <section id="parches" class="section">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag">Desarrollo Continuo</span>
-        <h2 class="section-title">Últimas Mejoras (v0.18.10)</h2>
-        <p class="section-description">Extracto del registro de cambios oficial disponible en el cliente de juego.</p>
+        <span class="section-tag">Historial de Actualizaciones</span>
+        <h2 class="section-title">Registro de Cambios Oficial</h2>
+        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.11.</p>
       </div>
 
-      <div class="patch-notes-wrapper">
-        <div class="patch-header">
-          <div class="patch-title">
-            <span class="badge badge-alpha">v0.18.10</span>
-            Actualización de Combate y Mascotas
-          </div>
-          <span style="color: var(--text-muted); font-size: 0.9rem;">25 de Septiembre, 2026</span>
+      <!-- Controles de Filtro y Búsqueda -->
+      <div class="changelog-controls">
+        <div class="changelog-filters">
+          <button class="changelog-filter-btn active" data-filter="all">Todas las Versiones</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.11">v0.18.11 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.10">v0.18.10</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.9">v0.18.9</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.8">v0.18.8</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.7">v0.18.7</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.6">v0.18.6</button>
+          <button class="changelog-filter-btn" data-filter="legacy">v0.18.0 - v0.18.5</button>
         </div>
+        <div class="changelog-search-box">
+          <span class="changelog-search-icon">🔍</span>
+          <input type="text" id="changelogSearchInput" class="changelog-search-input" placeholder="Buscar cambio, habilidad (ej: pet, combate, oro)...">
+        </div>
+      </div>
 
-        <ul class="patch-list">
-          <li class="patch-item">
-            <div class="patch-bullet">✓</div>
-            <div class="patch-text">
-              <strong>Desenganche de Combate Estilo WoW (Evade & Reset)</strong>
-              <p>Al morir el jugador o su mascota, todos los enemigos sueltan su objetivo al instante, su nivel de alerta vuelve a 0 y enfundan sus armas.</p>
+      <!-- Timeline de Tarjetas Detalladas -->
+      <div class="changelog-timeline" id="changelogTimeline">
+        <!-- v0.18.11 -->
+        <article class="changelog-card latest" data-version="v0.18.11">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-alpha">v0.18.11</span>
+              <h3 class="changelog-version-title">Click-To-Cast, Mascotas & Limpieza de Combate</h3>
             </div>
-          </li>
-          <li class="patch-item">
-            <div class="patch-bullet">✓</div>
-            <div class="patch-text">
-              <strong>Retorno a Zona de Aparición (Leashing)</strong>
-              <p>Los enemigos desenganchados a más de 12 metros de su punto de spawn regresan caminando pacíficamente a su posición original.</p>
+            <span class="changelog-date">25 de Septiembre, 2026</span>
+          </div>
+          
+          <h4 class="changelog-section-title">🖱️ Activación de Habilidades y Poderes por Clic de Ratón (Click-To-Cast)</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Activación por Clic:</strong> Solucionado el problema donde los poderes y habilidades de la barra de acción no respondían al clic del ratón. Ahora todos los slots (1 al 20, M1 Ataque Primario y M2 Habilidad Secundaria) se activan instantáneamente.</li>
+            <li><strong>Canalización y Auto-Carga:</strong> Añadido soporte de auto-carga y liberación suave (auto-charge & release) al hacer clic sobre los poderes en el HUD, ejecutándose con fluidez idéntica a World of Warcraft.</li>
+            <li><strong>Protección de Cámara y Objetivo:</strong> Los clics sobre cualquier elemento del HUD o barra de acción previenen que la cámara 3D inicie giros accidentales o se deseleccione el objetivo fijado (Target Lock).</li>
+          </ul>
+
+          <h4 class="changelog-section-title">🐺 Sistema de Mascotas, Invectiva y Recuperación Total</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Comportamiento de Mascota Leal:</strong> Corregido el error crítico donde las mascotas heridas o derribadas (estado Crawl / Abatido) salían corriendo sin rumbo; las mascotas domesticadas jamás huyen del jugador.</li>
+            <li><strong>Invocación Inmediata (Ctrl+0):</strong> El botón "Invocar Mascota" ahora revive instantáneamente a la mascota derribada, restablece su estado a default, borra los estados de pánico y la teletransporta de inmediato al lado del jugador con sincronización forzada en red.</li>
+            <li><strong>Compatibilidad de Monturas:</strong> Eliminado el bloqueo en el servidor que impedía comandar mascotas que poseían la propiedad de montura (Is&lt;Mount&gt;).</li>
+            <li><strong>Rango de Asistencia Reducido:</strong> Reducido el umbral de distancia de teletransporte automático de mascota rezagada de 200m a 45m para asegurar que la mascota acompañe siempre al jugador.</li>
+            <li><strong>Comandos Remotos:</strong> Todos los atajos y órdenes de mascota se procesan en el servidor sin importar si la mascota está fuera de visión o del campo de renderizado del cliente.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">⚔️ Desenganche y Limpieza de Combate al Morir o Caer</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Reconocimiento de Abatido en IA:</strong> Modificada la comprobación global de muerte en la inteligencia artificial (IA) de los agentes para incluir el estado de derribado (CharacterState::Crawl).</li>
+            <li><strong>Fin Inmediato de Hostilidad:</strong> Cuando un personaje cae abatido o muere, todos los enemigos que lo atacaban sueltan el objetivo, enfundan sus armas y finalizan el combate de inmediato.</li>
+            <li><strong>Reinicio de Persecución en Respawn:</strong> Al reaparecer en el cementerio, se reinicia el estado de alerta (awareness = 0.0) y la máquina de persecución (chaser) de cualquier enemigo hostil hacia el jugador o su mascota.</li>
+          </ul>
+        </article>
+
+        <!-- v0.18.10 -->
+        <article class="changelog-card" data-version="v0.18.10">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-alpha">v0.18.10</span>
+              <h3 class="changelog-version-title">Desenganche Estilo WoW, Leashing & Portal Web Oficial</h3>
             </div>
-          </li>
-          <li class="patch-item">
-            <div class="patch-bullet">✓</div>
-            <div class="patch-text">
-              <strong>Habilidad de Entrenador: Transfusión Vital (Ctrl+7)</strong>
-              <p>Sacrifica un porcentaje de salud del jugador para sanar intensamente a la mascota con bonificación pasiva.</p>
+            <span class="changelog-date">25 de Septiembre, 2026</span>
+          </div>
+
+          <h4 class="changelog-section-title">🛡️ Sistema de Combate y Desenganche (Estilo World of Warcraft)</h4>
+          <ul class="changelog-sublist">
+            <li>Solucionado el problema donde los mobs permanecían en combate indefinidamente tras la muerte del personaje.</li>
+            <li>Al morir el jugador o su mascota: todos los enemigos solapan y abandonan su objetivo inmediatamente, su nivel de alerta vuelve a 0.0 absoluto, se limpian los estados de persecución y enfundan sus armas.</li>
+            <li><strong>Retorno a Zona de Spawn (Leashing / Evade):</strong> Los mobs enemigos que queden fuera de combate a más de 12 metros de su punto de spawn caminan pacíficamente de regreso a su posición original.</li>
+            <li><strong>Mascota Pacífica en Muerte:</strong> Si el dueño muere, la mascota cesa automáticamente cualquier ataque, suelta objetivos y queda en reposo sin mantener a los mobs en combate.</li>
+            <li><strong>Reaparición Coordinada:</strong> Al revivir en el cementerio, la mascota es transportada junto al dueño, curada al 100% y fuera de combate.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">🌐 Portal Web Oficial (One-Scroll Landing Page)</h4>
+          <ul class="changelog-sublist">
+            <li>Lanzamiento del portal web oficial responsivo en HTML5, CSS3 y JS para World of Azeria.</li>
+            <li>Indicador prominente de Fase Alpha, panel de clases con la clase Entrenador, galería interactiva de capturas en pantalla completa y zona de descargas de AzeriaLauncher.exe y releases en GitHub.</li>
+            <li>Estructurado en /website y /docs (listo para GitHub Pages).</li>
+          </ul>
+        </article>
+
+        <!-- v0.18.9 -->
+        <article class="changelog-card" data-version="v0.18.9">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-version">v0.18.9</span>
+              <h3 class="changelog-version-title">HUD de Mascotas, Hover Luminoso & Ergonomía</h3>
             </div>
-          </li>
-          <li class="patch-item">
-            <div class="patch-bullet">✓</div>
-            <div class="patch-text">
-              <strong>Comando Invocar Mascota (Ctrl+0)</strong>
-              <p>Teleporta al compañero de inmediato junto al dueño, reviviéndolo y curándolo si estaba abatido.</p>
+            <span class="changelog-date">25 de Septiembre, 2026</span>
+          </div>
+
+          <h4 class="changelog-section-title">✨ Interfaz de Usuario (HUD) y Control de Mascota</h4>
+          <ul class="changelog-sublist">
+            <li>Corregido el problema donde los botones de control de mascota no destellaban al pasar el cursor (hover) y requerían buscar un punto específico para registrar el clic.</li>
+            <li>Añadida la propiedad <code>.graphics_for()</code> a los textos de atajos (^0 a ^7) y sombras superpuestas para delegar eventos de ratón al botón base.</li>
+            <li>Ampliados los botones a 28x28 px con íconos de 18x18 px para facilitar el clic en plena acción.</li>
+            <li>Ajustado el marco de selección activa a 30 px y reposicionado el texto de título "[ CONTROL DE MASCOTA ]" por encima de los botones evitando colisiones de eventos.</li>
+          </ul>
+        </article>
+
+        <!-- v0.18.8 -->
+        <article class="changelog-card" data-version="v0.18.8">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-version">v0.18.8</span>
+              <h3 class="changelog-version-title">Clase Entrenador & Poder Transfusión Vital</h3>
             </div>
-          </li>
-          <li class="patch-item">
-            <div class="patch-bullet">✓</div>
-            <div class="patch-text">
-              <strong>Optimización del HUD de Mascotas</strong>
-              <p>Interactividad total de ratón, efectos luminosos al pasar el cursor (hover) y botones ampliados ergonómicos de 28x28 px.</p>
+            <span class="changelog-date">25 de Septiembre, 2026</span>
+          </div>
+
+          <h4 class="changelog-section-title">🩸 Clase Entrenador y Habilidades de Soporte</h4>
+          <ul class="changelog-sublist">
+            <li>Añadido el poder "Transfusión Vital" (Atajo: Ctrl+7) en la barra de control de mascota: sacrifica 20% de salud del jugador para sanar intensamente a la mascota (curación base equivalente a 2.5x la vida entregada).</li>
+            <li>Requiere tener más de 15 puntos de vida para evitar sacrificios accidentales.</li>
+            <li>Sinergia con el talento pasivo de Entrenador "VitalHeal" para multiplicar la curación recibida.</li>
+            <li>Efectos visuales de sanación (HealthChangeInfo) y notificaciones en el HUD de combate.</li>
+          </ul>
+        </article>
+
+        <!-- v0.18.7 -->
+        <article class="changelog-card" data-version="v0.18.7">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-version">v0.18.7</span>
+              <h3 class="changelog-version-title">Invocación de Mascota & Prevención de Huida</h3>
             </div>
-          </li>
-        </ul>
+            <span class="changelog-date">25 de Septiembre, 2026</span>
+          </div>
+
+          <h4 class="changelog-section-title">🐕 Mascotas y Control</h4>
+          <ul class="changelog-sublist">
+            <li>Añadido botón "Invocar Mascota" (Atajo: Ctrl+0): teletransporta a la mascota directamente junto al jugador, curándola y reviviéndola si fue abatida.</li>
+            <li>Eliminado el comportamiento de huida por baja vida en mascotas de jugadores para evitar pérdidas accidentales durante el combate.</li>
+          </ul>
+        </article>
+
+        <!-- v0.18.6 -->
+        <article class="changelog-card" data-version="v0.18.6">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-version">v0.18.6</span>
+              <h3 class="changelog-version-title">Depuración de Menús & Guías Visuales</h3>
+            </div>
+            <span class="changelog-date">25 de Septiembre, 2026</span>
+          </div>
+
+          <h4 class="changelog-section-title">🧹 Interacción y Limpieza de Menús</h4>
+          <ul class="changelog-sublist">
+            <li>Eliminado por completo el menú y acción de "Comerciar" al interactuar con mascotas para evitar abrir diálogos indeseados.</li>
+            <li>Ocultadas las guías flotantes en el mundo sobre las mascotas para mantener la visibilidad del entorno despejada e intuitiva.</li>
+          </ul>
+        </article>
+
+        <!-- Legacy: v0.18.5 a v0.18.0 -->
+        <article class="changelog-card" data-version="legacy">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-version">v0.18.0 - v0.18.5</span>
+              <h3 class="changelog-version-title">Lanzamiento Inicial de Azeria, Economía, Launcher & HUD</h3>
+            </div>
+            <span class="changelog-date">24 - 25 de Septiembre, 2026</span>
+          </div>
+
+          <h4 class="changelog-section-title">🐾 Barra Táctica de Mascotas y Comandos [v0.18.5 - v0.18.4]</h4>
+          <ul class="changelog-sublist">
+            <li>Barra de acciones de mascota compacta sobre la barra principal, con íconos dedicados y tooltips.</li>
+            <li>Modos de comportamiento: Modo Agresivo (Ctrl+4, rango 25m), Modo Defensivo (Ctrl+5) y Modo Pasivo (Ctrl+6).</li>
+            <li>Órdenes directas: Atacar (Ctrl+1), Sígueme (Ctrl+2) y Quedarse (Ctrl+3).</li>
+          </ul>
+
+          <h4 class="changelog-section-title">🐎 Monturas, Asientos e IA de Asistencia [v0.18.3 - v0.18.2]</h4>
+          <ul class="changelog-sublist">
+            <li>Restricción exclusiva a la tecla 'E' para desmontar o levantarse, evitando caídas durante el combate.</li>
+            <li>IA de asistencia automática para Entrenador: la mascota ataca cuando el dueño recibe daño o golpea enemigos.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">💰 Economía, Progresión y Zonas Seguras [v0.18.0]</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Interfaz de Bolsa:</strong> Contador visual de monedas (Oro / Monedas) en la esquina inferior del inventario.</li>
+            <li><strong>Botín Dinámico:</strong> Todos los monstruos derrotados arrojan monedas proporcionales a su nivel y dificultad.</li>
+            <li><strong>Escalado de Zonas y SafeZones:</strong> Criaturas de bajo nivel en las proximidades de ciudades, incrementando en dificultad en tierras salvajes. Capitales y asentamientos protegidos donde los enemigos huyen.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">🚀 Lanzador Oficial, Minimapa 3D y Clases [v0.18.0]</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Azeria Launcher:</strong> Auto-actualizador gráfico para Windows con verificación de versiones de GitHub Releases.</li>
+            <li><strong>Minimapa 3D con Relieve:</strong> Renderizado con sombreado topográfico, brújula cardinal y rastreador de objetivos de misiones con distancia en metros.</li>
+            <li><strong>Clase Sanador:</strong> Incorporada con árbol de curación estilo Cube World.</li>
+            <li><strong>Target Lock:</strong> Fijado de objetivos tipo MMORPG con ataques y proyectiles guiados.</li>
+          </ul>
+        </article>
+      </div>
+
+      <!-- Visor de Archivo Crudo (Raw Console Viewer) -->
+      <div class="changelog-raw-wrapper">
+        <div class="changelog-raw-header">
+          <div class="changelog-raw-header-left">
+            <span>📄</span>
+            <strong>CHANGELOG.txt (Registro Verbatim Completo)</strong>
+          </div>
+          <div class="changelog-raw-actions">
+            <button id="btnCopyLog" class="changelog-raw-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copiar Registro
+            </button>
+            <a href="CHANGELOG.txt" download="CHANGELOG.txt" class="changelog-raw-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Descargar .txt
+            </a>
+          </div>
+        </div>
+        <pre id="changelogRawPre" class="changelog-raw-pre">===============================================================================
+                     WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
+===============================================================================
+
+[v0.18.11] - 2026-09-25
+-------------------------------------------------------------------------------
+* ACTIVACIÓN DE HABILIDADES Y PODERES POR CLIC DE RATÓN (CLICK-TO-CAST):
+  - Solucionado el problema donde los poderes y habilidades de la barra de acción no se activaban al hacerles clic.
+  - Implementada la activación completa de slots por clic de ratón (slots 1 al 20, M1 Ataque Primario y M2 Habilidad Secundaria).
+  - Añadido soporte de auto-carga y liberación suave (auto-charge & release) al hacer clic sobre los poderes en el HUD para que canalicen y se ejecuten como en World of Warcraft.
+  - Los clics de ratón sobre cualquier widget del HUD o barra de acción ahora previenen que la cámara 3D inicie un giro indeseado o se deseleccione el objetivo actual (Target Lock).
+
+* SISTEMA DE MASCOTAS, INVECTIVA Y RECUPERACIÓN TOTAL:
+  - Corregido el error crítico donde las mascotas heridas o derribadas (estado Crawl / Downed) salían corriendo sin rumbo por el mundo; ahora las mascotas domesticadas jamás huyen del jugador.
+  - El botón "Invocar Mascota" (Ctrl+0) ahora revive instantáneamente a la mascota derribada, restablece su estado a default, borra los estados de pánico y la teletransporta de inmediato al lado del jugador con sincronización forzada en red.
+  - Eliminado el bloqueo en el servidor que impedía comandar mascotas que poseían la propiedad de montura (Is&lt;Mount&gt;).
+  - Reducido el umbral de distancia de teletransporte automático de mascota rezagada de 200m a 45m para asegurar que la mascota acompañe siempre al jugador.
+  - Resolución unificada de mascotas en el servidor: todos los comandos y atajos de mascota funcionan sin importar si la mascota está fuera de la visión de la cámara o de rango del cliente.
+
+* DESENGANCHE Y LIMPIEZA DE COMBATE AL MORIR O CAER:
+  - Modificada la comprobación global de muerte en la inteligencia artificial (IA) de los agentes para incluir el estado de derribado (CharacterState::Crawl).
+  - Cuando un personaje cae abatido o muere, todos los enemigos que lo atacaban solapan el objetivo, enfundan sus armas y finalizan el combate.
+  - Al reaparecer en el cementerio, se reinicia el estado de alerta (awareness = 0.0) y la máquina de persecución (chaser) de cualquier enemigo que hubiera estado hostil hacia el jugador o su mascota.
+
+[v0.18.10] - 2026-09-25
+-------------------------------------------------------------------------------
+* SISTEMA DE COMBATE Y DESENGANCHE (ESTILO WORLD OF WARCRAFT):
+  - Solucionado el problema donde los mobs permanecían en combate indefinidamente tras la muerte del personaje.
+  - Al morir el jugador o su mascota:
+    * Todos los enemigos solapan y abandonan su objetivo inmediatamente.
+    * El nivel de alerta (awareness) de los enemigos se reinicia a 0.0 absoluto.
+    * Se limpian los estados de combate y persecución (combat_state, chaser).
+    * Los enemigos enfundan sus armas (Unwield) y se detienen.
+  - Retorno al punto de aparición (Leashing / Evade):
+    * Los mobs enemigos que queden fuera de combate a más de 12 metros de su punto de spawn (patrol_origin) caminan de regreso a su ubicación original en vez de quedarse acampando en la zona de muerte.
+    * Al llegar a su zona de patrulla original, enfundan sus armas y retoman su estado pacífico normal.
+  - Inteligencia de Mascota en Muerte del Dueño:
+    * Si el dueño muere, la mascota cesa automáticamente cualquier ataque, suelta objetivos y queda en reposo sin mantener a los mobs en combate.
+  - Reaparición Coordinada de Mascota:
+    * Al revivir en el cementerio o punto de control (RespawnEvent), cualquier mascota del jugador es transportada automáticamente junto a él, curada al 100% y fuera de combate.
+* PORTAL WEB OFICIAL (ONE-SCROLL LANDING PAGE):
+  - Creada la página web oficial moderna y responsiva en HTML5, CSS3 y JavaScript para World of Azeria.
+  - Indicador prominente de Fase Alpha, panel de clases con la nueva clase Entrenador, galería interactiva de capturas de juego en pantalla completa, notas de parche y botones de descarga directa para AzeriaLauncher.exe y releases en GitHub.
+  - Estructurado en /website y /docs (para despliegue directo con GitHub Pages) y copiado en el Escritorio.
+
+[v0.18.9] - 2026-09-25
+-------------------------------------------------------------------------------
+* INTERFAZ DE USUARIO (HUD) Y CONTROL DE MASCOTA:
+  - Corregido el problema donde los botones de control de mascota no destellaban al pasar el cursor (hover) y requerían buscar un punto específico para registrar el clic.
+  - Se añadió la propiedad .graphics_for(id_boton) a todos los textos de atajos (^0 a ^7) y sus sombras superpuestas sobre los botones para que Conrod delegue los eventos de ratón al botón base.
+  - Ajuste ergonómico del tamaño de los botones: ampliados a 28x28 px e íconos a 18x18 px para facilitar el clic.
+  - Ajuste del marco de selección activa a 30 px.
+  - Reposicionado el texto de título "[ CONTROL DE MASCOTA ]" por encima de los botones evitando colisiones de eventos de ratón.
+
+[v0.18.8] - 2026-09-25
+-------------------------------------------------------------------------------
+* CLASE ENTRENADOR Y MASCOTAS:
+  - Añadido el poder "Transfusión Vital" (Atajo: Ctrl+7) en la barra de control de mascota:
+    * Sacrifica un 20% de la salud actual del jugador para sanar intensamente a la mascota (curación base equivalente a 2.5x la vida entregada).
+    * Requiere tener más de 15 puntos de vida para evitar suicidios accidentales.
+    * Sinergia con el talento pasivo de Entrenador "VitalHeal" para multiplicar la curación recibida.
+  - Efectos visuales de sanación (HealthChangeInfo) y mensajes en el HUD.
+
+[v0.18.7] - 2026-09-25
+-------------------------------------------------------------------------------
+* MASCOTAS Y CONTROL:
+  - Añadido botón "Invocar Mascota" (Atajo: Ctrl+0):
+    * Teleporta a la mascota directamente al lado del jugador.
+    * La cura y revive si ha sido derribada en combate.
+  - Eliminado el comportamiento de huida por baja vida en mascotas de jugadores para evitar que salgan corriendo solas en batallas difíciles.
+
+[v0.18.6] - 2026-09-25
+-------------------------------------------------------------------------------
+* INTERACCIÓN Y LIMPIEZA DE MENÚS:
+  - Eliminado por completo el menú y acción de "Comerciar" al interactuar con mascotas.
+  - Ocultadas las guías flotantes en el mundo sobre las mascotas para mantener la pantalla limpia e intuitiva.
+
+[v0.18.5] - 2026-09-25
+-------------------------------------------------------------------------------
+* DISEÑO DE BARRA DE MASCOTAS:
+  - Implementada la barra de acciones de mascota con estilo compacto similar al Brujo / Cazador de World of Warcraft, situada justo sobre la barra de acción principal.
+  - Botones con íconos personalizados, tooltips descriptivos con atajos de teclado y marcos de estado activo.
+
+[v0.18.4] - 2026-09-25
+-------------------------------------------------------------------------------
+* COMANDOS DE MASCOTA (PET COMMANDS):
+  - Añadidos modos de comportamiento:
+    * Modo Agresivo (Ctrl+4): ataca a cualquier enemigo que se acerque a 25 metros.
+    * Modo Defensivo (Ctrl+5): solo ataca a los objetivos que ataquen al dueño o a los que el dueño ataque.
+    * Modo Pasivo (Ctrl+6): no ataca bajo ninguna circunstancia.
+  - Añadidas órdenes directas:
+    * Atacar (Ctrl+1): ordena a la mascota atacar al objetivo actual fijado.
+    * Sígueme (Ctrl+2): hace que la mascota abandone el combate y regrese junto a ti.
+    * Quedarse (Ctrl+3): fija la posición actual de la mascota.
+
+[v0.18.3] - 2026-09-25
+-------------------------------------------------------------------------------
+* MONTURAS Y ASIENTOS:
+  - Restricción del desmontaje de monturas y levantarse de asientos exclusivamente a la tecla 'E' para evitar caídas involuntarias durante maniobras de combate o salto.
+
+[v0.18.2] - 2026-09-25
+-------------------------------------------------------------------------------
+* IA DE COMBATE PARA LA CLASE ENTRENADOR:
+  - Asistencia automática de ataque cuando el dueño recibe daño o golpea a un enemigo.
+  - Detección y defensa en combate para criaturas domesticadas.
+
+[v0.18.1] - 2026-09-24
+-------------------------------------------------------------------------------
+* INFRAESTRUCTURA Y CI/CD:
+  - Configuración del flujo de trabajo de GitHub Releases para compilación y despliegue automático de binarios.
+  - Corrección de permisos de publicación en GitHub Actions.
+
+[v0.18.0] - 2026-09-24
+-------------------------------------------------------------------------------
+* ECONOMÍA Y PROGRESIÓN:
+  - Interfaz de Bolsa: contador visual de monedas (Oro / Monedas) en la esquina inferior del inventario.
+  - Recompensas de botín: todos los monstruos y enemigos derrotados ahora sueltan monedas según su nivel y dificultad.
+  - Escalado de niveles: monstruos en las inmediaciones de ciudades tienen menor nivel, incrementando en poder y peligrosidad a medida que se adentra en zonas salvajes.
+  - Zonas Seguras (SafeZones): capitales, asentamientos y zonas de inicio de razas protegidas donde no aparecen monstruos y los enemigos que intenten entrar huyen.
+
+* LANZADOR GRÁFICO (AZERIA LAUNCHER):
+  - Creación del lanzador y auto-actualizador oficial AzeriaLauncher.exe para Windows.
+  - Interfaz visual con barra de progreso, verificación automática de versiones desde GitHub Releases y botón de jugar directo.
+
+* MINIMAPA 3D Y NAVEGACIÓN:
+  - Minimapa circular con brújula cardinal.
+  - Efecto de sombreado de relieve (hillshading).
+  - Rastreador interactivo de misiones con distancia en tiempo real hacia los objetivos.
+
+* CLASES Y RAZAS:
+  - Incorporada la clase Sanador (Healer) en el creador de personajes con árbol de habilidades curativas estilo Cube World.
+  - Punto de inicio fijo por raza: cada raza nace en su propia ciudad natal.
+  - Sistema de Target Lock con fijado de objetivo estilo MMORPG y disparo guiado hacia el enemigo seleccionado.
+  - Rebranding a World of Azeria: logos, íconos, interfaz y textos actualizados.
+===============================================================================</pre>
       </div>
     </div>
   </section>
@@ -364,7 +664,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Descargar AzeriaLauncher.exe
           </a>
-          <span class="download-meta">Versión v0.18.10 • ~2.5 MB • Windows 64-bit</span>
+          <span class="download-meta">Versión v0.18.11 • ~2.5 MB • Windows 64-bit</span>
         </div>
 
         <!-- Cliente Completo ZIP -->
@@ -415,7 +715,7 @@
         <div class="footer-brand">
           <h3>WORLD OF <span class="text-gold">AZERIA</span></h3>
           <p>Un proyecto impulsado por la comunidad para ofrecer una experiencia MMORPG profunda, inmersiva y táctica en un mundo abierto vóxel.</p>
-          <div class="badge badge-alpha">Alpha Build v0.18.10</div>
+          <div class="badge badge-alpha">Alpha Build v0.18.11</div>
         </div>
 
         <div class="footer-col">

@@ -14,6 +14,7 @@ impl<'a> System<'a> for Sys {
         Entities<'a>,
         ReadExpect<'a, TerrainGrid>,
         WriteStorage<'a, Pos>,
+        WriteStorage<'a, common::comp::ForceUpdate>,
         ReadStorage<'a, Alignment>,
         ReadStorage<'a, Pet>,
         ReadStorage<'a, Agent>,
@@ -27,9 +28,9 @@ impl<'a> System<'a> for Sys {
 
     fn run(
         _job: &mut Job<Self>,
-        (entities, terrain, mut positions, alignments, pets, agn, physics, id_maps): Self::SystemData,
+        (entities, terrain, mut positions, mut force_updates, alignments, pets, agn, physics, id_maps): Self::SystemData,
     ) {
-        const LOST_PET_DISTANCE_THRESHOLD: f32 = 200.0;
+        const LOST_PET_DISTANCE_THRESHOLD: f32 = 45.0;
 
         // Find pets that are too far away from their owner
         let lost_pets: Vec<(Entity, Pos)> = (&entities, &positions, &alignments, &pets)
@@ -68,6 +69,11 @@ impl<'a> System<'a> for Sys {
                 pet_pos.0 = terrain
                     .find_ground(owner_pos.0.map(|e| e.floor() as i32))
                     .map(|e| e as f32);
+                if let Some(force_update) = force_updates.get_mut(*pet_entity) {
+                    force_update.update();
+                } else {
+                    let _ = force_updates.insert(*pet_entity, common::comp::ForceUpdate::forced());
+                }
             }
         }
     }

@@ -289,6 +289,16 @@ impl Ui {
             .is_none()
     }
 
+    // Get whether the mouse is currently hovering over or interacting with any UI widget
+    pub fn is_mouse_over_widget(&self) -> bool {
+        self.ui
+            .global_input()
+            .current
+            .widget_under_mouse
+            .is_some_and(|id| id != self.ui.window)
+            || !self.no_widget_capturing_mouse()
+    }
+
     // Get the widget graph.
     pub fn widget_graph(&self) -> &Graph { self.ui.widget_graph() }
 

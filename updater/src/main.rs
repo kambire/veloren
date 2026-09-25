@@ -1,1193 +1,496 @@
-#![windows_subsystem = "windows"]
-#![allow(unsafe_op_in_unsafe_fn)]
-#![allow(dead_code)]
+//! Lanzador y actualizador automático de World of Azeria.
+//!
+//! Comprueba en GitHub si hay una versión nueva, la descarga e instala, y
+//! arranca el juego. La interfaz se dibuja en `ui.rs` y la red está en `net.rs`.
+//!
+//! `veloren-updater --captura <archivo.png> [estado]` dibuja la interfaz en un
+//! PNG sin abrir la ventana (estados: listo, comprobando, actualizar,
+//! descargando, sin-conexion, error).
 
-use serde::{Deserialize, Serialize};
+#![windows_subsystem = "windows"]
+
+mod net;
+mod ui;
+
+use net::{AppState, NewsItem, UpdateStatus};
 use std::{
     env,
-    fs::{self, File},
-    io::{self, Read, Write},
-    path::{Path, PathBuf},
-    process::Command,
     sync::{Arc, Mutex},
     thread,
-    time::Duration,
 };
 
-#[cfg(windows)]
-use windows_sys::Win32::{
-    Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
-    Graphics::Gdi::{
-        BeginPaint, BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, CreateFontW,
-        CreatePen, CreateSolidBrush, DeleteDC, DeleteObject, DrawTextW, EndPaint,
-        FillRect, InvalidateRect, LineTo, MoveToEx, RoundRect, SelectObject, SetBkMode,
-        SetTextColor, HFONT, DT_CENTER, DT_LEFT, DT_SINGLELINE, DT_VCENTER,
-        PAINTSTRUCT, PS_SOLID, SRCCOPY, TRANSPARENT,
-    },
-    System::LibraryLoader::GetModuleHandleW,
-    UI::Input::KeyboardAndMouse::{TrackMouseEvent, TRACKMOUSEEVENT, TME_LEAVE},
-    UI::WindowsAndMessaging::{
-        CreateWindowExW, DefWindowProcW, DispatchMessageW, GetClientRect, GetMessageW,
-        GetSystemMetrics, LoadCursorW, PostQuitMessage, RegisterClassExW,
-        SetTimer, SetWindowPos, ShowWindow, TranslateMessage,
-        CS_HREDRAW, CS_VREDRAW, HWND_TOP, IDC_ARROW,
-        SM_CXSCREEN, SM_CYSCREEN, SWP_SHOWWINDOW, SW_SHOW,
-        WM_DESTROY, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE,
-        WM_PAINT, WM_TIMER, WNDCLASSEXW, WS_CAPTION, WS_MINIMIZEBOX, WS_OVERLAPPED,
-        WS_SYSMENU, WS_VISIBLE,
-    },
-};
-
-#[cfg(windows)]
-const WM_MOUSELEAVE: u32 = 0x02A3;
-#[cfg(windows)]
-const DT_RIGHT: u32 = 2;
-
-const GITHUB_REPO: &str = "kambire/veloren";
-const VERSION_FILE: &str = "version.json";
-const GAME_EXECUTABLE: &str = if cfg!(target_os = "windows") {
-    "veloren-voxygen.exe"
-} else {
-    "veloren-voxygen"
-};
-
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-struct LocalVersion {
-    version: String,
-    tag: String,
-    updated_at: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct GitHubRelease {
-    tag_name: String,
-    name: Option<String>,
-    published_at: Option<String>,
-    assets: Vec<GitHubAsset>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct GitHubAsset {
-    name: String,
-    size: u64,
-    browser_download_url: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct GitHubCommit {
-    sha: String,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum UpdateStatus {
-    Checking,
-    UpToDate,
-    UpdateAvailable {
-        remote_tag: String,
-        download_url: Option<String>,
-        total_bytes: u64,
-    },
-    Downloading {
-        downloaded_bytes: u64,
-        total_bytes: u64,
-        pct: f32,
-    },
-    Extracting,
-    Error(String),
-    Offline(String),
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-enum ButtonId {
-    PlayOrUpdate,
-    CheckUpdates,
-}
-
-struct AppState {
-    local_version: String,
-    remote_version: String,
-    status: UpdateStatus,
-    game_binary: Option<PathBuf>,
-    hovered_button: Option<ButtonId>,
-    pressed_button: Option<ButtonId>,
-    animation_tick: u32,
-}
-
-fn get_game_dir() -> PathBuf {
-    let mut dir = env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-        .unwrap_or_else(|| PathBuf::from("."));
-
-    // Si el binario se corre desde target/debug o target/release, subir al root del repo
-    if dir.ends_with("target/debug") || dir.ends_with("target\\debug")
-        || dir.ends_with("target/release") || dir.ends_with("target\\release")
-    {
-        if let Some(parent) = dir.parent().and_then(|p| p.parent()) {
-            dir = parent.to_path_buf();
-        }
-    }
-    dir
-}
-
-fn load_local_version(dir: &Path) -> LocalVersion {
-    let path = dir.join(VERSION_FILE);
-    if path.exists() {
-        if let Ok(content) = fs::read_to_string(&path) {
-            if let Ok(v) = serde_json::from_str::<LocalVersion>(&content) {
-                return v;
-            }
-        }
-    }
-    LocalVersion {
-        version: "0.18.0".to_string(),
-        tag: "v0.18.0".to_string(),
-        updated_at: String::new(),
-    }
-}
-
-fn save_local_version(dir: &Path, version: &LocalVersion) {
-    let path = dir.join(VERSION_FILE);
-    if let Ok(content) = serde_json::to_string_pretty(version) {
-        let _ = fs::write(path, content);
-    }
-}
-
-fn find_game_binary(dir: &Path) -> Option<PathBuf> {
-    // 1. En el mismo directorio del juego
-    let direct = dir.join(GAME_EXECUTABLE);
-    if direct.exists() {
-        return Some(direct);
-    }
-    // 2. En target/debug (desarrollo activo)
-    let debug_bin = dir.join("target").join("debug").join(GAME_EXECUTABLE);
-    if debug_bin.exists() {
-        return Some(debug_bin);
-    }
-    // 3. En target/release
-    let release_bin = dir.join("target").join("release").join(GAME_EXECUTABLE);
-    if release_bin.exists() {
-        return Some(release_bin);
-    }
-    None
-}
-
-fn launch_game(game_path: &Path, game_dir: &Path) {
-    let mut cmd = Command::new(game_path);
-    cmd.args(env::args().skip(1));
-    cmd.current_dir(game_dir);
-    let _ = cmd.spawn();
-}
-
-fn check_github(state_arc: &Arc<Mutex<AppState>>) {
-    {
-        let mut st = state_arc.lock().unwrap();
-        st.status = UpdateStatus::Checking;
-        st.remote_version = "Verificando...".to_string();
-    }
-
-    let url_release = format!("https://api.github.com/repos/{}/releases/latest", GITHUB_REPO);
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(Duration::from_secs(8))
-        .timeout_read(Duration::from_secs(12))
-        .build();
-
-    let response = agent
-        .get(&url_release)
-        .set("User-Agent", "WorldOfAzeria-Launcher/1.0")
-        .set("Accept", "application/vnd.github.v3+json")
-        .call();
-
-    match response {
-        Ok(res) => {
-            if let Ok(release) = res.into_json::<GitHubRelease>() {
-                let mut st = state_arc.lock().unwrap();
-                st.remote_version = release.tag_name.clone();
-                let local = st.local_version.clone();
-
-                let is_newer = !local.is_empty() && local != release.tag_name;
-                if is_newer {
-                    let zip_asset = release.assets.iter().find(|a| a.name.ends_with(".zip"));
-                    st.status = UpdateStatus::UpdateAvailable {
-                        remote_tag: release.tag_name.clone(),
-                        download_url: zip_asset.map(|a| a.browser_download_url.clone()),
-                        total_bytes: zip_asset.map_or(0, |a| a.size),
-                    };
-                } else {
-                    st.status = UpdateStatus::UpToDate;
-                }
-                return;
-            }
-        }
-        Err(ureq::Error::Status(404, _)) => {
-            // Si aún no hay release .zip en GitHub, consultar version.json y el commit de master
-            let url_raw_ver = format!("https://raw.githubusercontent.com/{}/master/version.json", GITHUB_REPO);
-            let raw_ver: Option<LocalVersion> = agent
-                .get(&url_raw_ver)
-                .set("User-Agent", "WorldOfAzeria-Launcher/1.0")
-                .call()
-                .ok()
-                .and_then(|r| r.into_json::<LocalVersion>().ok());
-
-            let url_commits = format!("https://api.github.com/repos/{}/commits/master", GITHUB_REPO);
-            let commit_sha: Option<String> = agent
-                .get(&url_commits)
-                .set("User-Agent", "WorldOfAzeria-Launcher/1.0")
-                .call()
-                .ok()
-                .and_then(|r| r.into_json::<GitHubCommit>().ok())
-                .map(|c| if c.sha.len() >= 7 { c.sha[..7].to_string() } else { c.sha });
-
-            let mut st = state_arc.lock().unwrap();
-            let remote_display = match (raw_ver, commit_sha) {
-                (Some(v), Some(sha)) => format!("{} ({})", v.tag, sha),
-                (Some(v), None) => v.tag,
-                (None, Some(sha)) => format!("master ({})", sha),
-                (None, None) => "v0.18.1".to_string(),
-            };
-            st.remote_version = remote_display;
-            st.status = UpdateStatus::UpToDate;
-            return;
-        }
-        Err(e) => {
-            let mut st = state_arc.lock().unwrap();
-            st.remote_version = "Desconectado".to_string();
-            st.status = UpdateStatus::Offline(format!("No se pudo conectar a GitHub: {}", e));
-            return;
-        }
-    }
-
-    let mut st = state_arc.lock().unwrap();
-    st.status = UpdateStatus::UpToDate;
-}
-
-fn perform_update(
-    state_arc: &Arc<Mutex<AppState>>,
-    download_url: String,
-    game_dir: PathBuf,
-    remote_tag: String,
-) {
-    let temp_zip = game_dir.join("update_temp.zip");
-
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(Duration::from_secs(15))
-        .timeout_read(Duration::from_secs(300))
-        .build();
-
-    let res = agent
-        .get(&download_url)
-        .set("User-Agent", "WorldOfAzeria-Launcher/1.0")
-        .call();
-
-    let response = match res {
-        Ok(r) => r,
-        Err(e) => {
-            let mut st = state_arc.lock().unwrap();
-            st.status = UpdateStatus::Error(format!("Error de conexión: {}", e));
-            return;
-        }
-    };
-
-    let total_size = response
-        .header("Content-Length")
-        .and_then(|l| l.parse::<u64>().ok())
-        .unwrap_or(0);
-
-    let mut reader = response.into_reader();
-    let mut file = match File::create(&temp_zip) {
-        Ok(f) => f,
-        Err(e) => {
-            let mut st = state_arc.lock().unwrap();
-            st.status = UpdateStatus::Error(format!("No se pudo crear archivo temporal: {}", e));
-            return;
-        }
-    };
-
-    let mut buffer = [0u8; 64 * 1024];
-    let mut downloaded: u64 = 0;
-
-    loop {
-        match reader.read(&mut buffer) {
-            Ok(0) => break,
-            Ok(n) => {
-                if file.write_all(&buffer[..n]).is_err() {
-                    let mut st = state_arc.lock().unwrap();
-                    st.status = UpdateStatus::Error("Fallo al escribir actualización en disco".into());
-                    return;
-                }
-                downloaded += n as u64;
-
-                let pct = if total_size > 0 {
-                    (downloaded as f32 / total_size as f32) * 100.0
-                } else {
-                    0.0
-                };
-
-                let mut st = state_arc.lock().unwrap();
-                st.status = UpdateStatus::Downloading {
-                    downloaded_bytes: downloaded,
-                    total_bytes: total_size,
-                    pct,
-                };
-            }
-            Err(e) => {
-                let mut st = state_arc.lock().unwrap();
-                st.status = UpdateStatus::Error(format!("Error leyendo descarga: {}", e));
-                return;
-            }
-        }
-    }
-
-    // Extracción del ZIP
-    {
-        let mut st = state_arc.lock().unwrap();
-        st.status = UpdateStatus::Extracting;
-    }
-
-    let file_zip = match File::open(&temp_zip) {
-        Ok(f) => f,
-        Err(e) => {
-            let mut st = state_arc.lock().unwrap();
-            st.status = UpdateStatus::Error(format!("Error abriendo ZIP: {}", e));
-            return;
-        }
-    };
-
-    let mut archive = match zip::ZipArchive::new(file_zip) {
-        Ok(a) => a,
-        Err(e) => {
-            let mut st = state_arc.lock().unwrap();
-            st.status = UpdateStatus::Error(format!("ZIP inválido o corrupto: {}", e));
-            return;
-        }
-    };
-
-    for i in 0..archive.len() {
-        if let Ok(mut item) = archive.by_index(i) {
-            if let Some(enclosed) = item.enclosed_name() {
-                let outpath = game_dir.join(enclosed);
-                if item.is_dir() {
-                    let _ = fs::create_dir_all(&outpath);
-                } else {
-                    if let Some(p) = outpath.parent() {
-                        let _ = fs::create_dir_all(p);
-                    }
-                    if let Ok(mut outfile) = File::create(&outpath) {
-                        let _ = io::copy(&mut item, &mut outfile);
-                    }
-                }
-            }
-        }
-    }
-
-    let _ = fs::remove_file(&temp_zip);
-
-    let new_ver = LocalVersion {
-        version: remote_tag.clone(),
-        tag: remote_tag.clone(),
-        updated_at: String::new(),
-    };
-    save_local_version(&game_dir, &new_ver);
-
-    let mut st = state_arc.lock().unwrap();
-    st.local_version = remote_tag;
-    st.game_binary = find_game_binary(&game_dir);
-    st.status = UpdateStatus::UpToDate;
-}
-
-#[cfg(windows)]
-const fn rgb(r: u8, g: u8, b: u8) -> u32 {
-    (r as u32) | ((g as u32) << 8) | ((b as u32) << 16)
-}
-
-#[cfg(windows)]
-struct UiFonts {
-    title: HFONT,
-    sub: HFONT,
-    label: HFONT,
-    val: HFONT,
-    status: HFONT,
-    bar: HFONT,
-    btn: HFONT,
-    btn_sec: HFONT,
-    footer: HFONT,
-}
-
-#[cfg(windows)]
-impl UiFonts {
-    unsafe fn new() -> Self {
-        let face = to_wide("Segoe UI");
-        let make_font = |h: i32, w: i32| -> HFONT {
-            CreateFontW(
-                h, 0, 0, 0, w, 0, 0, 0, 0, 0, 0, 0, 0,
-                face.as_ptr(),
-            )
-        };
-        Self {
-            title: make_font(26, 700),
-            sub: make_font(14, 400),
-            label: make_font(12, 600),
-            val: make_font(19, 700),
-            status: make_font(14, 600),
-            bar: make_font(13, 700),
-            btn: make_font(18, 700),
-            btn_sec: make_font(14, 600),
-            footer: make_font(12, 400),
-        }
-    }
-
-    unsafe fn destroy(&self) {
-        DeleteObject(self.title);
-        DeleteObject(self.sub);
-        DeleteObject(self.label);
-        DeleteObject(self.val);
-        DeleteObject(self.status);
-        DeleteObject(self.bar);
-        DeleteObject(self.btn);
-        DeleteObject(self.btn_sec);
-        DeleteObject(self.footer);
-    }
-}
-
-#[cfg(windows)]
-unsafe impl Send for UiFonts {}
-#[cfg(windows)]
-unsafe impl Sync for UiFonts {}
-
-#[cfg(windows)]
-struct UiContext {
-    state: Arc<Mutex<AppState>>,
-    game_dir: PathBuf,
-    btn_play_rect: RECT,
-    btn_check_rect: RECT,
-    fonts: UiFonts,
-}
-
-#[cfg(windows)]
-static GLOBAL_UI_CTX: Mutex<Option<UiContext>> = Mutex::new(None);
-
-#[cfg(windows)]
-unsafe extern "system" fn window_proc(
-    hwnd: HWND,
-    msg: u32,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) -> LRESULT {
-    match msg {
-        WM_PAINT => {
-            let mut ps: PAINTSTRUCT = std::mem::zeroed();
-            let hdc = BeginPaint(hwnd, &mut ps);
-
-            let mut rect: RECT = std::mem::zeroed();
-            GetClientRect(hwnd, &mut rect);
-            let width = rect.right - rect.left;
-            let height = rect.bottom - rect.top;
-
-            if width > 0 && height > 0 {
-                let mem_dc = CreateCompatibleDC(hdc);
-                let mem_bmp = CreateCompatibleBitmap(hdc, width, height);
-                let old_bmp = SelectObject(mem_dc, mem_bmp);
-
-                if let Ok(guard) = GLOBAL_UI_CTX.lock() {
-                    if let Some(ctx) = guard.as_ref() {
-                        paint_ui(mem_dc, width, height, ctx);
-                    }
-                }
-
-                BitBlt(hdc, 0, 0, width, height, mem_dc, 0, 0, SRCCOPY);
-
-                SelectObject(mem_dc, old_bmp);
-                DeleteObject(mem_bmp);
-                DeleteDC(mem_dc);
-            }
-
-            EndPaint(hwnd, &ps);
-            0
-        }
-        WM_TIMER => {
-            if let Ok(guard) = GLOBAL_UI_CTX.lock() {
-                if let Some(ctx) = guard.as_ref() {
-                    let mut st = ctx.state.lock().unwrap();
-                    st.animation_tick = st.animation_tick.wrapping_add(1);
-                }
-            }
-            InvalidateRect(hwnd, std::ptr::null(), 0);
-            0
-        }
-        WM_MOUSEMOVE => {
-            let x = (lparam as usize & 0xFFFF) as i16 as i32;
-            let y = ((lparam as usize >> 16) & 0xFFFF) as i16 as i32;
-
-            let mut tme: TRACKMOUSEEVENT = std::mem::zeroed();
-            tme.cbSize = std::mem::size_of::<TRACKMOUSEEVENT>() as u32;
-            tme.dwFlags = TME_LEAVE;
-            tme.hwndTrack = hwnd;
-            TrackMouseEvent(&mut tme);
-
-            if let Ok(guard) = GLOBAL_UI_CTX.lock() {
-                if let Some(ctx) = guard.as_ref() {
-                    let mut st = ctx.state.lock().unwrap();
-                    let old_hover = st.hovered_button;
-
-                    let in_btn_play = x >= ctx.btn_play_rect.left
-                        && x <= ctx.btn_play_rect.right
-                        && y >= ctx.btn_play_rect.top
-                        && y <= ctx.btn_play_rect.bottom;
-
-                    let in_btn_check = x >= ctx.btn_check_rect.left
-                        && x <= ctx.btn_check_rect.right
-                        && y >= ctx.btn_check_rect.top
-                        && y <= ctx.btn_check_rect.bottom;
-
-                    if in_btn_play {
-                        st.hovered_button = Some(ButtonId::PlayOrUpdate);
-                    } else if in_btn_check {
-                        st.hovered_button = Some(ButtonId::CheckUpdates);
-                    } else {
-                        st.hovered_button = None;
-                    }
-
-                    if old_hover != st.hovered_button {
-                        InvalidateRect(hwnd, std::ptr::null(), 0);
-                    }
-                }
-            }
-            0
-        }
-        WM_MOUSELEAVE => {
-            if let Ok(guard) = GLOBAL_UI_CTX.lock() {
-                if let Some(ctx) = guard.as_ref() {
-                    let mut st = ctx.state.lock().unwrap();
-                    st.hovered_button = None;
-                    st.pressed_button = None;
-                    InvalidateRect(hwnd, std::ptr::null(), 0);
-                }
-            }
-            0
-        }
-        WM_LBUTTONDOWN => {
-            if let Ok(guard) = GLOBAL_UI_CTX.lock() {
-                if let Some(ctx) = guard.as_ref() {
-                    let mut st = ctx.state.lock().unwrap();
-                    st.pressed_button = st.hovered_button;
-                    InvalidateRect(hwnd, std::ptr::null(), 0);
-                }
-            }
-            0
-        }
-        WM_LBUTTONUP => {
-            let mut action = None;
-            if let Ok(guard) = GLOBAL_UI_CTX.lock() {
-                if let Some(ctx) = guard.as_ref() {
-                    let mut st = ctx.state.lock().unwrap();
-                    if st.pressed_button.is_some() && st.pressed_button == st.hovered_button {
-                        action = st.hovered_button;
-                    }
-                    st.pressed_button = None;
-                }
-            }
-
-            if let Some(btn) = action {
-                handle_button_click(hwnd, btn);
-            }
-            InvalidateRect(hwnd, std::ptr::null(), 0);
-            0
-        }
-        WM_DESTROY => {
-            if let Ok(mut guard) = GLOBAL_UI_CTX.lock() {
-                if let Some(ctx) = guard.take() {
-                    ctx.fonts.destroy();
-                }
-            }
-            PostQuitMessage(0);
-            0
-        }
-        _ => DefWindowProcW(hwnd, msg, wparam, lparam),
-    }
-}
-
-#[cfg(windows)]
-fn handle_button_click(_hwnd: HWND, btn: ButtonId) {
-    if let Ok(guard) = GLOBAL_UI_CTX.lock() {
-        if let Some(ctx) = guard.as_ref() {
-            match btn {
-                ButtonId::PlayOrUpdate => {
-                    let (status, binary) = {
-                        let st = ctx.state.lock().unwrap();
-                        (st.status.clone(), st.game_binary.clone())
-                    };
-
-                    match status {
-                        UpdateStatus::UpdateAvailable {
-                            remote_tag,
-                            download_url,
-                            ..
-                        } => {
-                            if let Some(url) = download_url {
-                                let state_arc = Arc::clone(&ctx.state);
-                                let gdir = ctx.game_dir.clone();
-                                thread::spawn(move || {
-                                    perform_update(&state_arc, url, gdir, remote_tag);
-                                });
-                            } else {
-                                if let Some(bin) = binary {
-                                    launch_game(&bin, &ctx.game_dir);
-                                    unsafe { PostQuitMessage(0); }
-                                }
-                            }
-                        }
-                        UpdateStatus::Downloading { .. } | UpdateStatus::Extracting => {
-                            // En progreso, ignorar clicks
-                        }
-                        _ => {
-                            // Iniciar el juego
-                            if let Some(bin) = binary {
-                                launch_game(&bin, &ctx.game_dir);
-                                unsafe { PostQuitMessage(0); }
-                            } else {
-                                let found = find_game_binary(&ctx.game_dir);
-                                if let Some(bin) = found {
-                                    launch_game(&bin, &ctx.game_dir);
-                                    unsafe { PostQuitMessage(0); }
-                                }
-                            }
-                        }
-                    }
-                }
-                ButtonId::CheckUpdates => {
-                    let state_arc = Arc::clone(&ctx.state);
-                    thread::spawn(move || {
-                        check_github(&state_arc);
-                    });
-                }
-            }
-        }
-    }
-}
-
-#[cfg(windows)]
-unsafe fn paint_ui(
-    hdc: windows_sys::Win32::Graphics::Gdi::HDC,
-    width: i32,
-    height: i32,
-    ctx: &UiContext,
-) {
-    let (
-        local_ver,
-        remote_ver,
-        status,
-        game_binary_found,
-        hovered_btn,
-        pressed_btn,
-        _anim_tick,
-    ) = {
-        let st = ctx.state.lock().unwrap();
-        (
-            st.local_version.clone(),
-            st.remote_version.clone(),
-            st.status.clone(),
-            st.game_binary.is_some(),
-            st.hovered_button,
-            st.pressed_button,
-            st.animation_tick,
-        )
-    };
-
-    // 1. Fondo principal elegante de obsidiana / noche profunda
-    let bg_brush = CreateSolidBrush(rgb(14, 18, 25));
-    let window_rect = RECT {
-        left: 0,
-        top: 0,
-        right: width,
-        bottom: height,
-    };
-    FillRect(hdc, &window_rect, bg_brush);
-    DeleteObject(bg_brush);
-
-    // 2. Banner de cabecera con textura de alta fantasía
-    let header_brush = CreateSolidBrush(rgb(20, 26, 38));
-    let header_rect = RECT {
-        left: 0,
-        top: 0,
-        right: width,
-        bottom: 82,
-    };
-    FillRect(hdc, &header_rect, header_brush);
-    DeleteObject(header_brush);
-
-    // Línea de acento dorado bajo la cabecera
-    let gold_pen = CreatePen(PS_SOLID, 2, rgb(214, 158, 46));
-    let old_pen = SelectObject(hdc, gold_pen);
-    let mut pt: POINT = std::mem::zeroed();
-    MoveToEx(hdc, 0, 82, &mut pt);
-    LineTo(hdc, width, 82);
-
-    SetBkMode(hdc, TRANSPARENT as i32);
-
-    // Título Principal "WORLD OF AZERIA"
-    let old_font = SelectObject(hdc, ctx.fonts.title);
-    SetTextColor(hdc, rgb(246, 173, 85)); // Oro cálido
-    let mut title_rect = RECT {
-        left: 28,
-        top: 14,
-        right: width - 28,
-        bottom: 46,
-    };
-    let title_w = to_wide("WORLD OF AZERIA");
-    DrawTextW(hdc, title_w.as_ptr(), -1, &mut title_rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-
-    // Subtítulo
-    SelectObject(hdc, ctx.fonts.sub);
-    SetTextColor(hdc, rgb(160, 174, 192)); // Gris azulado
-    let mut sub_rect = RECT {
-        left: 30,
-        top: 48,
-        right: width - 30,
-        bottom: 72,
-    };
-    let sub_w = to_wide("Lanzador Oficial y Sistema de Actualizaciones Automáticas");
-    DrawTextW(hdc, sub_w.as_ptr(), -1, &mut sub_rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-
-    // 3. Tarjetas de Versión: Tu Versión vs Servidor/GitHub
-    let card_y_top = 98;
-    let card_y_bot = 178;
-    let card_w = 265;
-    let card_1_rect = RECT {
-        left: 30,
-        top: card_y_top,
-        right: 30 + card_w,
-        bottom: card_y_bot,
-    };
-    let card_2_rect = RECT {
-        left: width - 30 - card_w,
-        top: card_y_top,
-        right: width - 30,
-        bottom: card_y_bot,
-    };
-
-    let card_brush = CreateSolidBrush(rgb(23, 30, 43));
-    let border_pen = CreatePen(PS_SOLID, 1, rgb(45, 55, 72));
-    SelectObject(hdc, border_pen);
-    SelectObject(hdc, card_brush);
-    RoundRect(hdc, card_1_rect.left, card_1_rect.top, card_1_rect.right, card_1_rect.bottom, 10, 10);
-    RoundRect(hdc, card_2_rect.left, card_2_rect.top, card_2_rect.right, card_2_rect.bottom, 10, 10);
-
-    // Tarjeta 1: Tu Versión Local
-    SelectObject(hdc, ctx.fonts.label);
-    SetTextColor(hdc, rgb(160, 174, 192));
-    let mut lbl1 = RECT {
-        left: card_1_rect.left + 16,
-        top: card_1_rect.top + 12,
-        right: card_1_rect.right - 16,
-        bottom: card_1_rect.top + 32,
-    };
-    let lbl1_w = to_wide("TU VERSIÓN LOCAL");
-    DrawTextW(hdc, lbl1_w.as_ptr(), -1, &mut lbl1, DT_LEFT | DT_SINGLELINE);
-
-    SelectObject(hdc, ctx.fonts.val);
-    SetTextColor(hdc, rgb(129, 230, 217)); // Cian menta luminoso
-    let mut val1 = RECT {
-        left: card_1_rect.left + 16,
-        top: card_1_rect.top + 34,
-        right: card_1_rect.right - 16,
-        bottom: card_1_rect.bottom - 10,
-    };
-    let val1_w = to_wide(&local_ver);
-    DrawTextW(hdc, val1_w.as_ptr(), -1, &mut val1, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-
-    // Tarjeta 2: Servidor / GitHub
-    SelectObject(hdc, ctx.fonts.label);
-    SetTextColor(hdc, rgb(160, 174, 192));
-    let mut lbl2 = RECT {
-        left: card_2_rect.left + 16,
-        top: card_2_rect.top + 12,
-        right: card_2_rect.right - 16,
-        bottom: card_2_rect.top + 32,
-    };
-    let lbl2_w = to_wide("SERVIDOR / GITHUB");
-    DrawTextW(hdc, lbl2_w.as_ptr(), -1, &mut lbl2, DT_LEFT | DT_SINGLELINE);
-
-    SelectObject(hdc, ctx.fonts.val);
-    SetTextColor(hdc, rgb(250, 204, 21)); // Oro vibrante
-    let mut val2 = RECT {
-        left: card_2_rect.left + 16,
-        top: card_2_rect.top + 34,
-        right: card_2_rect.right - 16,
-        bottom: card_2_rect.bottom - 10,
-    };
-    let val2_w = to_wide(&remote_ver);
-    DrawTextW(hdc, val2_w.as_ptr(), -1, &mut val2, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-
-    // Restaurar y limpiar card pens/brushes
-    SelectObject(hdc, old_pen);
-    DeleteObject(card_brush);
-    DeleteObject(border_pen);
-
-    // 4. Mensaje de Estado
-    SelectObject(hdc, ctx.fonts.status);
-
-    let (status_text, status_color, progress_pct) = match &status {
-        UpdateStatus::Checking => (
-            "⏳ Conectando con GitHub y verificando actualizaciones...".to_string(),
-            rgb(99, 179, 237),
-            20.0,
-        ),
-        UpdateStatus::UpToDate => (
-            "✔ Ya estás en la última versión. ¡Todo listo para jugar!".to_string(),
-            rgb(72, 187, 120),
-            100.0,
-        ),
-        UpdateStatus::UpdateAvailable { remote_tag, .. } => (
-            format!("⚡ ¡Nueva versión disponible ({})! Presiona 'Actualizar' para descargar.", remote_tag),
-            rgb(236, 201, 75),
-            100.0,
-        ),
-        UpdateStatus::Downloading { downloaded_bytes, total_bytes, pct } => {
-            let mb_down = *downloaded_bytes as f32 / (1024.0 * 1024.0);
-            let mb_tot = *total_bytes as f32 / (1024.0 * 1024.0);
-            (
-                format!("📥 Descargando actualización: {:.1} MB / {:.1} MB ({:.0}%)", mb_down, mb_tot, pct),
-                rgb(246, 173, 85),
-                *pct,
-            )
-        }
-        UpdateStatus::Extracting => (
-            "📦 Instalando y extrayendo archivos del juego...".to_string(),
-            rgb(214, 158, 46),
-            95.0,
-        ),
-        UpdateStatus::Offline(_) => (
-            "ℹ Conexión con GitHub no disponible. Modo fuera de línea activo.".to_string(),
-            rgb(226, 232, 240),
-            100.0,
-        ),
-        UpdateStatus::Error(err) => (
-            format!("⚠ Error: {}", err),
-            rgb(245, 101, 101),
-            0.0,
-        ),
-    };
-
-    SetTextColor(hdc, status_color);
-    let mut status_rect = RECT {
-        left: 32,
-        top: 194,
-        right: width - 32,
-        bottom: 220,
-    };
-    let st_w = to_wide(&status_text);
-    DrawTextW(hdc, st_w.as_ptr(), -1, &mut status_rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-
-    // 5. Barra de Progreso Estilizada
-    let bar_left = 30;
-    let bar_right = width - 30;
-    let bar_top = 226;
-    let bar_bottom = 258;
-    let bar_total_w = bar_right - bar_left;
-
-    let bar_bg_brush = CreateSolidBrush(rgb(10, 14, 20));
-    let bar_border_pen = CreatePen(PS_SOLID, 1, rgb(45, 55, 72));
-    SelectObject(hdc, bar_border_pen);
-    SelectObject(hdc, bar_bg_brush);
-    RoundRect(hdc, bar_left, bar_top, bar_right, bar_bottom, 8, 8);
-    SelectObject(hdc, old_pen);
-    DeleteObject(bar_bg_brush);
-    DeleteObject(bar_border_pen);
-
-    // Relleno de la barra
-    let fill_w = ((bar_total_w - 4) as f32 * (progress_pct.clamp(0.0, 100.0) / 100.0)) as i32;
-    if fill_w > 0 {
-        let bar_fill_col = match &status {
-            UpdateStatus::Downloading { .. } | UpdateStatus::Extracting => rgb(217, 119, 6),
-            UpdateStatus::UpdateAvailable { .. } => rgb(202, 138, 4),
-            UpdateStatus::Error(_) => rgb(185, 28, 28),
-            _ => rgb(47, 133, 90), // Verde esmeralda
-        };
-        let fill_brush = CreateSolidBrush(bar_fill_col);
-        let no_pen = CreatePen(PS_SOLID, 1, bar_fill_col);
-        SelectObject(hdc, no_pen);
-        SelectObject(hdc, fill_brush);
-        RoundRect(
-            hdc,
-            bar_left + 2,
-            bar_top + 2,
-            bar_left + 2 + fill_w,
-            bar_bottom - 2,
-            6,
-            6,
-        );
-        SelectObject(hdc, old_pen);
-        DeleteObject(fill_brush);
-        DeleteObject(no_pen);
-    }
-
-    // Texto sobre la barra de progreso
-    SelectObject(hdc, ctx.fonts.bar);
-    SetTextColor(hdc, rgb(255, 255, 255));
-    let bar_text = match &status {
-        UpdateStatus::Downloading { pct, .. } => format!("{:.0}% completado", pct),
-        UpdateStatus::Extracting => "Extrayendo...".to_string(),
-        UpdateStatus::UpdateAvailable { .. } => "Actualización lista para descargar".to_string(),
-        UpdateStatus::Checking => "Comprobando servidor...".to_string(),
-        _ => "100% — Cliente al día".to_string(),
-    };
-    let mut bar_lbl_rect = RECT {
-        left: bar_left,
-        top: bar_top,
-        right: bar_right,
-        bottom: bar_bottom,
-    };
-    let bar_lbl_w = to_wide(&bar_text);
-    DrawTextW(hdc, bar_lbl_w.as_ptr(), -1, &mut bar_lbl_rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-    // 6. Botones de Acción
-    SelectObject(hdc, ctx.fonts.btn);
-
-    // Botón Primario: JUGAR o ACTUALIZAR
-    let is_play_hovered = hovered_btn == Some(ButtonId::PlayOrUpdate);
-    let is_play_pressed = pressed_btn == Some(ButtonId::PlayOrUpdate);
-
-    let (btn_main_text, btn_main_col, btn_main_border) = match &status {
-        UpdateStatus::UpdateAvailable { .. } => {
-            if is_play_pressed {
-                ("⚡ ACTUALIZAR AHORA", rgb(180, 83, 9), rgb(245, 158, 11))
-            } else if is_play_hovered {
-                ("⚡ ACTUALIZAR AHORA", rgb(245, 158, 11), rgb(251, 191, 36))
-            } else {
-                ("⚡ ACTUALIZAR AHORA", rgb(217, 119, 6), rgb(245, 158, 11))
-            }
-        }
-        UpdateStatus::Downloading { .. } | UpdateStatus::Extracting => {
-            ("DESCARGANDO...", rgb(55, 65, 81), rgb(75, 85, 99))
-        }
-        _ => {
-            if !game_binary_found {
-                ("JUEGO NO ENCONTRADO", rgb(75, 85, 99), rgb(107, 114, 128))
-            } else if is_play_pressed {
-                ("▶ JUGAR WORLD OF AZERIA", rgb(34, 110, 68), rgb(72, 187, 120))
-            } else if is_play_hovered {
-                ("▶ JUGAR WORLD OF AZERIA", rgb(56, 161, 105), rgb(104, 211, 145))
-            } else {
-                ("▶ JUGAR WORLD OF AZERIA", rgb(47, 133, 90), rgb(72, 187, 120))
-            }
-        }
-    };
-
-    let btn_play_brush = CreateSolidBrush(btn_main_col);
-    let btn_play_pen = CreatePen(PS_SOLID, 2, btn_main_border);
-    SelectObject(hdc, btn_play_pen);
-    SelectObject(hdc, btn_play_brush);
-    RoundRect(
-        hdc,
-        ctx.btn_play_rect.left,
-        ctx.btn_play_rect.top,
-        ctx.btn_play_rect.right,
-        ctx.btn_play_rect.bottom,
-        12,
-        12,
-    );
-
-    SetTextColor(hdc, rgb(255, 255, 255));
-    let mut btn_play_lbl = ctx.btn_play_rect;
-    let btn_play_w = to_wide(btn_main_text);
-    DrawTextW(hdc, btn_play_w.as_ptr(), -1, &mut btn_play_lbl, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-    SelectObject(hdc, old_pen);
-    DeleteObject(btn_play_brush);
-    DeleteObject(btn_play_pen);
-
-    // Botón Secundario: Buscar Actualizaciones
-    let is_check_hovered = hovered_btn == Some(ButtonId::CheckUpdates);
-    let is_check_pressed = pressed_btn == Some(ButtonId::CheckUpdates);
-
-    let (btn_sec_col, btn_sec_border) = if is_check_pressed {
-        (rgb(30, 41, 59), rgb(100, 116, 139))
-    } else if is_check_hovered {
-        (rgb(51, 65, 85), rgb(148, 163, 184))
-    } else {
-        (rgb(30, 41, 59), rgb(71, 85, 105))
-    };
-
-    let btn_sec_brush = CreateSolidBrush(btn_sec_col);
-    let btn_sec_pen = CreatePen(PS_SOLID, 1, btn_sec_border);
-    SelectObject(hdc, btn_sec_pen);
-    SelectObject(hdc, btn_sec_brush);
-    RoundRect(
-        hdc,
-        ctx.btn_check_rect.left,
-        ctx.btn_check_rect.top,
-        ctx.btn_check_rect.right,
-        ctx.btn_check_rect.bottom,
-        12,
-        12,
-    );
-
-    SelectObject(hdc, ctx.fonts.btn_sec);
-    SetTextColor(hdc, rgb(226, 232, 240));
-    let mut btn_check_lbl = ctx.btn_check_rect;
-    let btn_check_w = to_wide("↻ Buscar Updates");
-    DrawTextW(hdc, btn_check_w.as_ptr(), -1, &mut btn_check_lbl, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-    SelectObject(hdc, old_pen);
-    DeleteObject(btn_sec_brush);
-    DeleteObject(btn_sec_pen);
-
-    // 7. Pie de Página
-    SelectObject(hdc, ctx.fonts.footer);
-    SetTextColor(hdc, rgb(100, 116, 139));
-    let mut footer_left = RECT {
-        left: 30,
-        top: height - 32,
-        right: width / 2,
-        bottom: height - 10,
-    };
-    let footer_w = to_wide("GitHub: kambire/veloren");
-    DrawTextW(hdc, footer_w.as_ptr(), -1, &mut footer_left, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-
-    let mut footer_right = RECT {
-        left: width / 2,
-        top: height - 32,
-        right: width - 30,
-        bottom: height - 10,
-    };
-    let mode_w = to_wide(if matches!(status, UpdateStatus::Offline(_)) { "Modo Fuera de Línea" } else { "Conectado" });
-    DrawTextW(hdc, mode_w.as_ptr(), -1, &mut footer_right, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
-
-    // Limpieza final de GDI
-    SelectObject(hdc, old_pen);
-    SelectObject(hdc, old_font);
-    DeleteObject(gold_pen);
-}
-
-#[cfg(windows)]
-fn to_wide(s: &str) -> Vec<u16> {
-    s.encode_utf16().chain(std::iter::once(0)).collect()
-}
-
-#[cfg(windows)]
-fn run_gui_launcher() {
-    let game_dir = get_game_dir();
-    let local = load_local_version(&game_dir);
-    let binary = find_game_binary(&game_dir);
-
-    let state = Arc::new(Mutex::new(AppState {
-        local_version: local.tag,
+/// Argumentos que se pasan tal cual al juego (sin los del propio lanzador)
+fn game_args() -> Vec<String> { env::args().skip(1).collect() }
+
+fn initial_state() -> AppState {
+    let game_dir = net::get_game_dir();
+    AppState {
+        local_version: net::load_local_version(&game_dir).tag,
         remote_version: "Comprobando...".to_string(),
         status: UpdateStatus::Checking,
-        game_binary: binary,
-        hovered_button: None,
-        pressed_button: None,
-        animation_tick: 0,
-    }));
-
-    // Iniciar verificación en segundo plano
-    let state_bg = Arc::clone(&state);
-    thread::spawn(move || {
-        check_github(&state_bg);
-    });
-
-    unsafe {
-        let hinstance = GetModuleHandleW(std::ptr::null());
-        let class_name = to_wide("WorldOfAzeriaLauncherClass");
-
-        let mut wc: WNDCLASSEXW = std::mem::zeroed();
-        wc.cbSize = std::mem::size_of::<WNDCLASSEXW>() as u32;
-        wc.style = CS_HREDRAW | CS_VREDRAW;
-        wc.lpfnWndProc = Some(window_proc);
-        wc.hInstance = hinstance;
-        wc.hCursor = LoadCursorW(std::ptr::null_mut(), IDC_ARROW);
-        wc.lpszClassName = class_name.as_ptr();
-
-        RegisterClassExW(&wc);
-
-        let win_w = 660;
-        let win_h = 460;
-
-        let screen_w = GetSystemMetrics(SM_CXSCREEN);
-        let screen_h = GetSystemMetrics(SM_CYSCREEN);
-        let pos_x = (screen_w - win_w) / 2;
-        let pos_y = (screen_h - win_h) / 2;
-
-        let fonts = UiFonts::new();
-
-        if let Ok(mut guard) = GLOBAL_UI_CTX.lock() {
-            *guard = Some(UiContext {
-                state: Arc::clone(&state),
-                game_dir: game_dir.clone(),
-                btn_play_rect: RECT {
-                    left: 30,
-                    top: 280,
-                    right: 430,
-                    bottom: 340,
-                },
-                btn_check_rect: RECT {
-                    left: 450,
-                    top: 280,
-                    right: win_w - 30,
-                    bottom: 340,
-                },
-                fonts,
-            });
-        }
-
-        let title = to_wide("World of Azeria - Lanzador y Actualizador");
-        let hwnd = CreateWindowExW(
-            0,
-            class_name.as_ptr(),
-            title.as_ptr(),
-            WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_VISIBLE,
-            pos_x,
-            pos_y,
-            win_w,
-            win_h,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            hinstance,
-            std::ptr::null(),
-        );
-
-        if hwnd == std::ptr::null_mut() {
-            return;
-        }
-
-        // Posicionar explícitamente y mostrar ventana centrada
-        SetWindowPos(
-            hwnd,
-            HWND_TOP,
-            pos_x,
-            pos_y,
-            win_w,
-            win_h,
-            SWP_SHOWWINDOW,
-        );
-
-        ShowWindow(hwnd, SW_SHOW);
-
-        // Temporizador de refresco a ~30 FPS para animaciones y actualización de progreso
-        SetTimer(hwnd, 1, 33, None);
-
-        let mut msg: windows_sys::Win32::UI::WindowsAndMessaging::MSG = std::mem::zeroed();
-        while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
+        game_binary: net::find_game_binary(&game_dir),
+        news: None,
     }
+}
+
+/// Comprueba versiones y carga las novedades en segundo plano
+fn spawn_background_checks(state: &net::Shared) {
+    let check = Arc::clone(state);
+    thread::spawn(move || net::check_github(&check));
+    let news = Arc::clone(state);
+    thread::spawn(move || net::fetch_news(&news));
+}
+
+/// Dibuja la interfaz en un PNG con un estado de ejemplo
+fn capture(path: &str, state_name: &str) {
+    let mut st = initial_state();
+    st.local_version = "v0.18.0".to_string();
+    st.remote_version = "v0.18.0".to_string();
+    st.game_binary = Some("veloren-voxygen.exe".into());
+    st.news = Some(vec![
+        NewsItem {
+            date: "25/09".into(),
+            text: "Nuevo mundo: 4 continentes separados por océano y sin lagos".into(),
+        },
+        NewsItem {
+            date: "24/09".into(),
+            text: "Misiones y cadenas de misiones con marcadores ! y ?".into(),
+        },
+        NewsItem {
+            date: "24/09".into(),
+            text: "Los NPC de los pueblos ya no son hostiles".into(),
+        },
+        NewsItem {
+            date: "23/09".into(),
+            text: "Nueva clase: el Entrenador y sus mascotas".into(),
+        },
+    ]);
+    st.status = match state_name {
+        "comprobando" => {
+            st.remote_version = "Comprobando...".to_string();
+            UpdateStatus::Checking
+        },
+        "actualizar" => {
+            st.remote_version = "v0.19.0".to_string();
+            UpdateStatus::UpdateAvailable {
+                remote_tag: "v0.19.0".to_string(),
+                download_url: Some(String::new()),
+                total_bytes: 812 * 1024 * 1024,
+            }
+        },
+        "descargando" => UpdateStatus::Downloading {
+            downloaded: 347 * 1024 * 1024,
+            total: 812 * 1024 * 1024,
+            speed: 9.4 * 1024.0 * 1024.0,
+        },
+        "sin-conexion" => {
+            st.remote_version = "Sin conexión".to_string();
+            UpdateStatus::Offline
+        },
+        "error" => UpdateStatus::Error("No se pudo escribir la actualización en disco".into()),
+        _ => UpdateStatus::UpToDate,
+    };
+
+    let res = ui::Resources::load();
+    let mut frame = tiny_skia::Pixmap::new(ui::WIDTH, ui::HEIGHT).expect("tamaño válido");
+    ui::render(&res, &st, ui::Pointer::default(), 1.2, &mut frame);
+    let _ = frame.save_png(path);
 }
 
 fn main() {
-    #[cfg(windows)]
-    {
-        run_gui_launcher();
+    let args: Vec<String> = env::args().collect();
+    if let Some(i) = args.iter().position(|a| a == "--captura") {
+        let path = args.get(i + 1).map_or("lanzador.png", String::as_str);
+        let state = args.get(i + 2).map_or("listo", String::as_str);
+        capture(path, state);
+        return;
     }
+
+    let state = Arc::new(Mutex::new(initial_state()));
+    spawn_background_checks(&state);
+
+    #[cfg(windows)]
+    win::run(state);
 
     #[cfg(not(windows))]
     {
-        println!("World of Azeria Launcher");
-        let game_dir = get_game_dir();
-        if let Some(game_bin) = find_game_binary(&game_dir) {
-            launch_game(&game_bin, &game_dir);
+        let game_dir = net::get_game_dir();
+        if let Some(game) = net::find_game_binary(&game_dir) {
+            net::launch_game(&game, &game_dir, &game_args());
         } else {
-            eprintln!("No se encontró el ejecutable.");
+            eprintln!("No se encontró el ejecutable del juego.");
+        }
+    }
+}
+
+#[cfg(windows)]
+mod win {
+    use super::*;
+    use crate::ui::{self, Hit, Pointer};
+    use std::{path::PathBuf, process::Command, time::Instant};
+    use tiny_skia::Pixmap;
+    use windows_sys::Win32::{
+        Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM},
+        Graphics::{
+            Dwm::DwmSetWindowAttribute,
+            Gdi::{
+                BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BeginPaint, DIB_RGB_COLORS, EndPaint,
+                InvalidateRect, PAINTSTRUCT, ScreenToClient, SetDIBitsToDevice,
+            },
+        },
+        System::LibraryLoader::GetModuleHandleW,
+        UI::{
+            Input::KeyboardAndMouse::{TME_LEAVE, TRACKMOUSEEVENT, TrackMouseEvent},
+            WindowsAndMessaging::{
+                CS_DROPSHADOW, CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW,
+                GetMessageW, GetSystemMetrics, IDC_ARROW, IDC_HAND, LoadCursorW, LoadIconW, MSG,
+                PostQuitMessage, RegisterClassExW, SM_CXSCREEN, SM_CYSCREEN, SW_MINIMIZE, SW_SHOW,
+                SetCursor, SetProcessDPIAware, SetTimer, ShowWindow, TranslateMessage,
+                WNDCLASSEXW, WS_EX_APPWINDOW, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU,
+            },
+        },
+    };
+
+    const WM_DESTROY: u32 = 0x0002;
+    const WM_PAINT: u32 = 0x000F;
+    const WM_ERASEBKGND: u32 = 0x0014;
+    const WM_SETCURSOR: u32 = 0x0020;
+    const WM_NCHITTEST: u32 = 0x0084;
+    const WM_TIMER: u32 = 0x0113;
+    const WM_MOUSEMOVE: u32 = 0x0200;
+    const WM_LBUTTONDOWN: u32 = 0x0201;
+    const WM_LBUTTONUP: u32 = 0x0202;
+    const WM_MOUSELEAVE: u32 = 0x02A3;
+    const HTCLIENT: LRESULT = 1;
+    const HTCAPTION: LRESULT = 2;
+    /// Esquinas redondeadas de Windows 11 (`DWMWA_WINDOW_CORNER_PREFERENCE`)
+    const DWMWA_WINDOW_CORNER_PREFERENCE: u32 = 33;
+    const DWMWCP_ROUND: u32 = 2;
+
+    struct Window {
+        state: net::Shared,
+        game_dir: PathBuf,
+        res: ui::Resources,
+        frame: Pixmap,
+        bgra: Vec<u8>,
+        pointer: Pointer,
+        tracking_mouse: bool,
+        start: Instant,
+    }
+
+    static WINDOW: Mutex<Option<Window>> = Mutex::new(None);
+
+    fn to_wide(s: &str) -> Vec<u16> { s.encode_utf16().chain(std::iter::once(0)).collect() }
+
+    fn lparam_point(lparam: LPARAM) -> (i32, i32) {
+        (
+            (lparam & 0xFFFF) as u16 as i16 as i32,
+            ((lparam >> 16) & 0xFFFF) as u16 as i16 as i32,
+        )
+    }
+
+    /// Acción que hay que ejecutar tras soltar el botón. Se hace fuera del
+    /// cerrojo de la ventana porque algunas llamadas de Win32 envían mensajes
+    /// que vuelven a entrar en `window_proc`.
+    enum Action {
+        Close,
+        Minimize,
+        LaunchAndClose,
+        Update {
+            url: String,
+            tag: String,
+        },
+        CheckUpdates,
+        OpenFolder,
+        Website,
+    }
+
+    fn action_for(hit: Hit, window: &Window) -> Option<Action> {
+        Some(match hit {
+            Hit::Close => Action::Close,
+            Hit::Minimize => Action::Minimize,
+            Hit::CheckUpdates => Action::CheckUpdates,
+            Hit::OpenFolder => Action::OpenFolder,
+            Hit::Website => Action::Website,
+            Hit::Play => {
+                let st = window.state.lock().unwrap();
+                match &st.status {
+                    UpdateStatus::UpdateAvailable {
+                        remote_tag,
+                        download_url: Some(url),
+                        ..
+                    } => Action::Update {
+                        url: url.clone(),
+                        tag: remote_tag.clone(),
+                    },
+                    UpdateStatus::Downloading { .. } | UpdateStatus::Extracting => return None,
+                    _ if st.game_binary.is_some() => Action::LaunchAndClose,
+                    _ => return None,
+                }
+            },
+        })
+    }
+
+    unsafe fn perform(hwnd: HWND, action: Action) {
+        let (state, game_dir, game_binary) = {
+            let guard = WINDOW.lock().unwrap();
+            let Some(window) = guard.as_ref() else {
+                return;
+            };
+            let binary = window.state.lock().unwrap().game_binary.clone();
+            (Arc::clone(&window.state), window.game_dir.clone(), binary)
+        };
+        match action {
+            Action::Close => unsafe {
+                DestroyWindow(hwnd);
+            },
+            Action::Minimize => unsafe {
+                ShowWindow(hwnd, SW_MINIMIZE);
+            },
+            Action::LaunchAndClose => {
+                if let Some(binary) = game_binary {
+                    net::launch_game(&binary, &game_dir, &game_args());
+                    unsafe {
+                        DestroyWindow(hwnd);
+                    }
+                }
+            },
+            Action::Update { url, tag } => {
+                thread::spawn(move || net::perform_update(&state, url, game_dir, tag));
+            },
+            Action::CheckUpdates => spawn_background_checks(&state),
+            Action::OpenFolder => {
+                let _ = Command::new("explorer").arg(&game_dir).spawn();
+            },
+            Action::Website => {
+                let _ = Command::new("explorer")
+                    .arg(format!("https://github.com/{}", net::GITHUB_REPO))
+                    .spawn();
+            },
+        }
+    }
+
+    unsafe extern "system" fn window_proc(
+        hwnd: HWND,
+        msg: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> LRESULT {
+        match msg {
+            // La barra de título propia arrastra la ventana, salvo sobre sus botones
+            WM_NCHITTEST => {
+                let (sx, sy) = lparam_point(lparam);
+                let mut pt = POINT { x: sx, y: sy };
+                unsafe { ScreenToClient(hwnd, &mut pt) };
+                let (x, y) = (pt.x as f32, pt.y as f32);
+                if y >= 0.0 && y < ui::TITLE_H && ui::hit_test(x, y).is_none() {
+                    HTCAPTION
+                } else {
+                    HTCLIENT
+                }
+            },
+            WM_ERASEBKGND => 1,
+            WM_PAINT => {
+                let mut ps: PAINTSTRUCT = unsafe { std::mem::zeroed() };
+                let hdc = unsafe { BeginPaint(hwnd, &mut ps) };
+                if let Ok(mut guard) = WINDOW.lock()
+                    && let Some(window) = guard.as_mut()
+                {
+                    let time = window.start.elapsed().as_secs_f32();
+                    {
+                        let st = window.state.lock().unwrap();
+                        ui::render(&window.res, &st, window.pointer, time, &mut window.frame);
+                    }
+                    // tiny-skia usa RGBA premultiplicado; la ventana es opaca, así
+                    // que basta con pasar a BGRA
+                    for (src, dst) in window
+                        .frame
+                        .data()
+                        .chunks_exact(4)
+                        .zip(window.bgra.chunks_exact_mut(4))
+                    {
+                        dst[0] = src[2];
+                        dst[1] = src[1];
+                        dst[2] = src[0];
+                        dst[3] = 255;
+                    }
+                    let mut bmi: BITMAPINFO = unsafe { std::mem::zeroed() };
+                    bmi.bmiHeader = BITMAPINFOHEADER {
+                        biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                        biWidth: ui::WIDTH as i32,
+                        // Negativo: filas de arriba abajo
+                        biHeight: -(ui::HEIGHT as i32),
+                        biPlanes: 1,
+                        biBitCount: 32,
+                        biCompression: BI_RGB,
+                        ..unsafe { std::mem::zeroed() }
+                    };
+                    unsafe {
+                        SetDIBitsToDevice(
+                            hdc,
+                            0,
+                            0,
+                            ui::WIDTH,
+                            ui::HEIGHT,
+                            0,
+                            0,
+                            0,
+                            ui::HEIGHT,
+                            window.bgra.as_ptr() as *const _,
+                            &bmi,
+                            DIB_RGB_COLORS,
+                        );
+                    }
+                }
+                unsafe { EndPaint(hwnd, &ps) };
+                0
+            },
+            WM_TIMER => {
+                unsafe { InvalidateRect(hwnd, std::ptr::null(), 0) };
+                0
+            },
+            WM_SETCURSOR => {
+                let over_button = WINDOW
+                    .lock()
+                    .ok()
+                    .and_then(|guard| guard.as_ref().map(|w| w.pointer.hovered.is_some()))
+                    .unwrap_or(false);
+                let cursor = if over_button { IDC_HAND } else { IDC_ARROW };
+                unsafe { SetCursor(LoadCursorW(std::ptr::null_mut(), cursor)) };
+                1
+            },
+            WM_MOUSEMOVE => {
+                let (x, y) = lparam_point(lparam);
+                if let Ok(mut guard) = WINDOW.lock()
+                    && let Some(window) = guard.as_mut()
+                {
+                    window.pointer.hovered = ui::hit_test(x as f32, y as f32);
+                    if !window.tracking_mouse {
+                        let mut tme = TRACKMOUSEEVENT {
+                            cbSize: std::mem::size_of::<TRACKMOUSEEVENT>() as u32,
+                            dwFlags: TME_LEAVE,
+                            hwndTrack: hwnd,
+                            dwHoverTime: 0,
+                        };
+                        unsafe { TrackMouseEvent(&mut tme) };
+                        window.tracking_mouse = true;
+                    }
+                }
+                0
+            },
+            WM_MOUSELEAVE => {
+                if let Ok(mut guard) = WINDOW.lock()
+                    && let Some(window) = guard.as_mut()
+                {
+                    window.pointer = Pointer::default();
+                    window.tracking_mouse = false;
+                }
+                0
+            },
+            WM_LBUTTONDOWN => {
+                if let Ok(mut guard) = WINDOW.lock()
+                    && let Some(window) = guard.as_mut()
+                {
+                    window.pointer.pressed = window.pointer.hovered;
+                }
+                0
+            },
+            WM_LBUTTONUP => {
+                let action = WINDOW.lock().ok().and_then(|mut guard| {
+                    let window = guard.as_mut()?;
+                    let clicked = window
+                        .pointer
+                        .pressed
+                        .filter(|hit| window.pointer.hovered == Some(*hit));
+                    window.pointer.pressed = None;
+                    action_for(clicked?, window)
+                });
+                if let Some(action) = action {
+                    unsafe { perform(hwnd, action) };
+                }
+                0
+            },
+            WM_DESTROY => {
+                unsafe { PostQuitMessage(0) };
+                0
+            },
+            _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
+        }
+    }
+
+    pub fn run(state: net::Shared) {
+        *WINDOW.lock().unwrap() = Some(Window {
+            state,
+            game_dir: net::get_game_dir(),
+            res: ui::Resources::load(),
+            frame: Pixmap::new(ui::WIDTH, ui::HEIGHT).expect("tamaño válido"),
+            bgra: vec![0; (ui::WIDTH * ui::HEIGHT * 4) as usize],
+            pointer: Pointer::default(),
+            tracking_mouse: false,
+            start: Instant::now(),
+        });
+
+        unsafe {
+            // Sin escalado borroso de Windows en pantallas con zoom
+            SetProcessDPIAware();
+
+            let hinstance = GetModuleHandleW(std::ptr::null());
+            let class_name = to_wide("WorldOfAzeriaLauncher");
+            // Icono incrustado por build.rs con el identificador 1
+            let icon = LoadIconW(hinstance, 1 as *const u16);
+
+            let wc = WNDCLASSEXW {
+                cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+                style: CS_DROPSHADOW,
+                lpfnWndProc: Some(window_proc),
+                hInstance: hinstance,
+                hIcon: icon,
+                hIconSm: icon,
+                hCursor: LoadCursorW(std::ptr::null_mut(), IDC_ARROW),
+                lpszClassName: class_name.as_ptr(),
+                ..std::mem::zeroed()
+            };
+            RegisterClassExW(&wc);
+
+            let (w, h) = (ui::WIDTH as i32, ui::HEIGHT as i32);
+            let x = (GetSystemMetrics(SM_CXSCREEN) - w) / 2;
+            let y = (GetSystemMetrics(SM_CYSCREEN) - h) / 2;
+            let title = to_wide("World of Azeria");
+            let hwnd = CreateWindowExW(
+                WS_EX_APPWINDOW,
+                class_name.as_ptr(),
+                title.as_ptr(),
+                WS_POPUP | WS_MINIMIZEBOX | WS_SYSMENU,
+                x,
+                y,
+                w,
+                h,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                hinstance,
+                std::ptr::null(),
+            );
+            if hwnd.is_null() {
+                return;
+            }
+
+            let corners = DWMWCP_ROUND;
+            DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_WINDOW_CORNER_PREFERENCE,
+                &corners as *const u32 as *const _,
+                std::mem::size_of::<u32>() as u32,
+            );
+
+            ShowWindow(hwnd, SW_SHOW);
+            // ~30 fotogramas por segundo para las animaciones
+            SetTimer(hwnd, 1, 33, None);
+
+            let mut msg: MSG = std::mem::zeroed();
+            while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
         }
     }
 }

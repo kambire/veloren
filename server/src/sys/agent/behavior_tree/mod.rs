@@ -1135,7 +1135,11 @@ fn do_combat(bdata: &mut BehaviorData) -> bool {
                         return true;
                     }
 
-                    (true, 5.0)
+                    if matches!(agent_data.alignment, Some(Alignment::Owned(_))) {
+                        (false, 1.0)
+                    } else {
+                        (true, 5.0)
+                    }
                 },
                 _ => (
                     !matches!(agent_data.alignment, Some(Alignment::Owned(_)))

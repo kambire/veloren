@@ -1,7 +1,7 @@
 use crate::data::{AbilityData, ActionMode, AgentData, AttackData, Path, ReadData, TargetData};
 use common::{
     comp::{
-        Agent, Alignment, Body, Controller, InputKind, Pos, Scale,
+        Agent, Alignment, Body, CharacterState, Controller, InputKind, Pos, Scale,
         ability::AbilityInput,
         agent::Psyche,
         buff::BuffKind,
@@ -23,7 +23,12 @@ pub fn is_dead_or_invulnerable(entity: EcsEntity, read_data: &ReadData) -> bool 
 
 pub fn is_dead(entity: EcsEntity, read_data: &ReadData) -> bool {
     let health = read_data.healths.get(entity);
-    health.is_some_and(|a| a.is_dead)
+    let dead = health.is_some_and(|a| a.is_dead);
+    let downed = read_data
+        .char_states
+        .get(entity)
+        .is_some_and(|cs| matches!(cs, CharacterState::Crawl));
+    dead || downed
 }
 
 // FIXME: The logic that is used in this function and throughout the code

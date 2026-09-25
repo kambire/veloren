@@ -864,6 +864,10 @@ impl AgentData<'_> {
         read_data: &ReadData,
         tgt_pos: &Pos,
     ) {
+        if matches!(self.alignment, Some(Alignment::Owned(_))) {
+            return;
+        }
+
         // Proportion of full speed
         const MAX_FLEE_SPEED: f32 = 0.65;
 

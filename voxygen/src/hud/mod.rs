@@ -3366,6 +3366,22 @@ impl Hud {
                     },
                     skillbar::Event::OpenBag => self.show.bag(!self.show.bag),
                     skillbar::Event::CommandPet(cmd) => events.push(Event::CommandPet(cmd)),
+                    skillbar::Event::UseHotbarSlot(slot) => {
+                        Self::handle_hotbar_slot(
+                            slot,
+                            true,
+                            &mut events,
+                            &mut self.slot_manager,
+                            &mut self.hotbar,
+                            inventories.get(entity),
+                        );
+                    },
+                    skillbar::Event::UsePrimaryAbility => {
+                        events.push(Event::Primary { state: true });
+                    },
+                    skillbar::Event::UseSecondaryAbility => {
+                        events.push(Event::Secondary { state: true });
+                    },
                 }
             }
         }
@@ -4920,6 +4936,61 @@ impl Hud {
         }
     }
 
+    pub(crate) fn handle_hotbar_slot(
+        slot: hotbar::Slot,
+        state: bool,
+        events: &mut Vec<Event>,
+        slot_manager: &mut slots::SlotManager,
+        hotbar: &mut hotbar::State,
+        client_inventory: Option<&comp::Inventory>,
+    ) {
+        use slots::InventorySlot;
+        if let Some(slots::SlotKind::Inventory(InventorySlot {
+            slot: Slot::Inventory(i),
+            ours: true,
+            ..
+        })) = slot_manager.selected()
+        {
+            if let Some(item) = client_inventory.and_then(|inv| inv.get(i)) {
+                hotbar.add_inventory_link(slot, item);
+                events.push(Event::ChangeHotbarState(Box::new(hotbar.to_owned())));
+                slot_manager.idle();
+            }
+        } else {
+            let just_pressed = hotbar.process_input(slot, state);
+            hotbar.get(slot).map(|s| match s {
+                hotbar::SlotContents::Inventory(i, _) => {
+                    if just_pressed && let Some(inv) = client_inventory {
+                        // If the item in the inactive main hand is the same as the item
+                        // pressed in the hotbar, then swap active and inactive hands
+                        // instead of looking for the item
+                        // in the inventory
+                        if inv
+                            .equipped(comp::slot::EquipSlot::InactiveMainhand)
+                            .is_some_and(|item| item.item_hash() == i)
+                        {
+                            events.push(Event::SwapEquippedWeapons);
+                        } else if let Some(slot) = inv.get_slot_from_hash(i) {
+                            events.push(Event::UseSlot {
+                                slot: comp::slot::Slot::Inventory(slot),
+                                bypass_dialog: false,
+                            });
+                        }
+                    }
+                },
+                hotbar::SlotContents::Ability(idx) => {
+                    events.push(Event::Ability { idx, state })
+                },
+                hotbar::SlotContents::PrimaryAbility => {
+                    events.push(Event::Primary { state });
+                },
+                hotbar::SlotContents::SecondaryAbility => {
+                    events.push(Event::Secondary { state });
+                },
+            });
+        }
+    }
+
     pub fn handle_event(
         &mut self,
         event: WinEvent,
@@ -4927,60 +4998,14 @@ impl Hud {
         client_inventory: Option<&comp::Inventory>,
     ) -> bool {
         // Helper
-        fn handle_slot(
-            slot: hotbar::Slot,
-            state: bool,
-            events: &mut Vec<Event>,
-            slot_manager: &mut slots::SlotManager,
-            hotbar: &mut hotbar::State,
-            client_inventory: Option<&comp::Inventory>,
-        ) {
-            use slots::InventorySlot;
-            if let Some(slots::SlotKind::Inventory(InventorySlot {
-                slot: Slot::Inventory(i),
-                ours: true,
-                ..
-            })) = slot_manager.selected()
-            {
-                if let Some(item) = client_inventory.and_then(|inv| inv.get(i)) {
-                    hotbar.add_inventory_link(slot, item);
-                    events.push(Event::ChangeHotbarState(Box::new(hotbar.to_owned())));
-                    slot_manager.idle();
-                }
-            } else {
-                let just_pressed = hotbar.process_input(slot, state);
-                hotbar.get(slot).map(|s| match s {
-                    hotbar::SlotContents::Inventory(i, _) => {
-                        if just_pressed && let Some(inv) = client_inventory {
-                            // If the item in the inactive main hand is the same as the item
-                            // pressed in the hotbar, then swap active and inactive hands
-                            // instead of looking for the item
-                            // in the inventory
-                            if inv
-                                .equipped(comp::slot::EquipSlot::InactiveMainhand)
-                                .is_some_and(|item| item.item_hash() == i)
-                            {
-                                events.push(Event::SwapEquippedWeapons);
-                            } else if let Some(slot) = inv.get_slot_from_hash(i) {
-                                events.push(Event::UseSlot {
-                                    slot: comp::slot::Slot::Inventory(slot),
-                                    bypass_dialog: false,
-                                });
-                            }
-                        }
-                    },
-                    hotbar::SlotContents::Ability(idx) => {
-                        events.push(Event::Ability { idx, state })
-                    },
-                    hotbar::SlotContents::PrimaryAbility => {
-                        events.push(Event::Primary { state });
-                    },
-                    hotbar::SlotContents::SecondaryAbility => {
-                        events.push(Event::Secondary { state });
-                    },
-                });
-            }
-        }
+        let handle_slot = |slot: hotbar::Slot,
+                           state: bool,
+                           events: &mut Vec<Event>,
+                           slot_manager: &mut slots::SlotManager,
+                           hotbar: &mut hotbar::State,
+                           client_inventory: Option<&comp::Inventory>| {
+            Self::handle_hotbar_slot(slot, state, events, slot_manager, hotbar, client_inventory);
+        };
 
         #[instrument(skip(show, global_state))]
         fn handle_map_zoom(
@@ -5334,6 +5359,10 @@ impl Hud {
 
     pub fn any_window_requires_cursor(&self) -> bool {
         self.show.any_window_requires_cursor()
+    }
+
+    pub fn is_mouse_over_ui(&self) -> bool {
+        self.ui.is_mouse_over_widget()
     }
 
     pub fn is_camera_dragging(&self) -> bool {

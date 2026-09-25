@@ -1609,6 +1609,8 @@ impl ServerEvent for RespawnEvent {
         WriteStorage<'a, comp::PhysicsState>,
         WriteStorage<'a, comp::ForceUpdate>,
         WriteStorage<'a, Heads>,
+        WriteStorage<'a, Agent>,
+        WriteStorage<'a, CharacterState>,
         ReadStorage<'a, Client>,
         ReadStorage<'a, Hardcore>,
         ReadStorage<'a, comp::Waypoint>,
@@ -1627,6 +1629,8 @@ impl ServerEvent for RespawnEvent {
             mut physic_states,
             mut force_updates,
             mut heads,
+            mut agents,
+            mut char_states,
             clients,
             hardcore,
             waypoints,
@@ -1658,24 +1662,48 @@ impl ServerEvent for RespawnEvent {
                 physic_states
                     .get_mut(entity)
                     .map(|phys_state| phys_state.reset());
+                let _ = char_states.insert(entity, CharacterState::default());
                 force_updates
                     .get_mut(entity)
                     .map(|force_update| force_update.update());
 
                 // Bring owned pets to respawn point and revive them so they don't stay locked in combat
+                let mut pet_entities = Vec::new();
                 if let Some(player_uid) = uids.get(entity) {
                     for (pet_entity, align) in (&entities, &alignments).join() {
                         if let comp::Alignment::Owned(owner) = align {
                             if *owner == *player_uid {
+                                pet_entities.push(pet_entity);
                                 positions
                                     .get_mut(pet_entity)
                                     .map(|pos| pos.0 = respawn_point + Vec3::new(1.0, 1.0, 0.0));
                                 healths.get_mut(pet_entity).map(|mut health| health.revive());
+                                let _ = char_states.insert(pet_entity, CharacterState::default());
+                                if let Some(agent) = agents.get_mut(pet_entity) {
+                                    agent.target = None;
+                                    agent.stay_pos = None;
+                                    agent.flee_from_pos = None;
+                                    agent.set_no_flee();
+                                    agent.awareness = common::comp::agent::Awareness::new(0.0);
+                                    agent.combat_state = common::comp::agent::ActionState::default();
+                                    agent.chaser = common::path::Chaser::default();
+                                }
                                 force_updates
                                     .get_mut(pet_entity)
                                     .map(|force_update| force_update.update());
                             }
                         }
+                    }
+                }
+
+                // Clear mob aggro towards player and pet so combat drops cleanly on death/respawn
+                for (_, mob_agent) in (&entities, &mut agents).join() {
+                    if mob_agent.target.is_some_and(|t| t.target == entity || pet_entities.contains(&t.target)) {
+                        mob_agent.target = None;
+                        mob_agent.flee_from_pos = None;
+                        mob_agent.awareness = common::comp::agent::Awareness::new(0.0);
+                        mob_agent.combat_state = common::comp::agent::ActionState::default();
+                        mob_agent.chaser = common::path::Chaser::default();
                     }
                 }
             }

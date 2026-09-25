@@ -869,7 +869,7 @@ impl PlayState for SessionState {
                         use crate::window::{MouseButton, PressState};
                         match (button, state) {
                             (MouseButton::Left, PressState::Pressed) => {
-                                if !self.hud.any_window_requires_cursor() {
+                                if !self.hud.any_window_requires_cursor() && !self.hud.is_mouse_over_ui() {
                                     self.mouse_left_down = true;
                                     self.mouse_drag_distance = 0.0;
                                 }
@@ -881,7 +881,7 @@ impl PlayState for SessionState {
                                 if !self.mouse_right_down && was_dragging {
                                     self.hud.set_camera_dragging(false, global_state);
                                 }
-                                let is_click = was_down && self.mouse_drag_distance < 25.0;
+                                let is_click = was_down && self.mouse_drag_distance < 25.0 && !self.hud.is_mouse_over_ui();
                                 if is_click {
                                     let now = std::time::Instant::now();
                                     let cursor_pos = global_state.window.cursor_position();
@@ -917,7 +917,7 @@ impl PlayState for SessionState {
                                 }
                             },
                             (MouseButton::Right, PressState::Pressed) => {
-                                if !self.hud.any_window_requires_cursor() {
+                                if !self.hud.any_window_requires_cursor() && !self.hud.is_mouse_over_ui() {
                                     self.mouse_right_down = true;
                                     self.mouse_drag_distance = 0.0;
                                 }
@@ -929,7 +929,7 @@ impl PlayState for SessionState {
                                 if !self.mouse_left_down && was_dragging {
                                     self.hud.set_camera_dragging(false, global_state);
                                 }
-                                let is_click = was_down && self.mouse_drag_distance < 25.0;
+                                let is_click = was_down && self.mouse_drag_distance < 25.0 && !self.hud.is_mouse_over_ui();
                                 if is_click {
                                     if can_build {
                                         if let Some(bt) = build_target {
@@ -2069,19 +2069,15 @@ impl PlayState for SessionState {
                                 })
                             })
                         };
-                        if let Some(pet) = pet_entity {
-                            if let comp::PetCommand::Attack(target_uid) = &mut command {
-                                if target_uid.is_none() {
-                                    *target_uid = self.target_entity.and_then(|e| {
-                                        self.client.borrow().state().read_component_copied::<common::uid::Uid>(e)
-                                    });
-                                }
+                        let target_pet = pet_entity.unwrap_or_else(|| self.client.borrow().entity());
+                        if let comp::PetCommand::Attack(target_uid) = &mut command {
+                            if target_uid.is_none() {
+                                *target_uid = self.target_entity.and_then(|e| {
+                                    self.client.borrow().state().read_component_copied::<common::uid::Uid>(e)
+                                });
                             }
-                            self.client.borrow_mut().command_pet(pet, command);
-                        } else if matches!(command, comp::PetCommand::Summon | comp::PetCommand::Heal) {
-                            let my_entity = self.client.borrow().entity();
-                            self.client.borrow_mut().command_pet(my_entity, command);
                         }
+                        self.client.borrow_mut().command_pet(target_pet, command);
                     },
                     HudEvent::UnlockSkill(skill) => {
                         self.client.borrow_mut().unlock_skill(skill);
@@ -2382,12 +2378,25 @@ impl PlayState for SessionState {
                                 }
                             }
                         }
-                        self.client.borrow_mut().handle_input(
-                            InputKind::Primary,
-                            state,
-                            select_pos,
-                            target,
-                        );
+                        if state {
+                            self.auto_charge_kind = Some(InputKind::Primary);
+                            self.auto_charge_start = Some(std::time::Instant::now());
+                            self.client.borrow_mut().handle_input(
+                                InputKind::Primary,
+                                true,
+                                select_pos,
+                                target,
+                            );
+                        } else {
+                            if self.auto_charge_kind != Some(InputKind::Primary) {
+                                self.client.borrow_mut().handle_input(
+                                    InputKind::Primary,
+                                    false,
+                                    select_pos,
+                                    target,
+                                );
+                            }
+                        }
                     },
                     HudEvent::Secondary { state } => {
                         self.walking_speed = false;

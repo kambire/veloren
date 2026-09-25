@@ -110,5 +110,87 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 5. CHANGELOG INTERACTIVE FILTERS & SEARCH
+  const filterBtns = document.querySelectorAll('.changelog-filter-btn');
+  const changelogCards = document.querySelectorAll('.changelog-card');
+  const searchInput = document.getElementById('changelogSearchInput');
+  const btnCopyLog = document.getElementById('btnCopyLog');
+  const rawPre = document.getElementById('changelogRawPre');
+
+  let currentFilter = 'all';
+
+  const applyChangelogFilters = () => {
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+    changelogCards.forEach(card => {
+      const cardVersion = card.getAttribute('data-version') || '';
+      const cardText = card.textContent.toLowerCase();
+
+      // Check category/version filter
+      const matchesFilter = (currentFilter === 'all') || (cardVersion === currentFilter);
+
+      // Check search keyword
+      const matchesSearch = query === '' || cardText.includes(query);
+
+      if (matchesFilter && matchesSearch) {
+        card.style.display = 'block';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  };
+
+  if (filterBtns.length > 0) {
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.getAttribute('data-filter') || 'all';
+        applyChangelogFilters();
+      });
+    });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      applyChangelogFilters();
+    });
+  }
+
+  // Copy raw changelog text
+  if (btnCopyLog && rawPre) {
+    btnCopyLog.addEventListener('click', async () => {
+      try {
+        const text = rawPre.textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          // Fallback
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+        
+        const originalHtml = btnCopyLog.innerHTML;
+        btnCopyLog.innerHTML = '✓ ¡Copiado!';
+        btnCopyLog.style.background = 'rgba(46, 204, 113, 0.25)';
+        btnCopyLog.style.borderColor = '#2ecc71';
+        btnCopyLog.style.color = '#2ecc71';
+
+        setTimeout(() => {
+          btnCopyLog.innerHTML = originalHtml;
+          btnCopyLog.style.background = '';
+          btnCopyLog.style.borderColor = '';
+          btnCopyLog.style.color = '';
+        }, 2200);
+      } catch (err) {
+        console.error('Error al copiar al portapapeles:', err);
+      }
+    });
+  }
+
   console.log('World of Azeria Portal initialized successfully.');
 });

@@ -481,6 +481,9 @@ pub enum Event {
     OpenDiary(SkillGroupKind),
     OpenBag,
     CommandPet(comp::PetCommand),
+    UseHotbarSlot(hotbar::Slot),
+    UsePrimaryAbility,
+    UseSecondaryAbility,
 }
 
 #[derive(WidgetCommon)]
@@ -1437,7 +1440,13 @@ impl<'a> Skillbar<'a> {
         }
     }
 
-    fn show_slotbar(&mut self, state: &State, ui: &mut UiCell, slot_offset: f64) {
+    fn show_slotbar(
+        &mut self,
+        state: &State,
+        ui: &mut UiCell,
+        slot_offset: f64,
+        events: &mut Vec<Event>,
+    ) {
         let shortcuts = self.global_state.settings.interface.shortcut_numbers;
 
         // TODO: avoid this
@@ -1618,6 +1627,10 @@ impl<'a> Skillbar<'a> {
                 slot.set(entry.widget_id, ui);
             }
 
+            if ui.widget_input(entry.widget_id).clicks().left().next().is_some() {
+                events.push(Event::UseHotbarSlot(entry.slot));
+            }
+
             // selection box around current hotbar index
             match self.global_state.window.last_input() {
                 LastInput::Controller => {
@@ -1739,9 +1752,10 @@ impl<'a> Skillbar<'a> {
         let (primary_ability_title, primary_ability_desc) =
             util::ability_description(primary_ability_id.unwrap_or(""), self.localized_strings);
 
-        Button::image(
+        let m1_clicked = Button::image(
             primary_ability_id.map_or(self.imgs.nothing, |id| util::ability_image(self.imgs, id)),
         )
+        .hover_image(self.imgs.skillbar_index)
         .w_h(36.0, 36.0)
         .middle_of(primary_bg)
         .with_tooltip(
@@ -1751,7 +1765,13 @@ impl<'a> Skillbar<'a> {
             &tooltip,
             TEXT_COLOR,
         )
-        .set(primary_id, ui);
+        .set(primary_id, ui)
+        .was_clicked()
+        || ui.widget_input(primary_id).clicks().left().next().is_some();
+        if m1_clicked {
+            events.push(Event::UsePrimaryAbility);
+        }
+
         // Slot M2
         Image::new(self.imgs.skillbar_slot)
             .w_h(40.0, 40.0)
@@ -1772,9 +1792,10 @@ impl<'a> Skillbar<'a> {
         let (secondary_ability_title, secondary_ability_desc) =
             util::ability_description(secondary_ability_id.unwrap_or(""), self.localized_strings);
 
-        Button::image(
+        let m2_clicked = Button::image(
             secondary_ability_id.map_or(self.imgs.nothing, |id| util::ability_image(self.imgs, id)),
         )
+        .hover_image(self.imgs.skillbar_index)
         .w_h(36.0, 36.0)
         .middle_of(secondary_bg)
         .image_color(
@@ -1813,7 +1834,12 @@ impl<'a> Skillbar<'a> {
             &tooltip,
             TEXT_COLOR,
         )
-        .set(secondary_id, ui);
+        .set(secondary_id, ui)
+        .was_clicked()
+        || ui.widget_input(secondary_id).clicks().left().next().is_some();
+        if m2_clicked {
+            events.push(Event::UseSecondaryAbility);
+        }
 
         // M1 and M2 icons
         match self.global_state.window.last_input() {
@@ -1933,34 +1959,12 @@ impl<'a> Skillbar<'a> {
         let icon_size = 18.0;
         let border_size = 30.0;
 
-        // Header Label: [ CONTROL DE MASCOTA ]
-        let header_txt = if has_pet { "[ CONTROL DE MASCOTA ]" } else { "[ MASCOTA (INACTIVA) ]" };
-        let header_col = if has_pet {
-            Color::Rgba(1.0, 0.85, 0.35, 1.0)
-        } else {
-            Color::Rgba(0.65, 0.65, 0.65, 0.75)
-        };
-        Text::new(header_txt)
-            .up_from(state.ids.pet_btn_summon, 6.0)
-            .font_size(self.fonts.cyri.scale(8))
-            .font_id(self.fonts.cyri.conrod_id)
-            .graphics_for(state.ids.slot11)
-            .color(BLACK)
-            .set(state.ids.pet_info_name_bg, ui);
-        Text::new(header_txt)
-            .bottom_left_with_margins_on(state.ids.pet_info_name_bg, 1.0, 1.0)
-            .font_size(self.fonts.cyri.scale(8))
-            .font_id(self.fonts.cyri.conrod_id)
-            .graphics_for(state.ids.slot11)
-            .color(header_col)
-            .set(state.ids.pet_info_name, ui);
-
         // 0. Summon / Call Pet Button (Ctrl+0)
         let (summon_title, summon_desc) = (
             "Invocar Mascota (Ctrl+0)",
             "Llama a tu mascota a tu lado, curándola y reviviéndola si ha caído.",
         );
-        if Button::image(self.imgs.skillbar_slot)
+        let clicked_summon = Button::image(self.imgs.skillbar_slot)
             .hover_image(self.imgs.skillbar_index)
             .press_image(self.imgs.skillbar_slot)
             .w_h(btn_size, btn_size)
@@ -1968,7 +1972,8 @@ impl<'a> Skillbar<'a> {
             .with_tooltip(self.tooltip_manager, summon_title, summon_desc, &tooltip, TEXT_COLOR)
             .set(state.ids.pet_btn_summon, ui)
             .was_clicked()
-        {
+            || ui.widget_input(state.ids.pet_btn_summon).clicks().left().next().is_some();
+        if clicked_summon {
             events.push(Event::CommandPet(comp::PetCommand::Summon));
         }
         Image::new(self.imgs.tamer_class)
@@ -1992,6 +1997,28 @@ impl<'a> Skillbar<'a> {
             .color(QUALITY_LEGENDARY)
             .set(state.ids.pet_btn_summon_sc, ui);
 
+        // Header Label: [ CONTROL DE MASCOTA ]
+        let header_txt = if has_pet { "[ CONTROL DE MASCOTA ]" } else { "[ MASCOTA (INACTIVA) ]" };
+        let header_col = if has_pet {
+            Color::Rgba(1.0, 0.85, 0.35, 1.0)
+        } else {
+            Color::Rgba(0.65, 0.65, 0.65, 0.75)
+        };
+        Text::new(header_txt)
+            .up_from(state.ids.pet_btn_summon, 4.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_summon)
+            .color(BLACK)
+            .set(state.ids.pet_info_name_bg, ui);
+        Text::new(header_txt)
+            .bottom_left_with_margins_on(state.ids.pet_info_name_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(8))
+            .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_summon)
+            .color(header_col)
+            .set(state.ids.pet_info_name, ui);
+
         // 1. Attack Button (Ctrl+1)
         let (atk_title, atk_desc) = (
             "Atacar (Ctrl+1)",
@@ -2001,7 +2028,7 @@ impl<'a> Skillbar<'a> {
                 "Sin mascota activa. Invoca o domestica una criatura para usar los controles."
             },
         );
-        if Button::image(self.imgs.skillbar_slot)
+        let clicked_attack = Button::image(self.imgs.skillbar_slot)
             .hover_image(self.imgs.skillbar_index)
             .press_image(self.imgs.skillbar_slot)
             .w_h(btn_size, btn_size)
@@ -2009,7 +2036,8 @@ impl<'a> Skillbar<'a> {
             .with_tooltip(self.tooltip_manager, atk_title, atk_desc, &tooltip, TEXT_COLOR)
             .set(state.ids.pet_btn_attack, ui)
             .was_clicked()
-        {
+            || ui.widget_input(state.ids.pet_btn_attack).clicks().left().next().is_some();
+        if clicked_attack {
             let target_uid = self.info.target_entity.and_then(|e| {
                 self.client.state().read_component_copied::<common::uid::Uid>(e)
             });
@@ -2049,7 +2077,7 @@ impl<'a> Skillbar<'a> {
                 "Sin mascota activa. Invoca o domestica una criatura para usar los controles."
             },
         );
-        if Button::image(self.imgs.skillbar_slot)
+        let clicked_follow = Button::image(self.imgs.skillbar_slot)
             .hover_image(self.imgs.skillbar_index)
             .press_image(self.imgs.skillbar_slot)
             .w_h(btn_size, btn_size)
@@ -2057,7 +2085,8 @@ impl<'a> Skillbar<'a> {
             .with_tooltip(self.tooltip_manager, follow_title, follow_desc, &tooltip, TEXT_COLOR)
             .set(state.ids.pet_btn_follow, ui)
             .was_clicked()
-        {
+            || ui.widget_input(state.ids.pet_btn_follow).clicks().left().next().is_some();
+        if clicked_follow {
             events.push(Event::CommandPet(comp::PetCommand::Follow));
         }
         Image::new(self.imgs.utility_speed_skill)
@@ -2094,7 +2123,7 @@ impl<'a> Skillbar<'a> {
                 "Sin mascota activa. Invoca o domestica una criatura para usar los controles."
             },
         );
-        if Button::image(self.imgs.skillbar_slot)
+        let clicked_stay = Button::image(self.imgs.skillbar_slot)
             .hover_image(self.imgs.skillbar_index)
             .press_image(self.imgs.skillbar_slot)
             .w_h(btn_size, btn_size)
@@ -2102,7 +2131,8 @@ impl<'a> Skillbar<'a> {
             .with_tooltip(self.tooltip_manager, stay_title, stay_desc, &tooltip, TEXT_COLOR)
             .set(state.ids.pet_btn_stay, ui)
             .was_clicked()
-        {
+            || ui.widget_input(state.ids.pet_btn_stay).clicks().left().next().is_some();
+        if clicked_stay {
             events.push(Event::CommandPet(comp::PetCommand::Stay));
         }
         if has_pet && is_staying {
@@ -2148,7 +2178,7 @@ impl<'a> Skillbar<'a> {
                 "Sin mascota activa. Invoca o domestica una criatura para usar los controles."
             },
         );
-        if Button::image(self.imgs.skillbar_slot)
+        let clicked_heal = Button::image(self.imgs.skillbar_slot)
             .hover_image(self.imgs.skillbar_index)
             .press_image(self.imgs.skillbar_slot)
             .w_h(btn_size, btn_size)
@@ -2156,7 +2186,8 @@ impl<'a> Skillbar<'a> {
             .with_tooltip(self.tooltip_manager, heal_title, heal_desc, &tooltip, TEXT_COLOR)
             .set(state.ids.pet_btn_heal, ui)
             .was_clicked()
-        {
+            || ui.widget_input(state.ids.pet_btn_heal).clicks().left().next().is_some();
+        if clicked_heal {
             events.push(Event::CommandPet(comp::PetCommand::Heal));
         }
         Image::new(self.imgs.health_ico)
@@ -2193,7 +2224,7 @@ impl<'a> Skillbar<'a> {
                 "Sin mascota activa. Invoca o domestica una criatura para usar los controles."
             },
         );
-        if Button::image(self.imgs.skillbar_slot)
+        let clicked_aggro = Button::image(self.imgs.skillbar_slot)
             .hover_image(self.imgs.skillbar_index)
             .press_image(self.imgs.skillbar_slot)
             .w_h(btn_size, btn_size)
@@ -2201,7 +2232,8 @@ impl<'a> Skillbar<'a> {
             .with_tooltip(self.tooltip_manager, aggro_title, aggro_desc, &tooltip, TEXT_COLOR)
             .set(state.ids.pet_btn_aggro, ui)
             .was_clicked()
-        {
+            || ui.widget_input(state.ids.pet_btn_aggro).clicks().left().next().is_some();
+        if clicked_aggro {
             events.push(Event::CommandPet(comp::PetCommand::SetMode(comp::PetMode::Aggressive)));
         }
         if has_pet && pet_mode == comp::PetMode::Aggressive {
@@ -2247,7 +2279,7 @@ impl<'a> Skillbar<'a> {
                 "Sin mascota activa. Invoca o domestica una criatura para usar los controles."
             },
         );
-        if Button::image(self.imgs.skillbar_slot)
+        let clicked_def = Button::image(self.imgs.skillbar_slot)
             .hover_image(self.imgs.skillbar_index)
             .press_image(self.imgs.skillbar_slot)
             .w_h(btn_size, btn_size)
@@ -2255,7 +2287,8 @@ impl<'a> Skillbar<'a> {
             .with_tooltip(self.tooltip_manager, def_title, def_desc, &tooltip, TEXT_COLOR)
             .set(state.ids.pet_btn_def, ui)
             .was_clicked()
-        {
+            || ui.widget_input(state.ids.pet_btn_def).clicks().left().next().is_some();
+        if clicked_def {
             events.push(Event::CommandPet(comp::PetCommand::SetMode(comp::PetMode::Defensive)));
         }
         if has_pet && pet_mode == comp::PetMode::Defensive {
@@ -2301,7 +2334,7 @@ impl<'a> Skillbar<'a> {
                 "Sin mascota activa. Invoca o domestica una criatura para usar los controles."
             },
         );
-        if Button::image(self.imgs.skillbar_slot)
+        let clicked_passive = Button::image(self.imgs.skillbar_slot)
             .hover_image(self.imgs.skillbar_index)
             .press_image(self.imgs.skillbar_slot)
             .w_h(btn_size, btn_size)
@@ -2309,7 +2342,8 @@ impl<'a> Skillbar<'a> {
             .with_tooltip(self.tooltip_manager, passive_title, passive_desc, &tooltip, TEXT_COLOR)
             .set(state.ids.pet_btn_passive, ui)
             .was_clicked()
-        {
+            || ui.widget_input(state.ids.pet_btn_passive).clicks().left().next().is_some();
+        if clicked_passive {
             events.push(Event::CommandPet(comp::PetCommand::SetMode(comp::PetMode::Passive)));
         }
         if has_pet && pet_mode == comp::PetMode::Passive {
@@ -2398,7 +2432,7 @@ impl Widget for Skillbar<'_> {
 
         // Alignment and BG
         let alignment_size = 40.0 * 12.0 + slot_offset * 11.0;
-        Rectangle::fill_with([alignment_size, 128.0], color::TRANSPARENT)
+        Rectangle::fill_with([alignment_size, 160.0], color::TRANSPARENT)
             .mid_bottom_with_margin_on(ui.window, 10.0)
             .set(state.ids.frame, ui);
 
@@ -2409,7 +2443,7 @@ impl Widget for Skillbar<'_> {
         self.show_stat_bars(state, ui, &mut events);
 
         // Slots
-        self.show_slotbar(state, ui, slot_offset);
+        self.show_slotbar(state, ui, slot_offset, &mut events);
 
         // WoW Pet Action Bar (Encima de las habilidades)
         self.show_pet_bar(state, ui, &mut events);
