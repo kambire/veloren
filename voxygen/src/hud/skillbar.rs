@@ -1929,9 +1929,9 @@ impl<'a> Skillbar<'a> {
         .font_id(self.fonts.cyri.conrod_id)
         .desc_text_color(TEXT_COLOR);
 
-        let btn_size = 26.0;
-        let icon_size = 16.0;
-        let border_size = 28.0;
+        let btn_size = 28.0;
+        let icon_size = 18.0;
+        let border_size = 30.0;
 
         // Header Label: [ CONTROL DE MASCOTA ]
         let header_txt = if has_pet { "[ CONTROL DE MASCOTA ]" } else { "[ MASCOTA (INACTIVA) ]" };
@@ -1941,15 +1941,17 @@ impl<'a> Skillbar<'a> {
             Color::Rgba(0.65, 0.65, 0.65, 0.75)
         };
         Text::new(header_txt)
-            .up_from(state.ids.slot11, 35.0)
+            .up_from(state.ids.pet_btn_summon, 6.0)
             .font_size(self.fonts.cyri.scale(8))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.slot11)
             .color(BLACK)
             .set(state.ids.pet_info_name_bg, ui);
         Text::new(header_txt)
             .bottom_left_with_margins_on(state.ids.pet_info_name_bg, 1.0, 1.0)
             .font_size(self.fonts.cyri.scale(8))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.slot11)
             .color(header_col)
             .set(state.ids.pet_info_name, ui);
 
@@ -1979,12 +1981,14 @@ impl<'a> Skillbar<'a> {
             .top_left_with_margins_on(state.ids.pet_btn_summon, 1.0, 2.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_summon)
             .color(BLACK)
             .set(state.ids.pet_btn_summon_sc_bg, ui);
         Text::new("^0")
             .bottom_left_with_margins_on(state.ids.pet_btn_summon_sc_bg, 1.0, 1.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_summon)
             .color(QUALITY_LEGENDARY)
             .set(state.ids.pet_btn_summon_sc, ui);
 
@@ -2025,12 +2029,14 @@ impl<'a> Skillbar<'a> {
             .top_left_with_margins_on(state.ids.pet_btn_attack, 1.0, 2.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_attack)
             .color(BLACK)
             .set(state.ids.pet_btn_attack_sc_bg, ui);
         Text::new("^1")
             .bottom_left_with_margins_on(state.ids.pet_btn_attack_sc_bg, 1.0, 1.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_attack)
             .color(QUALITY_LEGENDARY)
             .set(state.ids.pet_btn_attack_sc, ui);
 
@@ -2068,12 +2074,14 @@ impl<'a> Skillbar<'a> {
             .top_left_with_margins_on(state.ids.pet_btn_follow, 1.0, 2.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_follow)
             .color(BLACK)
             .set(state.ids.pet_btn_follow_sc_bg, ui);
         Text::new("^2")
             .bottom_left_with_margins_on(state.ids.pet_btn_follow_sc_bg, 1.0, 1.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_follow)
             .color(QUALITY_LEGENDARY)
             .set(state.ids.pet_btn_follow_sc, ui);
 
@@ -2120,12 +2128,14 @@ impl<'a> Skillbar<'a> {
             .top_left_with_margins_on(state.ids.pet_btn_stay, 1.0, 2.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_stay)
             .color(BLACK)
             .set(state.ids.pet_btn_stay_sc_bg, ui);
         Text::new("^3")
             .bottom_left_with_margins_on(state.ids.pet_btn_stay_sc_bg, 1.0, 1.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_stay)
             .color(QUALITY_LEGENDARY)
             .set(state.ids.pet_btn_stay_sc, ui);
 
@@ -2163,12 +2173,14 @@ impl<'a> Skillbar<'a> {
             .top_left_with_margins_on(state.ids.pet_btn_heal, 1.0, 2.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_heal)
             .color(BLACK)
             .set(state.ids.pet_btn_heal_sc_bg, ui);
         Text::new("^7")
             .bottom_left_with_margins_on(state.ids.pet_btn_heal_sc_bg, 1.0, 1.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_heal)
             .color(QUALITY_LEGENDARY)
             .set(state.ids.pet_btn_heal_sc, ui);
 
@@ -2215,12 +2227,14 @@ impl<'a> Skillbar<'a> {
             .top_left_with_margins_on(state.ids.pet_btn_aggro, 1.0, 2.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_aggro)
             .color(BLACK)
             .set(state.ids.pet_btn_aggro_sc_bg, ui);
         Text::new("^4")
             .bottom_left_with_margins_on(state.ids.pet_btn_aggro_sc_bg, 1.0, 1.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_aggro)
             .color(QUALITY_LEGENDARY)
             .set(state.ids.pet_btn_aggro_sc, ui);
 
@@ -2267,12 +2281,14 @@ impl<'a> Skillbar<'a> {
             .top_left_with_margins_on(state.ids.pet_btn_def, 1.0, 2.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_def)
             .color(BLACK)
             .set(state.ids.pet_btn_def_sc_bg, ui);
         Text::new("^5")
             .bottom_left_with_margins_on(state.ids.pet_btn_def_sc_bg, 1.0, 1.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_def)
             .color(QUALITY_LEGENDARY)
             .set(state.ids.pet_btn_def_sc, ui);
 
@@ -2319,12 +2335,14 @@ impl<'a> Skillbar<'a> {
             .top_left_with_margins_on(state.ids.pet_btn_passive, 1.0, 2.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_passive)
             .color(BLACK)
             .set(state.ids.pet_btn_passive_sc_bg, ui);
         Text::new("^6")
             .bottom_left_with_margins_on(state.ids.pet_btn_passive_sc_bg, 1.0, 1.0)
             .font_size(self.fonts.cyri.scale(7))
             .font_id(self.fonts.cyri.conrod_id)
+            .graphics_for(state.ids.pet_btn_passive)
             .color(QUALITY_LEGENDARY)
             .set(state.ids.pet_btn_passive_sc, ui);
     }
