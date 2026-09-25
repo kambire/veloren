@@ -2248,6 +2248,10 @@ impl AgentData<'_> {
     }
 
     pub fn below_flee_health(&self, agent: &Agent) -> bool {
+        // Pets never flee from combat due to low health
+        if matches!(self.alignment, Some(Alignment::Owned(_))) {
+            return false;
+        }
         self.damage.min(1.0) < agent.psyche.flee_health
     }
 

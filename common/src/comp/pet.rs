@@ -20,6 +20,7 @@ pub enum PetCommand {
     Follow,
     Stay,
     SetMode(PetMode),
+    Summon,
 }
 
 pub type PetId = AtomicCell<Option<NonZeroU64>>;

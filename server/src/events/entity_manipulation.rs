@@ -1301,6 +1301,21 @@ impl ServerEvent for DestroyEvent {
                 }
 
                 false
+            } else if matches!(data.alignments.get(ev.entity), Some(Alignment::Owned(_))) {
+                if let Some(vel) = data.velocities.get_mut(ev.entity) {
+                    vel.0 = Vec3::zero();
+                }
+                if let Some(force_update) = data.force_updates.get_mut(ev.entity) {
+                    force_update.update();
+                }
+                if let Some(mut energy) = data.energies.get_mut(ev.entity) {
+                    energy.refresh();
+                }
+                if let Some(mut character_state) = data.character_states.get_mut(ev.entity) {
+                    *character_state = CharacterState::default();
+                }
+
+                false
             } else {
                 if let Some((_agent, pos, alignment, vel)) = (
                     &data.agents,

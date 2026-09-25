@@ -5060,6 +5060,7 @@ impl Hud {
                 let is_ctrl = global_state.window.modifiers().control_key();
                 if is_ctrl && state {
                     let pet_command = match key {
+                        GameInput::CycleCamera | GameInput::Slot10 => Some(comp::PetCommand::Summon),
                         GameInput::Slot1 => Some(comp::PetCommand::Attack(None)),
                         GameInput::Slot2 => Some(comp::PetCommand::Follow),
                         GameInput::Slot3 => Some(comp::PetCommand::Stay),
@@ -5273,6 +5274,7 @@ impl Hud {
                         let is_ctrl = global_state.window.modifiers().control_key();
                         if is_ctrl && state {
                             let pet_command = match input {
+                                GameInput::CycleCamera | GameInput::Slot10 => Some(comp::PetCommand::Summon),
                                 GameInput::Slot1 => Some(comp::PetCommand::Attack(None)),
                                 GameInput::Slot2 => Some(comp::PetCommand::Follow),
                                 GameInput::Slot3 => Some(comp::PetCommand::Stay),

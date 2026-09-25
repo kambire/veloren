@@ -283,12 +283,16 @@ impl ServerEvent for CommandPetEvent {
     type SystemData<'a> = (
         WriteStorage<'a, comp::Agent>,
         WriteStorage<'a, comp::CharacterActivity>,
-        ReadStorage<'a, comp::Pos>,
+        WriteStorage<'a, comp::Pos>,
+        WriteStorage<'a, comp::Vel>,
+        WriteStorage<'a, comp::Health>,
+        WriteStorage<'a, comp::ForceUpdate>,
         ReadStorage<'a, comp::Alignment>,
         ReadStorage<'a, Is<Mount>>,
         ReadStorage<'a, Uid>,
         Read<'a, IdMaps>,
         ReadExpect<'a, Time>,
+        ReadExpect<'a, TerrainGrid>,
         Entities<'a>,
     );
 
@@ -297,28 +301,89 @@ impl ServerEvent for CommandPetEvent {
         (
             mut agents,
             mut character_activities,
-            positions,
+            mut positions,
+            mut velocities,
+            mut healths,
+            mut force_updates,
             alignments,
             is_mounts,
             uids,
             id_maps,
             time,
+            terrain,
             entities,
         ): Self::SystemData<'_>,
     ) {
         for CommandPetEvent(command_giver, pet, command) in events {
-            let is_owner = uids.get(command_giver).is_some_and(|owner_uid| {
-                matches!(
-                    alignments.get(pet),
-                    Some(comp::Alignment::Owned(pet_owner)) if *pet_owner == *owner_uid,
-                )
-            });
+            let owner_uid = match uids.get(command_giver) {
+                Some(uid) => *uid,
+                None => continue,
+            };
 
-            if !is_owner || is_mounts.get(pet).is_some() {
+            let pet_entity = if matches!(command, comp::PetCommand::Summon) {
+                if alignments.get(pet).is_some_and(|a| matches!(a, comp::Alignment::Owned(owner) if *owner == owner_uid)) {
+                    Some(pet)
+                } else {
+                    (&entities, &alignments).join().find_map(|(e, a)| {
+                        if matches!(a, comp::Alignment::Owned(owner) if *owner == owner_uid) {
+                            Some(e)
+                        } else {
+                            None
+                        }
+                    })
+                }
+            } else {
+                let is_owner = matches!(
+                    alignments.get(pet),
+                    Some(comp::Alignment::Owned(pet_owner)) if *pet_owner == owner_uid,
+                );
+                if is_owner {
+                    Some(pet)
+                } else {
+                    None
+                }
+            };
+
+            let Some(pet) = pet_entity else {
+                continue;
+            };
+
+            if is_mounts.get(pet).is_some() {
                 continue;
             }
 
             match command {
+                comp::PetCommand::Summon => {
+                    if let Some(owner_pos) = positions.get(command_giver).map(|p| p.0) {
+                        let target_pos = terrain
+                            .find_ground(owner_pos.map(|e| e.floor() as i32))
+                            .map(|e| e as f32);
+
+                        if let Some(pos) = positions.get_mut(pet) {
+                            pos.0 = target_pos;
+                        }
+                        if let Some(vel) = velocities.get_mut(pet) {
+                            vel.0 = Vec3::zero();
+                        }
+                        if let Some(mut health) = healths.get_mut(pet) {
+                            health.revive();
+                        }
+                        if let Some(force_update) = force_updates.get_mut(pet) {
+                            force_update.update();
+                        } else {
+                            let _ = force_updates.insert(pet, comp::ForceUpdate::forced());
+                        }
+                        if let Some(agent) = agents.get_mut(pet) {
+                            agent.stay_pos = None;
+                            agent.target = None;
+                            agent.flee_from_pos = None;
+                            agent.set_no_flee();
+                        }
+                        if let Some(mut activity) = character_activities.get_mut(pet) {
+                            activity.is_pet_staying = false;
+                        }
+                    }
+                },
                 comp::PetCommand::Attack(target_uid) => {
                     let target_entity = target_uid
                         .and_then(|uid| id_maps.uid_entity(uid))

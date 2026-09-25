@@ -204,6 +204,12 @@ widget_ids! {
         pet_info_name_bg,
         pet_info_name,
 
+        pet_btn_summon,
+        pet_btn_summon_icon,
+        pet_btn_summon_border,
+        pet_btn_summon_sc_bg,
+        pet_btn_summon_sc,
+
         pet_btn_attack,
         pet_btn_attack_icon,
         pet_btn_attack_border,
@@ -1941,6 +1947,41 @@ impl<'a> Skillbar<'a> {
             .color(header_col)
             .set(state.ids.pet_info_name, ui);
 
+        // 0. Summon / Call Pet Button (Ctrl+0)
+        let (summon_title, summon_desc) = (
+            "Invocar Mascota (Ctrl+0)",
+            "Llama a tu mascota a tu lado, curándola y reviviéndola si ha caído.",
+        );
+        if Button::image(self.imgs.skillbar_slot)
+            .hover_image(self.imgs.skillbar_index)
+            .press_image(self.imgs.skillbar_slot)
+            .w_h(btn_size, btn_size)
+            .up_from(state.ids.slot11, 5.0)
+            .with_tooltip(self.tooltip_manager, summon_title, summon_desc, &tooltip, TEXT_COLOR)
+            .set(state.ids.pet_btn_summon, ui)
+            .was_clicked()
+        {
+            events.push(Event::CommandPet(comp::PetCommand::Summon));
+        }
+        Image::new(self.imgs.tamer_class)
+            .w_h(icon_size, icon_size)
+            .color(Some(Color::Rgba(0.35, 1.0, 0.45, 1.0)))
+            .middle_of(state.ids.pet_btn_summon)
+            .graphics_for(state.ids.pet_btn_summon)
+            .set(state.ids.pet_btn_summon_icon, ui);
+        Text::new("^0")
+            .top_left_with_margins_on(state.ids.pet_btn_summon, 1.0, 2.0)
+            .font_size(self.fonts.cyri.scale(7))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(BLACK)
+            .set(state.ids.pet_btn_summon_sc_bg, ui);
+        Text::new("^0")
+            .bottom_left_with_margins_on(state.ids.pet_btn_summon_sc_bg, 1.0, 1.0)
+            .font_size(self.fonts.cyri.scale(7))
+            .font_id(self.fonts.cyri.conrod_id)
+            .color(QUALITY_LEGENDARY)
+            .set(state.ids.pet_btn_summon_sc, ui);
+
         // 1. Attack Button (Ctrl+1)
         let (atk_title, atk_desc) = (
             "Atacar (Ctrl+1)",
@@ -1954,7 +1995,7 @@ impl<'a> Skillbar<'a> {
             .hover_image(self.imgs.skillbar_index)
             .press_image(self.imgs.skillbar_slot)
             .w_h(btn_size, btn_size)
-            .up_from(state.ids.slot11, 5.0)
+            .right_from(state.ids.pet_btn_summon, 3.0)
             .with_tooltip(self.tooltip_manager, atk_title, atk_desc, &tooltip, TEXT_COLOR)
             .set(state.ids.pet_btn_attack, ui)
             .was_clicked()

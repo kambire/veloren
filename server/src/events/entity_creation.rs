@@ -163,6 +163,7 @@ pub fn handle_create_npc(server: &mut Server, ev: CreateNpcEvent) -> EcsEntity {
     {
         agent.behavior.allow(BehaviorCapability::TRADE);
         agent.behavior.trading_behavior = TradingBehavior::AcceptFood;
+        agent.set_no_flee();
     }
 
     let entity = entity.with(alignment);
