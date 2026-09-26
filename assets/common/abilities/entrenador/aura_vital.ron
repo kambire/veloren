@@ -1,6 +1,6 @@
 // Curación en área de alta potencia para el Entrenador, su mascota y su grupo.
-// Cura fuertemente tanto a la mascota como al propio entrenador para mantenerlos
-// con vida en combate intenso (~360 puntos de salud en 8 s, ~45 HP/s).
+// Restaura un 20% de salud máxima de forma instantánea ("de una") y luego continúa
+// curando mediante regeneración sostenida durante 8 segundos (~360 puntos adicionales, ~45 HP/s).
 BasicAura(
     buildup_duration: 0.15,
     cast_duration: 0.35,

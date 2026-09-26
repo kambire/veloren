@@ -1,14 +1,15 @@
 use std::collections::HashSet;
 
 use common::{
-    combat,
+    DamageSource,
+    combat::{self, DamageContributor},
     comp::{
-        Alignment, Aura, Auras, BuffKind, Buffs, CharacterState, Health, Mass, Player, Pos, Stats,
-        aura::{AuraChange, AuraKey, AuraKind, AuraTarget, EnteredAuras},
+        Alignment, Aura, Auras, BuffKind, Buffs, CharacterState, Health, HealthChange, Mass, Player, Pos, Stats,
+        aura::{AuraChange, AuraKey, AuraKind, AuraTarget, EnteredAuras, Specifier},
         buff::{Buff, BuffCategory, BuffChange, BuffSource, DestInfo},
         group::Group,
     },
-    event::{AuraEvent, BuffEvent, EmitExt},
+    event::{AuraEvent, BuffEvent, EmitExt, HealthChangeEvent},
     event_emitters, match_some,
     resources::Time,
     uid::{IdMaps, Uid},
@@ -20,6 +21,7 @@ event_emitters! {
     struct Events[Emitters] {
         aura: AuraEvent,
         buff: BuffEvent,
+        health_change: HealthChangeEvent,
     }
 }
 
@@ -202,7 +204,7 @@ fn activate_aura(
     target_buffs: &Buffs,
     allow_friendly_fire: bool,
     read_data: &ReadData,
-    emitters: &mut impl EmitExt<BuffEvent>,
+    emitters: &mut (impl EmitExt<BuffEvent> + EmitExt<HealthChangeEvent>),
 ) -> bool {
     let should_activate = match aura.aura_kind {
         AuraKind::Buff { kind, source, .. } => {
@@ -283,6 +285,33 @@ fn activate_aura(
                     && buff.data.strength >= data.strength
             });
             if emit_buff {
+                // Curación instantánea masiva al aplicar el aura de curación ("de una"):
+                // Restaura inmediatamente el 20% de la salud máxima del objetivo,
+                // seguido luego de la regeneración sostenida por ticks.
+                if aura.frontend_specifier == Some(Specifier::HealingAura) && !health.is_dead {
+                    let instant_amount = health.maximum() * 0.20;
+                    if instant_amount > 0.0 {
+                        let damage_contributor = match source {
+                            BuffSource::Character { by, .. } => read_data
+                                .id_maps
+                                .uid_entity(by)
+                                .map(|e| DamageContributor::new(by, read_data.groups.get(e).cloned())),
+                            _ => None,
+                        };
+                        emitters.emit(HealthChangeEvent {
+                            entity: target,
+                            change: HealthChange {
+                                amount: instant_amount,
+                                by: damage_contributor,
+                                cause: Some(DamageSource::Buff(kind)),
+                                time: *read_data.time,
+                                precise: false,
+                                instance: rand::random(),
+                            },
+                        });
+                    }
+                }
+
                 let dest_info = DestInfo {
                     stats: read_data.stats.get(target),
                     mass: read_data.masses.get(target),

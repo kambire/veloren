@@ -2,6 +2,14 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.15] - 2026-09-26
+-------------------------------------------------------------------------------
+* CURACIÓN INSTANTÁNEA DEL 20% DE VIDA MÁXIMA AL APLICAR AURA VITAL + TICKS:
+  - Sistema de Curación Híbrido Inmediato y Sostenido ("De una y luego por tick"):
+    * Al activar Aura Vital (o auras de sanación), el Entrenador, su mascota y los miembros del grupo reciben inmediatamente una curación de impacto directo del 20% de su salud máxima ("de una").
+    * Inmediatamente después del golpe inicial de curación directa del 20%, se activa la regeneración continua que va restaurando la vida tick a tick (~45 HP/s durante 8 segundos, totalizando más de 360-600+ HP adicionales).
+    * El sistema de auras (`activate_aura`) ahora detecta el impacto inicial e inyecta el `HealthChangeEvent` de forma instantánea y segura, mostrando el número verde flotante de curación de golpe y manteniendo luego los ticks fluidos.
+
 [v0.18.14] - 2026-09-26
 -------------------------------------------------------------------------------
 * POTENCIACIÓN MASIVA DE SANACIÓN DEL ENTRENADOR (AURA VITAL & TRANSFUSIÓN VITAL):
