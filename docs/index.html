@@ -58,7 +58,7 @@
           <span class="pulse-dot"></span>
           Fase Alpha Abierta
         </span>
-        <span class="badge badge-version">Parche v0.18.13</span>
+        <span class="badge badge-version">Parche v0.18.14</span>
       </div>
 
       <h1 class="hero-title">
@@ -291,14 +291,15 @@
       <div class="section-header">
         <span class="section-tag">Historial de Actualizaciones</span>
         <h2 class="section-title">Registro de Cambios Oficial</h2>
-        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.13.</p>
+        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.14.</p>
       </div>
 
       <!-- Controles de Filtro y Búsqueda -->
       <div class="changelog-controls">
         <div class="changelog-filters">
           <button class="changelog-filter-btn active" data-filter="all">Todas las Versiones</button>
-          <button class="changelog-filter-btn" data-filter="v0.18.13">v0.18.13 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.14">v0.18.14 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.13">v0.18.13</button>
           <button class="changelog-filter-btn" data-filter="v0.18.12">v0.18.12</button>
           <button class="changelog-filter-btn" data-filter="v0.18.11">v0.18.11</button>
           <button class="changelog-filter-btn" data-filter="v0.18.10">v0.18.10</button>
@@ -316,8 +317,34 @@
 
       <!-- Timeline de Tarjetas Detalladas -->
       <div class="changelog-timeline" id="changelogTimeline">
+        <!-- v0.18.14 -->
+        <article class="changelog-card latest" data-version="v0.18.14">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-alpha">v0.18.14</span>
+              <h3 class="changelog-version-title">💚 Potenciación Masiva de Sanación del Entrenador</h3>
+            </div>
+            <span class="changelog-date">26 de Septiembre, 2026</span>
+          </div>
+          
+          <h4 class="changelog-section-title">🌿 Aura Vital: Sanación Real y Poderosa (x45 de Potencia)</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Fin a los 0.5 HP por Tick:</strong> Se incrementó la fuerza base de sanación de <code>strength: 1.0</code> (que curaba 0.5 HP de forma casi imperceptible) a <strong><code>strength: 45.0</code></strong> (¡45 veces más potente!).</li>
+            <li><strong>Cifras Verdes Impactantes:</strong> Ahora regenera <strong>~45 HP por segundo</strong> durante 8 segundos (un total de <strong>360 HP de vida restaurada</strong>), permitiendo levantar con solvencia las barras de vida del entrenador y de su mascota en pleno combate.</li>
+            <li><strong>Radio Ampliado:</strong> El alcance del aura se extendió de 20m a <strong>30 metros</strong> para asegurar que las mascotas que atacan a distancia queden siempre bajo el manto sanador.</li>
+            <li><strong>Escalado con Talentos:</strong> Con los puntos en la rama de Entrenador (<code>Sanación Vital Mejorada</code>), la curación escala superando los <strong>600 HP</strong> totales.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">🩸 Transfusión Vital: Rescate Inmediato de Mascota</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Curación Instantánea del 45%:</strong> Se elevó la sanación instantánea directa a la mascota al 45% de su salud máxima (anteriormente 20%).</li>
+            <li><strong>Regeneración Continua del 35%:</strong> Se duplicó la regeneración gradual posterior al 35% de la vida máxima en 6 segundos.</li>
+            <li><strong>80% de Salud Recuperada:</strong> La habilidad restaura ahora hasta el 80% de la vida total de la mascota con un costo reducido de vida propia (10 a 25 HP).</li>
+          </ul>
+        </article>
+
         <!-- v0.18.13 -->
-        <article class="changelog-card latest" data-version="v0.18.13">
+        <article class="changelog-card" data-version="v0.18.13">
           <div class="changelog-card-header">
             <div class="changelog-version-meta">
               <span class="badge badge-alpha">v0.18.13</span>
@@ -773,7 +800,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Descargar AzeriaLauncher.exe
           </a>
-          <span class="download-meta">Versión v0.18.13 • ~2.5 MB • Windows 64-bit</span>
+          <span class="download-meta">Versión v0.18.14 • ~2.5 MB • Windows 64-bit</span>
         </div>
 
         <!-- Cliente Completo ZIP -->
@@ -824,7 +851,7 @@
         <div class="footer-brand">
           <h3>WORLD OF <span class="text-gold">AZERIA</span></h3>
           <p>Un proyecto impulsado por la comunidad para ofrecer una experiencia MMORPG profunda, inmersiva y táctica en un mundo abierto vóxel.</p>
-          <div class="badge badge-alpha">Alpha Build v0.18.13</div>
+          <div class="badge badge-alpha">Alpha Build v0.18.14</div>
         </div>
 
         <div class="footer-col">

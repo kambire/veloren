@@ -407,7 +407,7 @@ impl ServerEvent for CommandPetEvent {
                             continue;
                         }
 
-                        let sacrifice = ((owner_cur_hp * 0.20).clamp(15.0, 45.0)).min(owner_cur_hp - min_hp);
+                        let sacrifice = ((owner_cur_hp * 0.12).clamp(10.0, 25.0)).min(owner_cur_hp - min_hp);
                         if sacrifice <= 0.0 {
                             continue;
                         }
@@ -423,13 +423,10 @@ impl ServerEvent for CommandPetEvent {
                             1.0
                         };
 
-                        // Curación instantánea: ~20% (hasta ~35% con el talento máximo) de la
-                        // vida MÁXIMA de la mascota, para que siga siendo relevante sin importar
-                        // cuán grande sea su barra de vida.
-                        const INSTANT_FRACTION: f32 = 0.20;
-                        // Curación gradual (regeneración) tras el golpe inicial: otro ~15%
-                        // repartido en varios segundos.
-                        const HOT_FRACTION: f32 = 0.15;
+                        // Curación instantánea masiva: ~45% de la vida MÁXIMA de la mascota
+                        const INSTANT_FRACTION: f32 = 0.45;
+                        // Curación gradual potente (regeneración): ~35% adicional durante 6 s
+                        const HOT_FRACTION: f32 = 0.35;
                         const HOT_DURATION: f64 = 6.0;
 
                         let missing_hp = (pet_max - pet_cur).max(0.0);

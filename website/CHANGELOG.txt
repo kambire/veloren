@@ -2,6 +2,14 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.14] - 2026-09-26
+-------------------------------------------------------------------------------
+* POTENCIACIÓN MASIVA DE SANACIÓN DEL ENTRENADOR (AURA VITAL & TRANSFUSIÓN VITAL):
+  - Aura Vital (Habilidad Secundaria M2): Multiplicada la potencia curativa de strength: 1.0 (que apenas curaba 0.5 HP por tick) a strength: 45.0 (¡un aumento de 45 veces!).
+  - Ahora cura ~45 HP por segundo durante 8 segundos (360 HP de curación total base), extendiendo su radio a 30 metros para alcanzar con total comodidad a la mascota y aliados. Con talentos de la rama de Entrenador (VitalHeal), la curación sobrepasa los 600 HP.
+  - Transfusión Vital (Ctrl+7 en barra de mascota): Incrementada la curación instantánea directa a la mascota al 45% de su salud máxima (antes 20%) y la regeneración posterior al 35% adicional (antes 15%), alcanzando hasta un 80% de recuperación total de la vida de la mascota y reduciendo el costo de vida para el entrenador.
+  - Tanto el jugador como su mascota ahora experimentan curaciones inmediatas, visibles y decisivas que permiten sostener el combate frente a múltiples enemigos.
+
 [v0.18.13] - 2026-09-25
 -------------------------------------------------------------------------------
 * MODO DÍA PERPETUO Y ATARDECER DORADO (PERPETUAL DAYLIGHT & GOLDEN SUNSET - NO NIGHT):

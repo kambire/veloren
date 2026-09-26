@@ -1,20 +1,20 @@
-// Curación leve en área para todo el grupo. Las mascotas pertenecen al grupo de
-// su dueño, así que también las cura. No exige combo. Cura unos 6 puntos de
-// vida en 6 s (menos de la mitad que la Sanación del Sacerdote).
+// Curación en área de alta potencia para el Entrenador, su mascota y su grupo.
+// Cura fuertemente tanto a la mascota como al propio entrenador para mantenerlos
+// con vida en combate intenso (~360 puntos de salud en 8 s, ~45 HP/s).
 BasicAura(
-    buildup_duration: 0.2,
-    cast_duration: 0.4,
-    recover_duration: 0.2,
+    buildup_duration: 0.15,
+    cast_duration: 0.35,
+    recover_duration: 0.15,
     targets: InGroup,
     auras: [
         (
             kind: Regeneration,
-            strength: 1.0,
-            duration: Some(6),
+            strength: 45.0,
+            duration: Some(8),
         ),
     ],
-    aura_duration: Some(1.0),
-    range: 20.0,
+    aura_duration: Some(1.5),
+    range: 30.0,
     energy_cost: 20.0,
     scales_with_combo: false,
     specifier: Some(HealingAura),
