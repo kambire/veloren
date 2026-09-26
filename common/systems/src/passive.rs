@@ -129,6 +129,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: Berserk (0.8, 8s) + Hastened (0.4, 8s)
                             apply_buff(entity, uid, BuffKind::Berserk, 0.8, 8.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::Hastened, 0.4, 8.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
 
                             // Curación instantánea de emergencia: 10% salud máxima
                             let heal_amount = health.maximum() * 0.10;
@@ -146,6 +147,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: ProtectingWard (0.8, 6s) + Fortitude (1.0, 6s)
                             apply_buff(entity, uid, BuffKind::ProtectingWard, 0.8, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::Fortitude, 1.0, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
                     Species::Elf => {
@@ -162,6 +164,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: Hastened (0.6, 6s) + EnergyRegen (20.0, 6s)
                             apply_buff(entity, uid, BuffKind::Hastened, 0.6, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::EnergyRegen, 20.0, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
                     Species::Human => {
@@ -174,6 +177,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: Tenacity (0.8, 6s) + Regeneration (35.0, 6s)
                             apply_buff(entity, uid, BuffKind::Tenacity, 0.8, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::Regeneration, 35.0, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
                     Species::Danari => {
@@ -190,6 +194,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: Fury (0.5, 7s) + Sunderer (0.6, 7s)
                             apply_buff(entity, uid, BuffKind::Fury, 0.5, 7.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::Sunderer, 0.6, 7.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
                     Species::Draugr => {
@@ -202,6 +207,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: Lifesteal (0.5, 7s) + Frigid (0.5, 7s)
                             apply_buff(entity, uid, BuffKind::Lifesteal, 0.5, 7.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::Frigid, 0.5, 7.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
                 }
@@ -227,6 +233,7 @@ impl<'a> System<'a> for Sys {
 
                             // Buff Frenzied (0.8, 8s) + 15% curación instantánea al dueño
                             apply_buff(entity, uid, BuffKind::Frenzied, 0.8, 8.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             let owner_heal = health.maximum() * 0.15;
                             apply_heal(entity, uid, owner_heal, current_time, &mut emitters);
 
@@ -278,6 +285,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: ImminentCritical (1.0, 6s) + Defiance (1.0, 6s)
                             apply_buff(entity, uid, BuffKind::ImminentCritical, 1.0, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::Defiance, 1.0, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
                     CharacterClass::Paladin => {
@@ -290,6 +298,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: ProtectingWard (0.6, 6s) + Regeneration (30.0, 6s)
                             apply_buff(entity, uid, BuffKind::ProtectingWard, 0.6, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::Regeneration, 30.0, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
                     CharacterClass::Rogue => {
@@ -305,6 +314,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: Hastened (0.8, 5s) + ImminentCritical (1.0, 5s)
                             apply_buff(entity, uid, BuffKind::Hastened, 0.8, 5.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::ImminentCritical, 1.0, 5.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
                     CharacterClass::Hunter => {
@@ -320,6 +330,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: EagleEye (0.8, 6s) + StormChaser (0.6, 6s)
                             apply_buff(entity, uid, BuffKind::EagleEye, 0.8, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::StormChaser, 0.6, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
                     CharacterClass::Mage => {
@@ -335,6 +346,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: Flame (0.8, 6s) + EnergyRegen (25.0, 6s)
                             apply_buff(entity, uid, BuffKind::Flame, 0.8, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::EnergyRegen, 25.0, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
                     CharacterClass::Priest => {
@@ -347,6 +359,7 @@ impl<'a> System<'a> for Sys {
                             // Buffs: ProtectingWard (0.7, 6s) + Regeneration (40.0, 6s)
                             apply_buff(entity, uid, BuffKind::ProtectingWard, 0.7, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::Regeneration, 40.0, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
                 }
@@ -386,7 +399,9 @@ fn apply_buff(
 ) {
     // Si la entidad ya tiene un buff igual o más fuerte de este tipo, no reemplazarlo innecesariamente
     if let Some(buffs) = buffs {
-        if buffs.buffs.iter().any(|(_, b)| b.kind == kind && b.data.strength >= strength) {
+        if kind != BuffKind::PassiveCooldown
+            && buffs.buffs.iter().any(|(_, b)| b.kind == kind && b.data.strength >= strength)
+        {
             return;
         }
     }

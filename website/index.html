@@ -58,7 +58,7 @@
           <span class="pulse-dot"></span>
           Fase Alpha Abierta
         </span>
-        <span class="badge badge-version">Parche v0.18.17</span>
+        <span class="badge badge-version">Parche v0.18.18</span>
       </div>
 
       <h1 class="hero-title">
@@ -291,14 +291,15 @@
       <div class="section-header">
         <span class="section-tag">Historial de Actualizaciones</span>
         <h2 class="section-title">Registro de Cambios Oficial</h2>
-        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.17.</p>
+        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.18.</p>
       </div>
 
       <!-- Controles de Filtro y Búsqueda -->
       <div class="changelog-controls">
         <div class="changelog-filters">
           <button class="changelog-filter-btn active" data-filter="all">Todas las Versiones</button>
-          <button class="changelog-filter-btn" data-filter="v0.18.17">v0.18.17 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.18">v0.18.18 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.17">v0.18.17</button>
           <button class="changelog-filter-btn" data-filter="v0.18.16">v0.18.16</button>
           <button class="changelog-filter-btn" data-filter="v0.18.15">v0.18.15</button>
           <button class="changelog-filter-btn" data-filter="v0.18.14">v0.18.14</button>
@@ -320,8 +321,31 @@
 
       <!-- Timeline de Tarjetas Detalladas -->
       <div class="changelog-timeline" id="changelogTimeline">
+        <!-- v0.18.18 -->
+        <article class="changelog-card latest" data-version="v0.18.18">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-alpha">v0.18.18</span>
+              <h3 class="changelog-version-title">⏱️ Temporizadores Numéricos y Enfriamiento Pasivo Estilo WoW (OmniCC)</h3>
+            </div>
+            <span class="changelog-date">26 de Septiembre, 2026</span>
+          </div>
+          
+          <h4 class="changelog-section-title">⏱️ Contador Visual sobre la Barra de Experiencia</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Números Nítidos de Cuenta Regresiva:</strong> Se incorporaron números visibles en segundos ("45s", "12s", "5s"...) con sombra oscura de alto contraste en el centro de cada icono de la barra de buffs y debuffs (ubicada directamente sobre la barra de experiencia y habilidades).</li>
+            <li><strong>Esquema Dinámico de Color WoW / OmniCC:</strong> Amarillo dorado brillante cuando restan más de 5 segundos, cambiando a rojo vibrante de alerta cuando quedan 5 segundos o menos.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">🛡️ Rastreador Visual de Enfriamiento Pasivo (ICD)</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Debuff de Enfriamiento Pasivo:</strong> Al activarse cualquier aura pasiva (racial o de clase), aparece automáticamente un icono de enfriamiento en el panel de desventajas indicando el tiempo exacto que resta para que vuelva a estar disponible.</li>
+            <li><strong>Expiración y Acumulación Dinámica:</strong> Al llegar a cero el icono desaparece de forma fluida, y si se activan múltiples pasivas (ej: racial y de clase), se muestran y descuentan sus tiempos de forma independiente.</li>
+          </ul>
+        </article>
+
         <!-- v0.18.17 -->
-        <article class="changelog-card latest" data-version="v0.18.17">
+        <article class="changelog-card" data-version="v0.18.17">
           <div class="changelog-card-header">
             <div class="changelog-version-meta">
               <span class="badge badge-alpha">v0.18.17</span>
@@ -872,7 +896,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Descargar AzeriaLauncher.exe
           </a>
-          <span class="download-meta">Versión v0.18.17 • ~2.5 MB • Windows 64-bit</span>
+          <span class="download-meta">Versión v0.18.18 • ~2.5 MB • Windows 64-bit</span>
         </div>
 
         <!-- Cliente Completo ZIP -->
@@ -923,7 +947,7 @@
         <div class="footer-brand">
           <h3>WORLD OF <span class="text-gold">AZERIA</span></h3>
           <p>Un proyecto impulsado por la comunidad para ofrecer una experiencia MMORPG profunda, inmersiva y táctica en un mundo abierto vóxel.</p>
-          <div class="badge badge-alpha">Alpha Build v0.18.17</div>
+          <div class="badge badge-alpha">Alpha Build v0.18.18</div>
         </div>
 
         <div class="footer-col">

@@ -251,6 +251,7 @@ fn buff_key(buff: BuffKind) -> &'static str {
         BuffKind::Amnesia => "buff-amnesia",
         BuffKind::OffBalance => "buff-offbalance",
         BuffKind::Chilled => "buff-chilled",
+        BuffKind::PassiveCooldown => "buff-passive_cooldown",
         // Neutral
         BuffKind::Polymorphed => "buff-polymorphed",
     }
@@ -398,7 +399,8 @@ pub fn consumable_desc(effects: &Effects, i18n: &Localization) -> Vec<String> {
                         | BuffKind::IgniteArrow
                         | BuffKind::FreezeArrow
                         | BuffKind::DrenchArrow
-                        | BuffKind::JoltArrow => Cow::Borrowed(""),
+                        | BuffKind::JoltArrow
+                        | BuffKind::PassiveCooldown => Cow::Borrowed(""),
                     };
 
                     write!(&mut description, "{}", buff_desc).unwrap();

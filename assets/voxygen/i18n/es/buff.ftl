@@ -232,3 +232,6 @@ buff-eagleeye = Ojo de Águila
     .desc = Podrás ver claramente los puntos vulnerables de tus objetivos y tendrás la agilidad necesaria para dirigir cada flecha hacia esas zonas.
 buff-chilled = Enfriado
     .desc = El frío intenso te hace mover con más lentitud y te deja más vulnerable a ataques contundentes.
+buff-passive_cooldown = Enfriamiento Pasivo
+    .desc = Tus poderes pasivos raciales y de clase están en tiempo de recarga.
+

@@ -2,6 +2,17 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.18] - 2026-09-26
+-------------------------------------------------------------------------------
+* TEMPORIZADORES VISIBLES Y ENFRIAMIENTO PASIVO ESTILO WORLD OF WARCRAFT (OMNICC):
+  - Temporizadores numéricos sobre los iconos de la barra de Buffs/Debuffs (sobre la barra de experiencia y habilidades):
+    * Se agregaron números nítidos de cuenta regresiva en segundos ("45s", "12s", "5s"...) con sombra oscura de alto contraste en el centro de cada icono.
+    * Esquema de color visual dinámico: Amarillo dorado brillante (> 5s) y Rojo alerta (<= 5s) para saber con exactitud cuándo expiran los efectos o recargas.
+  - Nuevo Debuff visual de Enfriamiento Pasivo (`PassiveCooldown`):
+    * Cada vez que se activa una pasiva racial o de clase, aparece un icono de enfriamiento con la cuenta regresiva exacta de su tiempo de reutilización interno (ICD).
+    * Al expirar el tiempo, el icono desaparece automáticamente indicando que la pasiva vuelve a estar lista para activarse.
+    * Soporta acumulación independiente para monitorear múltiples pasivas en enfriamiento simultáneamente.
+
 [v0.18.17] - 2026-09-26
 -------------------------------------------------------------------------------
 * SISTEMA COMPLETO DE AURAS PASIVAS TÁCTICAS POR RAZA Y CLASE:

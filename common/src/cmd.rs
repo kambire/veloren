@@ -188,6 +188,7 @@ lazy_static! {
             BuffKind::FreezeArrow => "freeze_arrow",
             BuffKind::DrenchArrow => "drench_arrow",
             BuffKind::JoltArrow => "jolt_arrow",
+            BuffKind::PassiveCooldown => "passive_cooldown",
         };
         let mut buff_parser = HashMap::new();
         for kind in BuffKind::iter() {

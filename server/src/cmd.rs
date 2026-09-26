@@ -6001,7 +6001,8 @@ fn build_buff(
             | BuffKind::IgniteArrow
             | BuffKind::FreezeArrow
             | BuffKind::DrenchArrow
-            | BuffKind::JoltArrow => {
+            | BuffKind::JoltArrow
+            | BuffKind::PassiveCooldown => {
                 if buff_kind.is_simple() {
                     unreachable!("is_simple() above")
                 } else {

@@ -265,6 +265,8 @@ pub enum BuffKind {
     /// linearly with strength, 1.0 leads to 100% more poise damage.
     /// Provides immunity to Heatstroke.
     Chilled,
+    /// Enfriamiento interno de pasiva o habilidad (sin penalizaciones de atributos)
+    PassiveCooldown,
     // =================
     //      COMPLEX
     // =================
@@ -345,7 +347,8 @@ impl BuffKind {
             | BuffKind::Winded
             | BuffKind::Amnesia
             | BuffKind::OffBalance
-            | BuffKind::Chilled => BuffDescriptor::SimpleNegative,
+            | BuffKind::Chilled
+            | BuffKind::PassiveCooldown => BuffDescriptor::SimpleNegative,
             BuffKind::Polymorphed => BuffDescriptor::Complex,
         }
     }
@@ -377,9 +380,12 @@ impl BuffKind {
         )
     }
 
-    /// Checks if multiple instances of the buff should be processed, instead of
-    /// only the strongest.
-    pub fn stacks(self) -> bool { matches!(self, BuffKind::PotionSickness | BuffKind::Resilience) }
+    pub fn stacks(self) -> bool {
+        matches!(
+            self,
+            BuffKind::PotionSickness | BuffKind::Resilience | BuffKind::PassiveCooldown
+        )
+    }
 
     pub fn effects(&self, data: &BuffData, target_entity: Option<Uid>) -> Vec<BuffEffect> {
         // Normalized nonlinear scaling
@@ -749,6 +755,7 @@ impl BuffKind {
                     tool_filter: Some(ToolKind::Bow),
                 }),
             ],
+            BuffKind::PassiveCooldown => vec![],
         }
     }
 

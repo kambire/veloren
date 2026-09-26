@@ -206,3 +206,6 @@ buff-joltarrow = Jolt Arrow
 ## Util
 buff-mysterious = Mysterious effect
 buff-remove = Click to remove
+buff-passive_cooldown = Passive Cooldown
+    .desc = Your racial and class passive powers are recharging.
+

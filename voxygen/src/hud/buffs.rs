@@ -32,6 +32,10 @@ widget_ids! {
         debuffs[],
         debuff_timers[],
         buff_txts[],
+        buff_bar_txts[],
+        buff_bar_shadows[],
+        debuff_bar_txts[],
+        debuff_bar_shadows[],
         buff_multiplicities[],
         debuff_multiplicities[],
     }
@@ -190,6 +194,18 @@ impl Widget for BuffsBar<'_> {
             if state.ids.debuff_timers.len() < debuff_count {
                 state.update(|state| state.ids.debuff_timers.resize(debuff_count, generator));
             };
+            if state.ids.buff_bar_txts.len() < buff_count {
+                state.update(|state| state.ids.buff_bar_txts.resize(buff_count, generator));
+            };
+            if state.ids.buff_bar_shadows.len() < buff_count {
+                state.update(|state| state.ids.buff_bar_shadows.resize(buff_count, generator));
+            };
+            if state.ids.debuff_bar_txts.len() < debuff_count {
+                state.update(|state| state.ids.debuff_bar_txts.resize(debuff_count, generator));
+            };
+            if state.ids.debuff_bar_shadows.len() < debuff_count {
+                state.update(|state| state.ids.debuff_bar_shadows.resize(debuff_count, generator));
+            };
             if state.ids.buff_multiplicities.len() < 2 * buff_count {
                 state.update(|state| {
                     state
@@ -214,18 +230,19 @@ impl Widget for BuffsBar<'_> {
                 .iter()
                 .copied()
                 .zip(state.ids.buff_timers.iter().copied())
+                .zip(state.ids.buff_bar_txts.iter().copied())
+                .zip(state.ids.buff_bar_shadows.iter().copied())
                 .zip(state.ids.buff_multiplicities.chunks(2))
                 .zip(buff_icons.iter().filter(|info| info.is_buff))
                 .collect::<Vec<_>>();
 
             // Sort the buffs by kind
-            buff_vec
-                .sort_by_key(|(((_id, _timer_id), _mult_id), buff)| std::cmp::Reverse(buff.kind));
+            buff_vec.sort_by_key(|(((((_id, _timer_id), _txt_id), _shadow_id), _mult_id), buff)| {
+                std::cmp::Reverse(buff.kind)
+            });
 
-            buff_vec
-                .iter()
-                .enumerate()
-                .for_each(|(i, (((id, timer_id), mult_id), buff))| {
+            buff_vec.iter().enumerate().for_each(
+                |(i, (((((id, timer_id), txt_id), shadow_id), mult_id), buff))| {
                     let max_duration = buff.kind.max_duration();
                     let current_duration = buff.end_time.map(|end| end - self.time.0);
                     let duration_percentage = current_duration.map_or(1000.0, |cur| {
@@ -287,7 +304,37 @@ impl Widget for BuffsBar<'_> {
                             BuffIconKind::Stance(_) => event.push(Event::LeaveStance),
                         }
                     };
-                });
+
+                    // Countdown text with drop shadow (WoW OmniCC style)
+                    let (text_str, text_col, shadow_col) = if !remaining_time.is_empty() {
+                        let col = if current_duration.is_some_and(|cur| cur <= 5.0) {
+                            Color::Rgba(1.0, 0.25, 0.2, 1.0)
+                        } else {
+                            Color::Rgba(1.0, 0.88, 0.2, 1.0)
+                        };
+                        (remaining_time.as_str(), col, Color::Rgba(0.0, 0.0, 0.0, 0.95))
+                    } else {
+                        ("", color::TRANSPARENT, color::TRANSPARENT)
+                    };
+
+                    Text::new(text_str)
+                        .middle_of(*timer_id)
+                        .x_y_relative_to(*timer_id, 1.0, -1.0)
+                        .font_id(self.fonts.cyri.conrod_id)
+                        .font_size(self.fonts.cyri.scale(13))
+                        .color(shadow_col)
+                        .graphics_for(*timer_id)
+                        .set(*shadow_id, ui);
+
+                    Text::new(text_str)
+                        .middle_of(*timer_id)
+                        .font_id(self.fonts.cyri.conrod_id)
+                        .font_size(self.fonts.cyri.scale(13))
+                        .color(text_col)
+                        .graphics_for(*timer_id)
+                        .set(*txt_id, ui);
+                },
+            );
 
             // Create Debuff Widgets
             let mut debuff_vec = state
@@ -296,17 +343,17 @@ impl Widget for BuffsBar<'_> {
                 .iter()
                 .copied()
                 .zip(state.ids.debuff_timers.iter().copied())
+                .zip(state.ids.debuff_bar_txts.iter().copied())
+                .zip(state.ids.debuff_bar_shadows.iter().copied())
                 .zip(state.ids.debuff_multiplicities.chunks(2))
                 .zip(buff_icons.iter().filter(|info| !info.is_buff))
                 .collect::<Vec<_>>();
 
             // Sort the debuffs by kind
-            debuff_vec.sort_by_key(|(((_id, _timer_id), _mult_id), debuff)| debuff.kind);
+            debuff_vec.sort_by_key(|(((((_id, _timer_id), _txt_id), _shadow_id), _mult_id), debuff)| debuff.kind);
 
-            debuff_vec
-                .iter()
-                .enumerate()
-                .for_each(|(i, (((id, timer_id), mult_id), debuff))| {
+            debuff_vec.iter().enumerate().for_each(
+                |(i, (((((id, timer_id), txt_id), shadow_id), mult_id), debuff))| {
                     let max_duration = debuff.kind.max_duration();
                     let current_duration = debuff.end_time.map(|end| end - self.time.0);
                     let duration_percentage = current_duration.map_or(1000.0, |cur| {
@@ -359,7 +406,37 @@ impl Widget for BuffsBar<'_> {
                             DEBUFF_COLOR,
                         )
                         .set(*timer_id, ui);
-                });
+
+                    // Countdown text with drop shadow (WoW OmniCC style)
+                    let (text_str, text_col, shadow_col) = if !remaining_time.is_empty() {
+                        let col = if current_duration.is_some_and(|cur| cur <= 5.0) {
+                            Color::Rgba(1.0, 0.25, 0.2, 1.0)
+                        } else {
+                            Color::Rgba(1.0, 0.88, 0.2, 1.0)
+                        };
+                        (remaining_time.as_str(), col, Color::Rgba(0.0, 0.0, 0.0, 0.95))
+                    } else {
+                        ("", color::TRANSPARENT, color::TRANSPARENT)
+                    };
+
+                    Text::new(text_str)
+                        .middle_of(*timer_id)
+                        .x_y_relative_to(*timer_id, 1.0, -1.0)
+                        .font_id(self.fonts.cyri.conrod_id)
+                        .font_size(self.fonts.cyri.scale(13))
+                        .color(shadow_col)
+                        .graphics_for(*timer_id)
+                        .set(*shadow_id, ui);
+
+                    Text::new(text_str)
+                        .middle_of(*timer_id)
+                        .font_id(self.fonts.cyri.conrod_id)
+                        .font_size(self.fonts.cyri.scale(13))
+                        .color(text_col)
+                        .graphics_for(*timer_id)
+                        .set(*txt_id, ui);
+                },
+            );
             }
         }
 
