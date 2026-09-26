@@ -2,6 +2,16 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.16] - 2026-09-26
+-------------------------------------------------------------------------------
+* NUEVO PODER PARA EL ENTRENADOR: "BOLA DE PODER" (POWER ORB):
+  - Sustituido el antiguo "Látigo de espinas" (canalizado, rígido y lento) por una dinámica "Bola de Poder" (proyectil directo en área):
+    * Dispara una reluciente esfera esmeralda de energía espiritual salvaje que viaja a gran velocidad (85 m/s) directamente hacia donde apunta el cursor/retícula.
+    * Explota en un radio de 3.5 metros al impactar contra enemigos o terreno, infligiendo 28 de daño y restaurando 15 puntos de energía para el Entrenador.
+    * Permite moverse con libertad mientras se castea (85% de velocidad de movimiento en vez del freno del canalizado anterior).
+    * Su casteo es ágil e intuitivo (0.18 s de buildup), ofreciendo una puntería limpia, divertida y natural en combate.
+    * Actualizado el icono en la barra de acción con el orbe místico y actualizadas las descripciones y nombres en el HUD.
+
 [v0.18.15] - 2026-09-26
 -------------------------------------------------------------------------------
 * CURACIÓN INSTANTÁNEA DEL 20% DE VIDA MÁXIMA AL APLICAR AURA VITAL + TICKS:

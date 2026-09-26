@@ -1,17 +1,39 @@
-// Ataque básico del Entrenador: rayo de espinas con daño muy leve que roba un
-// poco de vida. El daño fuerte lo ponen sus mascotas.
-BasicBeam(
-    buildup_duration: 0.20,
-    recover_duration: 0.20,
-    beam_duration: 1.0,
-    damage: 2.5,
-    tick_rate: 3,
-    range: 20.0,
-    max_angle: 1.0,
-    damage_effect: Some(Lifesteal(0.1)),
-    energy_regen: 7.5,
-    energy_drain: 0,
-    move_efficiency: 0.5,
-    ori_rate: 0.4,
-    specifier: LifestealBeam
+// Ataque básico del Entrenador: Orbe de Poder Salvaje / Esfera de Energía.
+// Lanza una veloz esfera de energía salvaje que impacta con precisión en la retícula,
+// inflige daño en área (28 de daño) y regenera energía al impactar. Fácil de usar y dinámico.
+BasicRanged(
+    energy_cost: 0,
+    buildup_duration: 0.18,
+    recover_duration: 0.22,
+    projectile: (
+        kind: Explosive(
+            radius: 3.5,
+            min_falloff: 0.5,
+            reagent: Some(Green),
+        ),
+        attack: Some((
+            damage: 28,
+            energy: Some(15),
+            knockback: Some(2),
+            damage_kind: Energy,
+        )),
+    ),
+    projectile_body: Object(FireworkGreen),
+    projectile_light: Some((
+        animated: true,
+        flicker: 1.5,
+        strength: 2.5,
+        col: (
+            r: 0.2,
+            g: 1.0,
+            b: 0.4,
+        ),
+    )),
+    projectile_speed: 85.0,
+    num_projectiles: Value(1),
+    movement_modifier: (
+        buildup: Some(0.85),
+        recover: Some(0.85),
+    ),
 )
+
