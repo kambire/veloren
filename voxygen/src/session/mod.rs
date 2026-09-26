@@ -1228,6 +1228,12 @@ impl PlayState for SessionState {
                                         .get(pet_entity)
                                         .is_some_and(|activity| activity.is_pet_staying);
                                     client.set_pet_stay(pet_entity, !is_staying);
+                                    let status_msg = if !is_staying {
+                                        "🛑 [Mascota] ¡Orden emitida: La mascota se queda quieta en su posición!"
+                                    } else {
+                                        "🐾 [Mascota] ¡Orden emitida: La mascota ahora te sigue fielmente!"
+                                    };
+                                    self.hud.new_message(common::comp::ChatType::Meta.into_plain_msg(status_msg));
                                 }
                             },
                             GameInput::Interact => {

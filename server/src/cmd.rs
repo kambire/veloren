@@ -50,7 +50,7 @@ use common::{
     depot,
     effect::Effect,
     event::{
-        ClientDisconnectEvent, CreateNpcEvent, CreateSpecialEntityEvent, EventBus, ExplosionEvent,
+        ClientDisconnectEvent, CommandPetEvent, CreateNpcEvent, CreateSpecialEntityEvent, EventBus, ExplosionEvent,
         GroupManipEvent, InitiateInviteEvent, PermanentChange, TamePetEvent,
     },
     generation::{EntityConfig, EntityInfo, SpecialEntity},
@@ -199,6 +199,7 @@ fn do_command(
         ServerChatCommand::Object => handle_object,
         ServerChatCommand::Outcome => handle_outcome,
         ServerChatCommand::PermitBuild => handle_permit_build,
+        ServerChatCommand::Pet => handle_pet,
         ServerChatCommand::Players => handle_players,
         ServerChatCommand::Poise => handle_poise,
         ServerChatCommand::Portal => handle_spawn_portal,
@@ -2808,6 +2809,52 @@ fn handle_revoke_build_all(
             Content::localized("command-revoked-all-build"),
         ),
     );
+    Ok(())
+}
+
+fn handle_pet(
+    server: &mut Server,
+    _client: EcsEntity,
+    target: EcsEntity,
+    args: Vec<String>,
+    _action: &ServerChatCommand,
+) -> CmdResult<()> {
+    let action_str = args.first().map(|s| s.as_str()).unwrap_or("follow");
+    let state = server.state();
+    let uids = state.ecs().read_storage::<Uid>();
+    let client_uid = uids
+        .get(target)
+        .copied()
+        .ok_or(Content::Plain("No tienes un UID válido".to_string()))?;
+    let alignments = state.ecs().read_storage::<comp::Alignment>();
+    let entities = state.ecs().entities();
+
+    let pet_entity = (&entities, &alignments)
+        .join()
+        .find_map(|(e, a)| {
+            if matches!(a, comp::Alignment::Owned(owner) if *owner == client_uid) {
+                Some(e)
+            } else {
+                None
+            }
+        })
+        .ok_or(Content::Plain(
+            "No tienes ninguna mascota activa a tu lado".to_string(),
+        ))?;
+
+    let command = match action_str.to_lowercase().as_str() {
+        "attack" => comp::PetCommand::Attack(None),
+        "follow" => comp::PetCommand::Follow,
+        "stay" => comp::PetCommand::Stay,
+        "heal" => comp::PetCommand::Heal,
+        "summon" => comp::PetCommand::Summon,
+        "passive" => comp::PetCommand::SetMode(comp::PetMode::Passive),
+        "defensive" => comp::PetCommand::SetMode(comp::PetMode::Defensive),
+        "aggressive" => comp::PetCommand::SetMode(comp::PetMode::Aggressive),
+        _ => return Err(Content::Plain("Uso: /pet <attack|follow|stay|heal|summon|passive|defensive|aggressive>".to_string())),
+    };
+
+    server.state.emit_event_now(CommandPetEvent(target, pet_entity, command));
     Ok(())
 }
 

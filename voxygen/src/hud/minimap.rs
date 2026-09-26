@@ -25,12 +25,12 @@ use common::{
 use common_state::TerrainChanges;
 use conrod_core::{
     Color, Colorable, Positionable, Sizeable, Widget, WidgetCommon, color, position,
-    widget::{self, Button, Image, Rectangle, RoundedRectangle, Text},
+    widget::{self, Button, Circle, Image, Rectangle, RoundedRectangle, Text},
     widget_ids,
 };
 use hashbrown::{HashMap, HashSet};
 use image::{DynamicImage, RgbaImage};
-use specs::{Join, WorldExt};
+use specs::{Join, LendJoin, WorldExt};
 use std::sync::Arc;
 
 use vek::{Rgba, Vec2, Vec3, approx::AbsDiffEq};
@@ -473,6 +473,7 @@ widget_ids! {
         quest_markers[],
         quest_marker_dist_bgs[],
         quest_marker_dist_texts[],
+        radar_dots[],
     }
 }
 
@@ -957,6 +958,95 @@ impl Widget for MiniMap<'_> {
                     .image_color(Color::Rgba(1.0, 1.0, 1.0, 1.0))
                     .set(state.ids.member_indicators[i], ui);
                 }
+            }
+
+            // Entity radar (WoW style dots on minimap)
+            let mut radar_entities = Vec::new();
+            {
+                let ecs = client_state.ecs();
+                let entities = ecs.entities();
+                let positions = ecs.read_storage::<comp::Pos>();
+                let alignments = ecs.read_storage::<comp::Alignment>();
+                let healths = ecs.read_storage::<comp::Health>();
+                let bodies = ecs.read_storage::<comp::Body>();
+                let my_uid = self.client.uid();
+
+                for (entity, pos, health, align, body) in (
+                    &entities,
+                    &positions,
+                    healths.maybe(),
+                    alignments.maybe(),
+                    bodies.maybe(),
+                )
+                    .join()
+                {
+                    if health.is_some_and(|h| h.is_dead) {
+                        continue;
+                    }
+                    if entity == self.client.entity() {
+                        continue;
+                    }
+                    let dist_sqr = pos.0.xy().distance_squared(player_pos.xy());
+                    // 120 blocks radar radius
+                    if dist_sqr > 120.0 * 120.0 {
+                        continue;
+                    }
+
+                    let (color, size) = match align {
+                        Some(comp::Alignment::Enemy) => {
+                            let is_boss = match body {
+                                Some(comp::Body::BipedLarge(b)) => matches!(
+                                    b.species,
+                                    comp::biped_large::Species::Gigasfrost
+                                        | comp::biped_large::Species::Gigasfire
+                                        | comp::biped_large::Species::Mindflayer
+                                        | comp::biped_large::Species::Minotaur
+                                        | comp::biped_large::Species::Yeti
+                                        | comp::biped_large::Species::Harvester
+                                        | comp::biped_large::Species::Cultistwarlord
+                                ),
+                                Some(comp::Body::Dragon(_)) | Some(comp::Body::Golem(_)) => true,
+                                _ => false,
+                            };
+                            if is_boss {
+                                (Color::Rgba(1.0, 0.84, 0.0, 1.0), 5.5) // Boss / Élite: Dorado grande
+                            } else {
+                                (Color::Rgba(1.0, 0.2, 0.2, 0.95), 3.5) // Enemigo: Rojo
+                            }
+                        },
+                        Some(comp::Alignment::Owned(owner)) if Some(owner) == my_uid.as_ref() => {
+                            (Color::Rgba(0.2, 1.0, 0.35, 1.0), 4.0) // Mascota propia: Verde brillante
+                        },
+                        Some(comp::Alignment::Npc) => {
+                            (Color::Rgba(0.95, 0.95, 0.4, 0.75), 2.5) // PNJ neutral: Amarillo suave
+                        },
+                        _ => continue,
+                    };
+
+                    if let Some(rpos) = wpos_to_rpos(pos.0.xy(), false) {
+                        radar_entities.push((rpos, color, size));
+                    }
+                }
+            }
+
+            if state.ids.radar_dots.len() < radar_entities.len() {
+                state.update(|s| {
+                    s.ids
+                        .radar_dots
+                        .resize(radar_entities.len(), &mut ui.widget_id_generator())
+                });
+            }
+
+            for (i, (rpos, color, size)) in radar_entities.into_iter().enumerate() {
+                Circle::fill(size)
+                    .x_y_position_relative_to(
+                        state.ids.map_layers[0],
+                        position::Relative::Scalar(rpos.x as f64),
+                        position::Relative::Scalar(rpos.y as f64),
+                    )
+                    .color(color)
+                    .parent(ui.window)
+                    .set(state.ids.radar_dots[i], ui);
             }
 
             // Group location markers

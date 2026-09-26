@@ -2,6 +2,33 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.19] - 2026-09-26
+-------------------------------------------------------------------------------
+* LOS 4 PILARES DE CALIDAD DE VIDA, COMBATE Y MUNDO ESTILO WORLD OF WARCRAFT:
+  1. Combate & Feedback Visual Inmersivo:
+     - Scrolling Combat Text (SCT) Avanzado:
+       * Curaciones resaltadas en verde esmeralda brillante con prefijo positivo ("+250", "+45").
+       * Golpes críticos gigantes con pop visual, exclamación final ("420!"), tipografía aumentada y color dorado brillante WoW.
+     - Alerta Cinematográfica de Salud Crítica (Low HP Red Vignette):
+       * Viñeta roja de advertencia que se intensifica dinámicamente al descender del 30% de salud, acompañada de un latido cardíaco visual pulsante acelerado según la gravedad de las heridas.
+  2. Profundización y Maestría del Entrenador (Mascotas):
+     - Atajo rápido 'V' (Stay/Follow) con notificación instantánea en chat y pantalla.
+     - Nuevo comando táctico `/pet <attack|follow|stay|heal|summon|passive|defensive|aggressive>` para control total en combate.
+     - Sinergia en combate: Ordenar atacar a la mascota activa le otorga Furia Bestial (+35% velocidad y daño) para cargar como una auténtica fiera.
+  3. Interfaz y Calidad de Vida (Nameplates & Radar en Minimapa):
+     - Nameplates estilo WoW: Barras de salud continuas sobre todos los enemigos hostiles en un rango visual de 40 metros, sin necesidad de haberlos dañado previamente.
+     - Radar de Entidades en el Minimapa:
+       * Puntos rojos luminosos para monstruos y enemigos hostiles cercanos.
+       * Puntos dorados titánicos de gran tamaño para Jefes de Mundo y criaturas élite.
+       * Puntos verdes brillantes para la mascota activa y miembros del grupo.
+       * Puntos amarillos suaves para PNJ neutrales de asentamientos.
+  4. Jefes de Mundo (World Bosses) con Anuncios Globales y Botín Épico:
+     - Anuncio global en todo el servidor cada vez que un Gigas, Dragón, Gólem o Señor de la Guerra despierta en el mundo:
+       "⚔️ [JEFE DE MUNDO] ¡El temible '<Nombre>' ha despertado en las tierras de Azeria!"
+     - Anuncio triunfal a todos los jugadores al caer derrotado:
+       "🏆 [VICTORIA EN AZERIA] ¡El temible Jefe de Mundo '<Nombre>' ha sido derrotado por los héroes del reino!"
+     - Tabla de botín garantizado con 500-1500 monedas de oro y armas legendarias (cultista, fénix, velorita y mochilas de viaje).
+
 [v0.18.18] - 2026-09-26
 -------------------------------------------------------------------------------
 * TEMPORIZADORES VISIBLES Y ENFRIAMIENTO PASIVO ESTILO WORLD OF WARCRAFT (OMNICC):

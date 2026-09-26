@@ -380,6 +380,12 @@ impl ServerEvent for CommandPetEvent {
                         if let Some(mut activity) = character_activities.get_mut(pet) {
                             activity.is_pet_staying = false;
                         }
+                        if let Some(client) = clients.get(command_giver) {
+                            client.send_fallible(ServerGeneral::server_msg(
+                                comp::ChatType::Meta,
+                                comp::Content::Plain("✨ [Mascota] ¡Llamada de bestia! Tu mascota ha acudido a tu lado.".to_string()),
+                            ));
+                        }
                     }
                 },
                 comp::PetCommand::Heal => {
@@ -544,6 +550,32 @@ impl ServerEvent for CommandPetEvent {
                         if let Some(mut activity) = character_activities.get_mut(pet) {
                             activity.is_pet_staying = false;
                         }
+                        // Sinergia de combate del Entrenador: Furia bestial (aumento de velocidad y daño al cargar)
+                        if let Some(mut pet_buffs) = buffs_storage.get_mut(pet) {
+                            let dest_info = DestInfo {
+                                stats: stats.get(pet),
+                                mass: masses.get(pet),
+                            };
+                            pet_buffs.insert(
+                                Buff::new(
+                                    BuffKind::Fury,
+                                    BuffData::new(0.35, Some(Secs(8.0))),
+                                    vec![],
+                                    BuffSource::Character { by: owner_uid, tool_kind: None },
+                                    *time,
+                                    dest_info,
+                                    None,
+                                    None,
+                                ),
+                                *time,
+                            );
+                        }
+                        if let Some(client) = clients.get(command_giver) {
+                            client.send_fallible(ServerGeneral::server_msg(
+                                comp::ChatType::Meta,
+                                comp::Content::Plain("⚔️ [Mascota] ¡Orden de ataque: Cargando al combate con Furia Bestial!".to_string()),
+                            ));
+                        }
                     }
                 },
                 comp::PetCommand::Follow => {
@@ -561,6 +593,12 @@ impl ServerEvent for CommandPetEvent {
                     if let Some(mut activity) = character_activities.get_mut(pet) {
                         activity.is_pet_staying = false;
                     }
+                    if let Some(client) = clients.get(command_giver) {
+                        client.send_fallible(ServerGeneral::server_msg(
+                            comp::ChatType::Meta,
+                            comp::Content::Plain("🐾 [Mascota] ¡Orden emitida: Siguiendo al amo!".to_string()),
+                        ));
+                    }
                 },
                 comp::PetCommand::Stay => {
                     let current_pet_position = positions.get(pet).copied();
@@ -570,6 +608,12 @@ impl ServerEvent for CommandPetEvent {
                     if let Some(agent) = agents.get_mut(pet) {
                         agent.stay_pos = current_pet_position;
                         agent.target = None;
+                    }
+                    if let Some(client) = clients.get(command_giver) {
+                        client.send_fallible(ServerGeneral::server_msg(
+                            comp::ChatType::Meta,
+                            comp::Content::Plain("🛑 [Mascota] ¡Orden emitida: Quieta en posición!".to_string()),
+                        ));
                     }
                 },
                 comp::PetCommand::SetMode(mode) => {
@@ -581,6 +625,17 @@ impl ServerEvent for CommandPetEvent {
                     }
                     if let Some(mut activity) = character_activities.get_mut(pet) {
                         activity.pet_mode = mode;
+                    }
+                    let mode_str = match mode {
+                        comp::PetMode::Passive => "Pasiva (No atacará)",
+                        comp::PetMode::Defensive => "Defensiva (Defenderá si eres atacado)",
+                        comp::PetMode::Aggressive => "Agresiva (Atacará a cualquier enemigo cercano)",
+                    };
+                    if let Some(client) = clients.get(command_giver) {
+                        client.send_fallible(ServerGeneral::server_msg(
+                            comp::ChatType::Meta,
+                            comp::Content::Plain(format!("🛡️ [Mascota] Postura cambiada a: {}", mode_str)),
+                        ));
                     }
                 },
             }

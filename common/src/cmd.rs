@@ -423,6 +423,7 @@ pub enum ServerChatCommand {
     Object,
     Outcome,
     PermitBuild,
+    Pet,
     Players,
     Poise,
     Portal,
@@ -847,6 +848,24 @@ impl ServerChatCommand {
                 Content::localized("command-permit_build-desc"),
                 Some(Admin),
             ),
+            ServerChatCommand::Pet => cmd(
+                vec![Enum(
+                    "action",
+                    vec![
+                        "attack".to_string(),
+                        "follow".to_string(),
+                        "stay".to_string(),
+                        "heal".to_string(),
+                        "summon".to_string(),
+                        "passive".to_string(),
+                        "defensive".to_string(),
+                        "aggressive".to_string(),
+                    ],
+                    Required,
+                )],
+                Content::Plain("Ordena a tu mascota activa (attack, follow, stay, heal, summon, etc.)".to_string()),
+                None,
+            ),
             ServerChatCommand::Players => {
                 cmd(vec![], Content::localized("command-players-desc"), None)
             },
@@ -1221,6 +1240,7 @@ impl ServerChatCommand {
             ServerChatCommand::Object => "object",
             ServerChatCommand::Outcome => "outcome",
             ServerChatCommand::PermitBuild => "permit_build",
+            ServerChatCommand::Pet => "pet",
             ServerChatCommand::Players => "players",
             ServerChatCommand::Poise => "poise",
             ServerChatCommand::Portal => "portal",

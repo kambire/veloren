@@ -1632,13 +1632,16 @@ impl Hud {
                 // Hurt Frame
                 let hp_percentage = health.current() / health.maximum() * 100.0;
                 self.hp_pulse += dt.as_secs_f32() * 10.0 / hp_percentage.clamp(3.0, 7.0);
-                if hp_percentage < 10.0 && !health.is_dead {
-                    let hurt_fade = (self.hp_pulse).sin() * 0.5 + 0.6; //Animation timer
+                // Viñeta roja de advertencia crítica estilo WoW al bajar de 30% de salud
+                if hp_percentage < 30.0 && !health.is_dead {
+                    let intensity = ((30.0 - hp_percentage) / 30.0).clamp(0.25, 1.0);
+                    let pulse_rate = (30.0 / hp_percentage.max(5.0)).clamp(1.5, 5.0);
+                    let hurt_fade = (((self.hp_pulse * pulse_rate).sin() * 0.35 + 0.65) * intensity).clamp(0.15, 0.95);
                     Image::new(self.imgs.hurt_bg)
                         .wh_of(ui_widgets.window)
                         .middle_of(ui_widgets.window)
                         .graphics_for(ui_widgets.window)
-                        .color(Some(Color::Rgba(1.0, 1.0, 1.0, hurt_fade)))
+                        .color(Some(Color::Rgba(1.0, 0.15, 0.15, hurt_fade)))
                         .set(self.ids.hurt_bg, ui_widgets);
                 }
 
@@ -1767,8 +1770,25 @@ impl Hud {
                             .abs()
                             .clamp(Health::HEALTH_EPSILON, health.maximum() * 1.25)
                             / health.maximum();
+                        let precise = floater.info.precise;
                         let hp_dmg_text = if floater.info.amount.abs() < 0.1 {
                             String::new()
+                        } else if floater.info.amount > 0.0 {
+                            if global_state.settings.interface.sct_damage_rounding
+                                && floater.info.amount.abs() >= 1.0
+                            {
+                                format!("+{:.0}", floater.info.amount.abs())
+                            } else {
+                                format!("+{:.1}", floater.info.amount.abs())
+                            }
+                        } else if precise {
+                            if global_state.settings.interface.sct_damage_rounding
+                                && floater.info.amount.abs() >= 1.0
+                            {
+                                format!("{:.0}!", floater.info.amount.abs())
+                            } else {
+                                format!("{:.1}!", floater.info.amount.abs())
+                            }
                         } else if global_state.settings.interface.sct_damage_rounding
                             && floater.info.amount.abs() >= 1.0
                         {
@@ -1776,7 +1796,6 @@ impl Hud {
                         } else {
                             format!("{:.1}", floater.info.amount.abs())
                         };
-                        let precise = floater.info.precise;
 
                         // Timer sets text transparency
                         let hp_fade = calc_fade(floater);
@@ -1785,14 +1804,14 @@ impl Hud {
                         // "flashes" by having a larger size in the first 100ms
                         let font_size =
                             30 + (if precise {
-                                (max_hp_frac * 10.0) as u32 * 3 + 10
+                                (max_hp_frac * 10.0) as u32 * 3 + 14
                             } else {
                                 (max_hp_frac * 10.0) as u32 * 3
                             }) + if floater.jump_timer < 0.1 {
                                 FLASH_MAX
                                     * (((1.0 - floater.jump_timer * 10.0)
                                         * 10.0
-                                        * if precise { 1.25 } else { 1.0 })
+                                        * if precise { 1.35 } else { 1.0 })
                                         as u32)
                             } else {
                                 0
@@ -1832,7 +1851,7 @@ impl Hud {
                             .color(if floater.info.amount < 0.0 {
                                 Color::Rgba(font_col.r, font_col.g, font_col.b, hp_fade)
                             } else {
-                                Color::Rgba(0.1, 1.0, 0.1, hp_fade)
+                                Color::Rgba(0.18, 1.0, 0.35, hp_fade)
                             })
                             .x_y(x, y)
                             .set(player_sct_id, ui_widgets);
@@ -2513,6 +2532,13 @@ impl Hud {
                             }
                         });
 
+                        // Nameplates estilo WoW para enemigos hostiles en rango visual (40m)
+                        let is_hostile = matches!(
+                            quest_alignments.get(entity),
+                            Some(comp::Alignment::Enemy)
+                        );
+                        let show_nameplate = is_hostile && dist_sqr < (40.0f32).powi(2);
+
                         // Determine whether to display nametag and healthbar based on whether the
                         // entity is mounted, has been damaged, is targeted/selected, or is in your
                         // group
@@ -2526,6 +2552,7 @@ impl Hud {
                             && ((info.target_entity == Some(entity))
                                 || info.selected_entity.is_some_and(|s| s.0 == entity)
                                 || health.is_none_or(overhead::should_show_healthbar)
+                                || show_nameplate
                                 || in_group
                                 || is_marked
                                 || quest_marker.is_some())
@@ -2537,6 +2564,8 @@ impl Hud {
                                     .is_some_and(|t| t < NAMETAG_DMG_TIME)
                                 {
                                     NAMETAG_DMG_RANGE
+                                } else if show_nameplate {
+                                    40.0
                                 } else {
                                     NAMETAG_RANGE
                                 })
@@ -2560,6 +2589,7 @@ impl Hud {
                             stance,
                             marked: is_marked,
                             quest_marker,
+                            show_nameplate,
                         });
                         // Only render bubble if nearby or if its me and setting is on
                         let bubble = if (dist_sqr < SPEECH_BUBBLE_RANGE.powi(2) && !is_me)
@@ -2708,8 +2738,25 @@ impl Hud {
                             .abs()
                             .clamp(Health::HEALTH_EPSILON, health.map_or(1.0, |h| h.maximum()))
                             / health.map_or(1.0, |h| h.maximum());
+                        let precise = floater.info.precise;
                         let hp_dmg_text = if floater.info.amount.abs() < 0.1 {
                             String::new()
+                        } else if floater.info.amount > 0.0 {
+                            if global_state.settings.interface.sct_damage_rounding
+                                && floater.info.amount.abs() >= 1.0
+                            {
+                                format!("+{:.0}", floater.info.amount.abs())
+                            } else {
+                                format!("+{:.1}", floater.info.amount.abs())
+                            }
+                        } else if precise {
+                            if global_state.settings.interface.sct_damage_rounding
+                                && floater.info.amount.abs() >= 1.0
+                            {
+                                format!("{:.0}!", floater.info.amount.abs())
+                            } else {
+                                format!("{:.1}!", floater.info.amount.abs())
+                            }
                         } else if global_state.settings.interface.sct_damage_rounding
                             && floater.info.amount.abs() >= 1.0
                         {
@@ -2717,21 +2764,20 @@ impl Hud {
                         } else {
                             format!("{:.1}", floater.info.amount.abs())
                         };
-                        let precise = floater.info.precise;
                         // Timer sets text transparency
                         let fade = calc_fade(floater);
                         // Increase font size based on fraction of maximum health
                         // "flashes" by having a larger size in the first 100ms
                         let font_size =
                             30 + (if precise {
-                                (max_hp_frac * 10.0) as u32 * 3 + 10
+                                (max_hp_frac * 10.0) as u32 * 3 + 14
                             } else {
                                 (max_hp_frac * 10.0) as u32 * 3
                             }) + if floater.jump_timer < 0.1 {
                                 FLASH_MAX
                                     * (((1.0 - floater.jump_timer * 10.0)
                                         * 10.0
-                                        * if precise { 1.25 } else { 1.0 })
+                                        * if precise { 1.35 } else { 1.0 })
                                         as u32)
                             } else {
                                 0
@@ -2772,7 +2818,7 @@ impl Hud {
                             .color(if floater.info.amount < 0.0 {
                                 Color::Rgba(font_col.r, font_col.g, font_col.b, fade)
                             } else {
-                                Color::Rgba(0.1, 1.0, 0.1, 1.0)
+                                Color::Rgba(0.18, 1.0, 0.35, 1.0)
                             })
                             .position_ingame(ingame_pos)
                             .set(sct_id, ui_widgets);

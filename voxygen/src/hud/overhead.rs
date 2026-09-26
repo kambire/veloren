@@ -81,6 +81,7 @@ pub struct Info<'a> {
     pub stance: Option<&'a Stance>,
     pub marked: bool,
     pub quest_marker: Option<common::quest::QuestMarker>,
+    pub show_nameplate: bool,
 }
 
 /// Determines whether to show the healthbar
@@ -173,6 +174,7 @@ impl Widget for Overhead<'_> {
             stance,
             marked,
             quest_marker,
+            show_nameplate: _,
         }) = self.info
         {
             // Used to set healthbar colours based on hp_percentage
@@ -349,7 +351,9 @@ impl Widget for Overhead<'_> {
 
             match health {
                 Some(health)
-                    if should_show_healthbar(health) || decayed_health_displayed(health) =>
+                    if self.info.as_ref().is_some_and(|i| i.show_nameplate)
+                        || should_show_healthbar(health)
+                        || decayed_health_displayed(health) =>
                 {
                     // Show HP Bar
                     let hp_ani = (self.pulse * 4.0/* speed factor */).cos() * 0.5 + 1.0; //Animation timer
@@ -563,7 +567,7 @@ impl Widget for Overhead<'_> {
                 let action_input = temp_list.join("\n");
 
                 let anchor_id = self.info.map_or(state.ids.name, |info| {
-                    if info.health.is_some_and(should_show_healthbar) {
+                    if info.show_nameplate || info.health.is_some_and(should_show_healthbar) {
                         if info.energy.is_some() {
                             state.ids.mana_bar
                         } else {

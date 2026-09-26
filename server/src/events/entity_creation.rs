@@ -33,7 +33,7 @@ use common::{
     vol::IntoFullVolIterator,
 };
 use common_net::{msg::ServerGeneral, sync::WorldSyncExt};
-use specs::{Builder, Entity as EcsEntity, WorldExt};
+use specs::{Builder, Entity as EcsEntity, Join, WorldExt};
 use std::time::Duration;
 use vek::{Rgb, Vec3};
 
@@ -246,6 +246,34 @@ pub fn handle_create_npc(server: &mut Server, ev: CreateNpcEvent) -> EcsEntity {
         }
     } else if let Some(group) = alignment.group() {
         let _ = server.state.ecs().write_storage().insert(new_entity, group);
+    }
+
+    // Anuncio global cuando despierta un Jefe de Mundo en Azeria
+    let is_world_boss = match body {
+        comp::Body::BipedLarge(b) => match b.species {
+            comp::biped_large::Species::Gigasfrost => Some("Gigas de Escarcha"),
+            comp::biped_large::Species::Gigasfire => Some("Gigas de Fuego"),
+            comp::biped_large::Species::Mindflayer => Some("Azotamentes Ancestral"),
+            comp::biped_large::Species::Minotaur => Some("Minotauro Colosal"),
+            comp::biped_large::Species::Yeti => Some("Yeti Primordial"),
+            comp::biped_large::Species::Harvester => Some("El Cosechador de Almas"),
+            comp::biped_large::Species::Cultistwarlord => Some("Señor de la Guerra Cultista"),
+            _ => None,
+        },
+        comp::Body::Dragon(_) => Some("Dragón Ancestro"),
+        comp::Body::Golem(_) => Some("Gólem Titánico"),
+        _ => None,
+    };
+
+    if let Some(boss_name) = is_world_boss {
+        let spawn_msg = format!("⚔️ [JEFE DE MUNDO] ¡El temible '{}' ha despertado en las tierras de Azeria!", boss_name);
+        let clients = server.state().ecs().read_storage::<Client>();
+        for client in (&clients).join() {
+            client.send_fallible(ServerGeneral::server_msg(
+                comp::ChatType::Meta,
+                comp::Content::Plain(spawn_msg.clone()),
+            ));
+        }
     }
 
     if let Some(rider) = rider {

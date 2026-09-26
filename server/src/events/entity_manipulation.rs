@@ -1069,6 +1069,7 @@ impl ServerEvent for DestroyEvent {
             let mut exp_awards = Vec::<(Entity, f32, Option<Group>)>::new();
             let mut mob_combat_rating = 1.0f32;
             let mut mob_max_health = 100.0f32;
+            let mut is_world_boss: Option<&'static str> = None;
             // Award EXP to damage contributors
             //
             // NOTE: Debug logging is disabled by default for this module - to enable it add
@@ -1096,6 +1097,33 @@ impl ServerEvent for DestroyEvent {
                 else {
                     break 'xp;
                 };
+
+                // Detección de Jefe de Mundo y anuncio global a todo el servidor
+                is_world_boss = match *entity_body {
+                    comp::Body::BipedLarge(b) => match b.species {
+                        comp::biped_large::Species::Gigasfrost => Some("Gigas de Escarcha"),
+                        comp::biped_large::Species::Gigasfire => Some("Gigas de Fuego"),
+                        comp::biped_large::Species::Mindflayer => Some("Azotamentes Ancestral"),
+                        comp::biped_large::Species::Minotaur => Some("Minotauro Colosal"),
+                        comp::biped_large::Species::Yeti => Some("Yeti Primordial"),
+                        comp::biped_large::Species::Harvester => Some("El Cosechador de Almas"),
+                        comp::biped_large::Species::Cultistwarlord => Some("Señor de la Guerra Cultista"),
+                        _ => None,
+                    },
+                    comp::Body::Dragon(_) => Some("Dragón Ancestro"),
+                    comp::Body::Golem(_) => Some("Gólem Titánico"),
+                    _ => None,
+                };
+
+                if let Some(boss_name) = is_world_boss {
+                    let victory_msg = format!("🏆 [VICTORIA EN AZERIA] ¡El temible Jefe de Mundo '{}' ha sido derrotado por los héroes del reino!", boss_name);
+                    for client in (&data.clients).join() {
+                        client.send_fallible(ServerGeneral::server_msg(
+                            comp::ChatType::Meta,
+                            comp::Content::Plain(victory_msg.clone()),
+                        ));
+                    }
+                }
 
                 mob_max_health = entity_health.maximum();
                 // Calculate the total EXP award for the kill
@@ -1345,6 +1373,27 @@ impl ServerEvent for DestroyEvent {
 
                             if let Ok(coin_item) = comp::Item::new_from_asset("common.items.utility.coins") {
                                 items.push((coin_count, coin_item));
+                            }
+                        }
+
+                        // Botín legendario y alijo de monedas de oro garantizados para Jefes de Mundo
+                        if is_world_boss.is_some() {
+                            let boss_coins = 500 + (rng.random::<f32>() * 1000.0) as u32;
+                            if let Ok(coin_item) = comp::Item::new_from_asset("common.items.utility.coins") {
+                                items.push((boss_coins, coin_item));
+                            }
+                            let boss_drops = [
+                                "common.items.weapons.sword.cultist",
+                                "common.items.weapons.hammer.cultist",
+                                "common.items.weapons.bow.velorite",
+                                "common.items.weapons.staff.phoenix",
+                                "common.items.armor.misc.bag.sturdy_red_backpack",
+                            ];
+                            use rand::seq::IndexedRandom;
+                            if let Some(chosen_loot) = boss_drops.choose(&mut rng) {
+                                if let Ok(loot_item) = comp::Item::new_from_asset(chosen_loot) {
+                                    items.push((1, loot_item));
+                                }
                             }
                         }
 
