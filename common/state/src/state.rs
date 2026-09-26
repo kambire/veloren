@@ -336,6 +336,7 @@ impl State {
         ecs.register::<comp::Teleporting>();
         ecs.register::<comp::GizmoSubscriber>();
         ecs.register::<comp::FrontendMarker>();
+        ecs.register::<common::class::CharacterClass>();
 
         // Register components send from clients -> server
         ecs.register::<comp::Controller>();

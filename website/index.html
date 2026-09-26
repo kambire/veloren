@@ -58,7 +58,7 @@
           <span class="pulse-dot"></span>
           Fase Alpha Abierta
         </span>
-        <span class="badge badge-version">Parche v0.18.19</span>
+        <span class="badge badge-version">Parche v0.18.20</span>
       </div>
 
       <h1 class="hero-title">
@@ -291,14 +291,15 @@
       <div class="section-header">
         <span class="section-tag">Historial de Actualizaciones</span>
         <h2 class="section-title">Registro de Cambios Oficial</h2>
-        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.19.</p>
+        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.20.</p>
       </div>
 
       <!-- Controles de Filtro y Búsqueda -->
       <div class="changelog-controls">
         <div class="changelog-filters">
           <button class="changelog-filter-btn active" data-filter="all">Todas las Versiones</button>
-          <button class="changelog-filter-btn" data-filter="v0.18.19">v0.18.19 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.20">v0.18.20 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.19">v0.18.19</button>
           <button class="changelog-filter-btn" data-filter="v0.18.18">v0.18.18</button>
           <button class="changelog-filter-btn" data-filter="v0.18.17">v0.18.17</button>
           <button class="changelog-filter-btn" data-filter="v0.18.16">v0.18.16</button>
@@ -322,8 +323,26 @@
 
       <!-- Timeline de Tarjetas Detalladas -->
       <div class="changelog-timeline" id="changelogTimeline">
+        <!-- v0.18.20 -->
+        <article class="changelog-card latest" data-version="v0.18.20">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-alpha">v0.18.20</span>
+              <h3 class="changelog-version-title">🛡️ Hotfix Crítico: Estabilidad ECS & Registro de CharacterClass</h3>
+            </div>
+            <span class="changelog-date">26 de Septiembre, 2026</span>
+          </div>
+          
+          <h4 class="changelog-section-title">🔧 Corrección de Fallo Crítico (Crash Fix)</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Registro de Componente Specs:</strong> Se subsanó el error que provocaba el cierre del cliente al acceder a <code>MaskedStorage[CharacterClass]</code> al registrar formalmente <code>CharacterClass</code> en el mundo ECS común.</li>
+            <li><strong>Resolución Nativa de Auras:</strong> Optimización en <code>passive.rs</code> para consultar la clase de personaje a través del equipamiento/inventario en tiempo real sin dependencias frágiles de almacenamiento.</li>
+            <li><strong>Estabilidad 100%:</strong> Compatibilidad asegurada tanto en modo offline/singleplayer como en multijugador.</li>
+          </ul>
+        </article>
+
         <!-- v0.18.19 -->
-        <article class="changelog-card latest" data-version="v0.18.19">
+        <article class="changelog-card" data-version="v0.18.19">
           <div class="changelog-card-header">
             <div class="changelog-version-meta">
               <span class="badge badge-alpha">v0.18.19</span>
@@ -932,7 +951,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Descargar AzeriaLauncher.exe
           </a>
-          <span class="download-meta">Versión v0.18.19 • ~2.5 MB • Windows 64-bit</span>
+          <span class="download-meta">Versión v0.18.20 • ~2.5 MB • Windows 64-bit</span>
         </div>
 
         <!-- Cliente Completo ZIP -->
@@ -983,7 +1002,7 @@
         <div class="footer-brand">
           <h3>WORLD OF <span class="text-gold">AZERIA</span></h3>
           <p>Un proyecto impulsado por la comunidad para ofrecer una experiencia MMORPG profunda, inmersiva y táctica en un mundo abierto vóxel.</p>
-          <div class="badge badge-alpha">Alpha Build v0.18.19</div>
+          <div class="badge badge-alpha">Alpha Build v0.18.20</div>
         </div>
 
         <div class="footer-col">

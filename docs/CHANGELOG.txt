@@ -2,6 +2,13 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.20] - 2026-09-26
+-------------------------------------------------------------------------------
+* HOTFIX CRÍTICO DE ESTABILIDAD ECS (MaskedStorage[CharacterClass]):
+  - Corrección de fallo crítico en cliente/servidor: Se añade el registro del componente `CharacterClass` en el mundo Specs (`common::state::State::new()`).
+  - Optimización del sistema de auras pasivas (`passive.rs`): Deducción de clase basada directamente en el inventario del jugador sin requerir `ReadStorage<'a, CharacterClass>`.
+  - Estabilidad 100% garantizada en el arranque del cliente, juego en solitario (singleplayer) y sesiones multijugador.
+
 [v0.18.19] - 2026-09-26
 -------------------------------------------------------------------------------
 * LOS 4 PILARES DE CALIDAD DE VIDA, COMBATE Y MUNDO ESTILO WORLD OF WARCRAFT:

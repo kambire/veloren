@@ -59,7 +59,6 @@ pub struct ReadData<'a> {
     combos: ReadStorage<'a, Combo>,
     poises: ReadStorage<'a, Poise>,
     char_states: ReadStorage<'a, CharacterState>,
-    char_classes: ReadStorage<'a, CharacterClass>,
     inventories: ReadStorage<'a, Inventory>,
     alignments: ReadStorage<'a, Alignment>,
 }
@@ -217,10 +216,9 @@ impl<'a> System<'a> for Sys {
             // 2. AURAS PASIVAS DE CLASE (7 clases)
             // ==============================================================
             let character_class = read_data
-                .char_classes
+                .inventories
                 .get(entity)
-                .copied()
-                .or_else(|| read_data.inventories.get(entity).map(CharacterClass::from_inventory));
+                .map(CharacterClass::from_inventory);
 
             if let Some(class) = character_class {
                 match class {
