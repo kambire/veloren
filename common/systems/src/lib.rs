@@ -9,6 +9,7 @@ pub mod controller;
 mod interpolation;
 pub mod melee;
 mod mount;
+mod passive;
 pub mod phys;
 mod phys_events;
 mod pool;
@@ -30,6 +31,7 @@ pub fn add_local_systems(dispatch_builder: &mut DispatcherBuilder) {
     dispatch::<character_behavior::Sys>(dispatch_builder, &[&controller::Sys::sys_name()]);
     dispatch::<buff::Sys>(dispatch_builder, &[]);
     dispatch::<stats::Sys>(dispatch_builder, &[&buff::Sys::sys_name()]);
+    dispatch::<passive::Sys>(dispatch_builder, &[&stats::Sys::sys_name()]);
     dispatch::<phys::Sys>(dispatch_builder, &[
         &interpolation::Sys::sys_name(),
         &controller::Sys::sys_name(),

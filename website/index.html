@@ -58,7 +58,7 @@
           <span class="pulse-dot"></span>
           Fase Alpha Abierta
         </span>
-        <span class="badge badge-version">Parche v0.18.16</span>
+        <span class="badge badge-version">Parche v0.18.17</span>
       </div>
 
       <h1 class="hero-title">
@@ -291,14 +291,15 @@
       <div class="section-header">
         <span class="section-tag">Historial de Actualizaciones</span>
         <h2 class="section-title">Registro de Cambios Oficial</h2>
-        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.16.</p>
+        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.17.</p>
       </div>
 
       <!-- Controles de Filtro y Búsqueda -->
       <div class="changelog-controls">
         <div class="changelog-filters">
           <button class="changelog-filter-btn active" data-filter="all">Todas las Versiones</button>
-          <button class="changelog-filter-btn" data-filter="v0.18.16">v0.18.16 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.17">v0.18.17 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.16">v0.18.16</button>
           <button class="changelog-filter-btn" data-filter="v0.18.15">v0.18.15</button>
           <button class="changelog-filter-btn" data-filter="v0.18.14">v0.18.14</button>
           <button class="changelog-filter-btn" data-filter="v0.18.13">v0.18.13</button>
@@ -319,8 +320,40 @@
 
       <!-- Timeline de Tarjetas Detalladas -->
       <div class="changelog-timeline" id="changelogTimeline">
+        <!-- v0.18.17 -->
+        <article class="changelog-card latest" data-version="v0.18.17">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-alpha">v0.18.17</span>
+              <h3 class="changelog-version-title">🌟 Sistema de Auras Pasivas Tácticas por Raza y Clase</h3>
+            </div>
+            <span class="changelog-date">26 de Septiembre, 2026</span>
+          </div>
+          
+          <h4 class="changelog-section-title">🛡️ Auras Pasivas Raciales (6 Razas Jugables)</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Orco (Furia de Sangre / Sed de Batalla):</strong> Al caer por debajo del 35% de salud, activa <em>Berserk</em> (+80% daño, velocidad y ataque) y <em>Hastened</em> (+40% celeridad) durante 8s, más una curación de emergencia del 10% de su vida máxima (ICD: 45s).</li>
+            <li><strong>Enano (Bastión de Piedra / Indomable):</strong> Al caer bajo el 40% de vida o sufrir ruptura de equilibrio/poise (&lt; 30%), activa <em>ProtectingWard</em> (80% mitigación) y <em>Fortitude</em> (resistencia masiva a aturdimiento) durante 6s (ICD: 45s).</li>
+            <li><strong>Elfo (Agilidad Silvana / Viento Ancestral):</strong> Al rodar/esquivar o quedarse con menos del 25% de energía en combate, activa <em>Hastened</em> (+60% celeridad) y <em>EnergyRegen</em> (+20 energía/s) durante 6s (ICD: 30s).</li>
+            <li><strong>Humano (Espíritu Inquebrantable / Determinación):</strong> Al bajar del 50% de salud, activa <em>Tenacity</em> (mitigación y energía al recibir golpes) y <em>Regeneration</em> (+35 HP/s) durante 6s (ICD: 40s).</li>
+            <li><strong>Danari (Armonía Elemental / Enfoque Danari):</strong> Al alcanzar 6 o más golpes de combo o atacar con energía alta (&gt; 75%), desata <em>Fury</em> (+50% velocidad y daño) y <em>Sunderer</em> (perforación de armadura) durante 7s (ICD: 35s).</li>
+            <li><strong>Draugr (Toque de la Muerte / Furia Helada):</strong> Al caer bajo el 30% de salud, activa <em>Lifesteal</em> (robo de vida del 50% del daño infligido) y <em>Frigid</em> (sus ataques congelan y ralentizan al rival) durante 7s (ICD: 45s).</li>
+          </ul>
+
+          <h4 class="changelog-section-title">⚔️ Auras Pasivas de Clase (7 Clases)</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Entrenador (Vínculo Feral / Manada Imparable):</strong> Al caer bajo el 50% de vida, activa <em>Frenzied</em> (+80% celeridad y regeneración) durante 8s y cura instantáneamente un 15% de salud máxima tanto al Entrenador como a todas sus mascotas activas (ICD: 40s).</li>
+            <li><strong>Guerrero (Ira del Coloso):</strong> Al atacar con más de 40 de energía, desata <em>ImminentCritical</em> (golpe crítico masivo garantizado) y <em>Defiance</em> (acumulación rápida de combo al recibir golpes) durante 6s (ICD: 25s).</li>
+            <li><strong>Paladín (Baluarte Sagrado):</strong> Al caer bajo el 50% de vida, erige <em>ProtectingWard</em> (mitigación sagrada de daño) y <em>Regeneration</em> (+30 HP/s) durante 6s (ICD: 35s).</li>
+            <li><strong>Pícaro (Danza de las Sombras):</strong> Al rodar o alcanzar 4 golpes de combo, activa <em>Hastened</em> (+80% velocidad) e <em>ImminentCritical</em> (siguiente ataque crítico garantizado) durante 5s (ICD: 25s).</li>
+            <li><strong>Cazador (Ojo de Halcón):</strong> Al conectar 3 golpes de combo o disparar a distancia, activa <em>EagleEye</em> (precisión y daño crítico a distancia) y <em>StormChaser</em> (aceleración por impacto) durante 6s (ICD: 30s).</li>
+            <li><strong>Mago (Ignición Arcana):</strong> Al atacar con menos del 30% de energía, activa <em>Flame</em> (sus ataques queman al objetivo con daño prolongado) y <em>EnergyRegen</em> (+25 energía/s) durante 6s (ICD: 30s).</li>
+            <li><strong>Sacerdote (Gracia Divina):</strong> Al caer bajo el 45% de salud, activa <em>ProtectingWard</em> (barrera protectora) y <em>Regeneration</em> (+40 HP/s) durante 6s (ICD: 35s).</li>
+          </ul>
+        </article>
+
         <!-- v0.18.16 -->
-        <article class="changelog-card latest" data-version="v0.18.16">
+        <article class="changelog-card" data-version="v0.18.16">
           <div class="changelog-card-header">
             <div class="changelog-version-meta">
               <span class="badge badge-alpha">v0.18.16</span>
@@ -839,7 +872,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Descargar AzeriaLauncher.exe
           </a>
-          <span class="download-meta">Versión v0.18.16 • ~2.5 MB • Windows 64-bit</span>
+          <span class="download-meta">Versión v0.18.17 • ~2.5 MB • Windows 64-bit</span>
         </div>
 
         <!-- Cliente Completo ZIP -->
@@ -890,7 +923,7 @@
         <div class="footer-brand">
           <h3>WORLD OF <span class="text-gold">AZERIA</span></h3>
           <p>Un proyecto impulsado por la comunidad para ofrecer una experiencia MMORPG profunda, inmersiva y táctica en un mundo abierto vóxel.</p>
-          <div class="badge badge-alpha">Alpha Build v0.18.16</div>
+          <div class="badge badge-alpha">Alpha Build v0.18.17</div>
         </div>
 
         <div class="footer-col">

@@ -2,6 +2,26 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.17] - 2026-09-26
+-------------------------------------------------------------------------------
+* SISTEMA COMPLETO DE AURAS PASIVAS TÁCTICAS POR RAZA Y CLASE:
+  - Implementado un nuevo sistema integral en el bucle principal de simulación (`common/systems/src/passive.rs`) con activación condicional automática y enfriamiento interno por entidad (ICD).
+  - Auras Pasivas Raciales (6 Razas Jugables):
+    * Orco (Furia de Sangre / Sed de Batalla): Al caer por debajo del 35% de salud, activa Berserk (+80% daño, velocidad de ataque y movimiento) y Hastened (+40% velocidad) durante 8s, más una curación de emergencia del 10% de su vida máxima (ICD: 45s).
+    * Enano (Bastión de Piedra / Indomable): Al caer bajo el 40% de vida o sufrir ruptura de equilibrio/poise (< 30%), activa ProtectingWard (80% mitigación) y Fortitude (resistencia masiva a aturdimiento e impacto de poise) durante 6s (ICD: 45s).
+    * Elfo (Agilidad Silvana / Viento Ancestral): Al esquivar (Roll) o quedarse con menos del 25% de energía en combate, activa Hastened (+60% velocidad de ataque y movimiento) y EnergyRegen (+20 energía/s) durante 6s (ICD: 30s).
+    * Humano (Espíritu Inquebrantable / Determinación): Al bajar del 50% de salud, activa Tenacity (mitigación de daño y ganancia de energía al recibir impactos) y Regeneration (+35 HP/s) durante 6s (ICD: 40s).
+    * Danari (Armonía Elemental / Enfoque Danari): Al alcanzar 6 o más golpes de combo o atacar con energía alta (> 75%), activa Fury (+50% velocidad y daño) y Sunderer (penetración de armadura y mitigaciones) durante 7s (ICD: 35s).
+    * Draugr (Toque de la Muerte / Furia Helada): Al caer bajo el 30% de salud, activa Lifesteal (robo de vida del 50% del daño infligido) y Frigid (sus ataques congelan y ralentizan al enemigo) durante 7s (ICD: 45s).
+  - Auras Pasivas de Clase (7 Clases):
+    * Entrenador (Vínculo Feral / Manada Imparable): Al caer bajo el 50% de vida, activa Frenzied (+80% velocidad y regeneración) durante 8s y cura instantáneamente un 15% de salud máxima tanto al Entrenador como a todas sus mascotas activas (ICD: 40s).
+    * Guerrero (Ira del Coloso): Al atacar con más de 40 de energía, desata ImminentCritical (golpe crítico masivo garantizado) y Defiance (acumulación instantánea de combo al recibir golpes) durante 6s (ICD: 25s).
+    * Paladín (Baluarte Sagrado): Al caer bajo el 50% de vida, erige ProtectingWard (mitigación sagrada de daño) y Regeneration (+30 HP/s) durante 6s (ICD: 35s).
+    * Pícaro (Danza de las Sombras): Al rodar o alcanzar 4 golpes de combo, activa Hastened (+80% velocidad) e ImminentCritical (siguiente ataque crítico garantizado) durante 5s (ICD: 25s).
+    * Cazador (Ojo de Halcón): Al conectar 3 golpes de combo o disparar a distancia, activa EagleEye (precisión y daño crítico a distancia) y StormChaser (aceleración por impacto) durante 6s (ICD: 30s).
+    * Mago (Ignición Arcana): Al atacar con menos del 30% de energía, activa Flame (sus ataques queman al objetivo con daño prolongado) y EnergyRegen (+25 energía/s) durante 6s (ICD: 30s).
+    * Sacerdote (Gracia Divina): Al caer bajo el 45% de salud, activa ProtectingWard (barrera protectora) y Regeneration (+40 HP/s) durante 6s (ICD: 35s).
+
 [v0.18.16] - 2026-09-26
 -------------------------------------------------------------------------------
 * NUEVO PODER PARA EL ENTRENADOR: "BOLA DE PODER" (POWER ORB):
