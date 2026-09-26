@@ -581,6 +581,38 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.13] - 2026-09-25
+-------------------------------------------------------------------------------
+* MODO DÍA PERPETUO Y ATARDECER DORADO (PERPETUAL DAYLIGHT & GOLDEN SUNSET - NO NIGHT):
+  - Eliminada por completo la noche oscura y opaca del juego para evitar frenar la dinámica de combate, exploración y jugabilidad.
+  - Rediseñada la mecánica astronómica y el vector 3D del sol (get_sun_dir): el sol orbita continuamente en 360 grados manteniéndose siempre sobre el horizonte.
+  - El ciclo transiciona suavemente de una mañana luminosa a un mediodía brillante con sombras nítidas, una tarde cálida y un atardecer dorado espectacular (golden twilight).
+  - Al llegar las horas tardías, el sol permanece iluminando el mundo en un atardecer radiante, sin descender bajo la tierra ni sumir el juego en la ceguera de la noche.
+  - Actualizado el sombreador de cielo y atmósfera (sky.glsl): se eliminó la mezcla con iluminación nocturna oscura (NIGHT_LIGHT, SKY_NIGHT), garantizando un brillo mínimo de 0.5 y cielos limpios con gradientes entre azul diurno y atardecer rojizo/dorado.
+  - Adaptado el sistema de períodos (DayPeriod): is_dark() retorna siempre falso, manteniendo a los NPCs, fauna, tiendas y música diurna activos en todo momento sin interrupciones.
+
+[v0.18.12] - 2026-09-25
+-------------------------------------------------------------------------------
+* MARCO DE UNIDAD DE MASCOTA ESTILO WORLD OF WARCRAFT (TOP-LEFT PET FRAME):
+  - Añadido marco de unidad para la mascota (WoW Pet Unit Frame) ubicado arriba a la izquierda, exactamente debajo del marco del jugador.
+  - Medallón circular de retrato de la mascota con borde dorado y fondo oscuro (icono de bestia o raza si es humanoide).
+  - Nombre de la mascota con tipografía de alto contraste y sombra oscura.
+  - Barra de Salud (Health Bar) en verde brillante con valores numéricos exactos (actual/máximo) y estado de "MUERTO" si cae abatida.
+  - Barra de Energía / Enfoque (Pet Focus Bar) en tono dorado/naranja idéntico al Focus de cazador de WoW con valores numéricos.
+  - Visibilidad contextual inteligente: el marco solo se muestra cuando el jugador posee una mascota activa domesticada o invocada.
+
+* CORRECCIÓN DEFINITIVA DE CLICS EN BOTONES DE MASCOTA (HIT-TEST OVERLAY FIX):
+  - Identificada y eliminada la causa raíz del bloqueo de clics en la barra de control de mascotas: el widget BuffsBar generaba tres rectángulos transparentes de 484x100px que, por orden de dibujado, se situaban por delante de los botones y absorbían el cursor e inputs de ratón.
+  - Reordenado el renderizado en voxygen/src/hud/mod.rs para que la barra de habilidades y los botones de mascota se dibujen siempre por encima de cualquier otro elemento de la interfaz.
+  - La barra de buffs ahora solo genera su contenedor cuando realmente hay estados activos, situándose a una altura segura (offset = 180px) por encima de los controles.
+  - Ajustada la altura del marco base (state.ids.frame) de 160px a 88px exactos para que jamás invada el área de interacción de las órdenes de mascota.
+  - Retirado el rótulo flotante redundante de encabezado que capturaba eventos hacia el botón de invocación. Los 8 botones de la mascota ahora responden en el 100% de su superficie a cualquier clic.
+
+* ELIMINACIÓN DE BARRAS FLOTANTES DEL CENTRO INFERIOR:
+  - Eliminadas por completo las barras flotantes redundantes (barra verde de salud de 484px, barra de estamina/energía y barra de aplomo/poise) que aparecían sobre la barra de acción al recibir daño o gastar recursos.
+  - La barra de acción y la barra táctica de control de mascotas quedan ahora totalmente despejadas, sin elementos intrusivos ni superposiciones visuales.
+  - Todas las estadísticas vitales del jugador se consultan de forma limpia y consolidada en el marco de personaje de la esquina superior izquierda.
+
 [v0.18.11] - 2026-09-25
 -------------------------------------------------------------------------------
 * ACTIVACIÓN DE HABILIDADES Y PODERES POR CLIC DE RATÓN (CLICK-TO-CAST):
@@ -741,7 +773,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Descargar AzeriaLauncher.exe
           </a>
-          <span class="download-meta">Versión v0.18.11 • ~2.5 MB • Windows 64-bit</span>
+          <span class="download-meta">Versión v0.18.13 • ~2.5 MB • Windows 64-bit</span>
         </div>
 
         <!-- Cliente Completo ZIP -->
@@ -792,7 +824,7 @@
         <div class="footer-brand">
           <h3>WORLD OF <span class="text-gold">AZERIA</span></h3>
           <p>Un proyecto impulsado por la comunidad para ofrecer una experiencia MMORPG profunda, inmersiva y táctica en un mundo abierto vóxel.</p>
-          <div class="badge badge-alpha">Alpha Build v0.18.11</div>
+          <div class="badge badge-alpha">Alpha Build v0.18.13</div>
         </div>
 
         <div class="footer-col">
