@@ -1313,7 +1313,33 @@ impl PlayState for SessionState {
                                                         client.help_downed(*entity)
                                                     },
                                                     EntityInteraction::PickupItem => {
-                                                        client.pick_up(*entity)
+                                                        let is_shift = global_state.window.modifiers().shift_key();
+                                                        if is_shift {
+                                                            // Shift+E: Direct auto-loot all nearby items immediately!
+                                                            let others: Vec<specs::Entity> = {
+                                                                let ecs = client.state().ecs();
+                                                                let entities = ecs.entities();
+                                                                let pos = ecs.read_storage::<comp::Pos>();
+                                                                let items = ecs.read_storage::<comp::PickupItem>();
+                                                                pos.get(client.entity()).map(|p| p.0).map_or_else(Vec::new, |player_pos| {
+                                                                    (&entities, &pos, &items)
+                                                                        .join()
+                                                                        .filter(|(other_e, other_pos, _)| *other_e != *entity && other_pos.0.distance_squared(player_pos) < common::consts::MAX_PICKUP_RANGE.powi(2))
+                                                                        .map(|(other_e, _, _)| other_e)
+                                                                        .collect()
+                                                                })
+                                                            };
+                                                            client.pick_up(*entity);
+                                                            for other_e in others {
+                                                                client.pick_up(other_e);
+                                                            }
+                                                        } else if self.hud.is_loot_window_open() {
+                                                            // If window already open, pressing 'E' picks up the targeted item
+                                                            client.pick_up(*entity);
+                                                        } else {
+                                                            // Normal 'E': Open the WoW-style Loot Window!
+                                                            self.hud.open_loot_window();
+                                                        }
                                                     },
                                                     EntityInteraction::ActivatePortal => {
                                                         client.activate_portal(*entity)
@@ -2001,6 +2027,10 @@ impl PlayState for SessionState {
                     },
                     HudEvent::Quit => {
                         return PlayStateResult::Shutdown;
+                    },
+
+                    HudEvent::PickUp(entity) => {
+                        self.client.borrow_mut().pick_up(entity);
                     },
 
                     HudEvent::RemoveBuff(buff_id) => {

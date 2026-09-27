@@ -2,6 +2,34 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.24] - 2026-09-26
+-------------------------------------------------------------------------------
+* SISTEMA DE VENTANA DE BOTÍN ESTILO WORLD OF WARCRAFT (DESPOJO SELECTIVO & AGRUPACIÓN 3D):
+  - Ventana de Botín Táctica (Loot Window):
+    * Al pulsar la tecla interactuar ('E') cerca de objetos caídos en el suelo, se abre una ventana emergente ("Loot Frame") inspirada en World of Warcraft.
+    * Muestra la lista de todos los objetos en el suelo dentro del rango de despojo con:
+      - Icono animado del objeto.
+      - Marco y texto con el color correspondiente a su rareza (Común, Poco común, Raro, Épico, Legendario, Artefacto).
+      - Cantidad/pila exacta (ej: x10).
+      - Subtítulo de calidad/categoría.
+      - Tooltip completo e interactivo al pasar el cursor sobre cualquier objeto (estadísticas, daño, armadura, descripción).
+      - Botón individual "[ Recoger ]" por objeto para elegir exactamente qué alzar y evitar llenar las bolsas de basura no deseada.
+    * Botón "[ 💰 Despojar Todo ]" para recoger todos los objetos de la ventana con un solo clic.
+    * Botón "[ Cerrar ]" y tecla Escape/'X' para cerrar la ventana.
+    * Paginación dinámica (< y >) si hay más de 5 objetos caídos en el área.
+    * Cierre automático de la ventana al recoger todos los objetos o al alejarse más allá del rango de despojo (5 metros).
+  - Fin al Loteo Encimado en el Suelo (Agrupación Inteligente en 3D):
+    * Los objetos en el suelo a menos de 1.8 metros se agrupan en una única etiqueta limpia y legible: "💰 Botín (X objetos)", iluminada con el color del objeto de mayor rareza en la pila.
+    * Se eliminan los textos solapados e ilegibles cuando múltiples objetos caen en el mismo punto tras derrotar enemigos o abrir cofres.
+  - Auto-Loot con Shift+E:
+    * Mantener pulsado Shift y presionar 'E' realiza un despojo rápido automático de todos los objetos cercanos directamente a las bolsas, ideal para recolectar con prisa.
+* SINCRONIZACIÓN Y CORRECCIÓN DE NIVEL DE PERSONAJE Y BARRA DE EXPERIENCIA (VENTANA 'P'):
+  - Corrección de Desfase de Nivel entre HUD y Libro de Habilidades ('P'):
+    * Se corrigió la discrepancia donde la barra de experiencia y la insignia de retrato en la esquina superior izquierda mostraban un nivel (ej: Nivel 9) mientras que al presionar 'P' (Diario/Habilidades) se mostraba otro diferente (ej: 7).
+    * El HUD ahora utiliza el árbol de clase del personaje como árbol primario por defecto en lugar de quedarse fijado en el árbol 'General', sincronizando con exactitud el nivel mostrado en el retrato, la barra de EXP y el botón [P].
+    * El indicador numérico central de la barra de experiencia en la ventana 'P' ahora calcula el nivel base correctamente comenzando en Nivel 1 (1 + puntos ganados), coincidiendo exactamente con el nivel del personaje en el HUD.
+    * Al abrir la ventana 'P' se abre directamente en el árbol de habilidades activo del jugador y se mantiene seleccionada la pestaña sin reiniciar a General.
+
 [v0.18.23] - 2026-09-26
 -------------------------------------------------------------------------------
 * REBALANCEO Y EQUILIBRIO DE CURACIÓN RESIDUAL SUAVE (HOT REGULARIZADO):

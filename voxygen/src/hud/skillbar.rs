@@ -602,6 +602,14 @@ impl<'a> Skillbar<'a> {
         }
     }
 
+    pub fn primary_skillgroup(&self) -> SkillGroupKind {
+        common::class::CharacterClass::ALL
+            .iter()
+            .map(|c| c.skill_group())
+            .find(|sg| self.skillset.skill_group_accessible(*sg))
+            .unwrap_or_else(|| common::class::CharacterClass::from_inventory(self.inventory).skill_group())
+    }
+
     fn create_new_button_with_shadow(
         &self,
         ui: &mut UiCell,
@@ -810,16 +818,17 @@ impl<'a> Skillbar<'a> {
             _ => HP_COLOR,
         };
 
-        let selected_experience = &self
+        let default_sg = self.primary_skillgroup();
+        let selected_experience = self
             .global_state
             .settings
             .interface
             .xp_bar_skillgroup
-            .unwrap_or(SkillGroupKind::General);
-        let current_exp = self.skillset.available_experience(*selected_experience) as f64;
-        let max_exp = self.skillset.skill_point_cost(*selected_experience) as f64;
+            .unwrap_or(default_sg);
+        let current_exp = self.skillset.available_experience(selected_experience) as f64;
+        let max_exp = self.skillset.skill_point_cost(selected_experience) as f64;
         let exp_percentage = (current_exp / max_exp.max(1.0)).clamp(0.0, 1.0);
-        let level = (1 + self.skillset.earned_sp(*selected_experience) as u32).min(60);
+        let level = (1 + self.skillset.earned_sp(selected_experience) as u32).min(60);
         let level_txt = level.to_string();
 
         let char_name = self.stats.map_or_else(
@@ -1250,12 +1259,13 @@ impl<'a> Skillbar<'a> {
         // Exp Type and Level Display
 
         // Spellbook / Diary Button [P] (A la izquierda del Slot 1, simétrico con la Bolsa a la derecha del Slot 10)
+        let default_sg = self.primary_skillgroup();
         let selected_experience = self
             .global_state
             .settings
             .interface
             .xp_bar_skillgroup
-            .unwrap_or(SkillGroupKind::General);
+            .unwrap_or(default_sg);
         let level = (1 + self.skillset.earned_sp(selected_experience) as u32).min(60);
         let level_txt = level.to_string();
 

@@ -28,6 +28,7 @@ mod trade;
 pub mod controller_icons;
 pub mod img_ids;
 pub mod item_imgs;
+pub mod loot_window;
 pub mod tutorial;
 pub mod util;
 
@@ -318,6 +319,7 @@ widget_ids! {
         buttons,
         buffs,
         esc_menu,
+        loot_window,
         pause_overlay,
         social_window,
         quest_window,
@@ -697,6 +699,7 @@ pub enum Event {
     SortInventory(InventorySortOrder),
     ChangeHotbarState(Box<HotbarState>),
     TradeAction(TradeAction),
+    PickUp(specs::Entity),
     Ability {
         idx: usize,
         state: bool,
@@ -916,6 +919,7 @@ impl TradeAmountInput {
 pub enum WindowId {
     None,
     Bag,
+    Loot,
 }
 
 pub struct Show {
@@ -934,6 +938,7 @@ pub struct Show {
     group_menu: bool,
     esc_menu: bool,
     open_windows: Windows,
+    pub loot_window: bool,
     map: bool,
     ingame: bool,
     chat_tab_settings_index: Option<usize>,
@@ -975,6 +980,7 @@ impl Show {
             group_menu: false,
             esc_menu: false,
             open_windows: Windows::None,
+            loot_window: false,
             map: false,
             ingame: true,
             chat_tab_settings_index: None,
@@ -991,6 +997,17 @@ impl Show {
             prompt_dialog: None,
             trade_amount_input_key: None,
             focus: Vec::new(),
+        }
+    }
+
+    pub fn loot_window(&mut self, open: bool) {
+        if open {
+            self.focus.push(WindowId::Loot);
+            self.loot_window = true;
+            self.want_grab = false;
+        } else {
+            self.focus.retain(|x| *x != WindowId::Loot);
+            self.loot_window = false;
         }
     }
 
@@ -1117,7 +1134,11 @@ impl Show {
             self.crafting_fields.salvage = false;
             self.set_bag_state(false);
             self.map = false;
-            self.diary_fields = diary::DiaryShow::default();
+            let current_tab = self.diary_fields.skilltreetab;
+            self.diary_fields = diary::DiaryShow {
+                section: diary::DiarySection::SkillTrees,
+                skilltreetab: current_tab,
+            };
             self.diary = open;
             if self.any_window_requires_cursor() {
                 self.want_grab = false;
@@ -1187,6 +1208,7 @@ impl Show {
             || self.diary
             || self.intro
             || self.quest
+            || self.loot_window
             || !matches!(self.open_windows, Windows::None)
     }
 
@@ -1201,6 +1223,7 @@ impl Show {
             self.quest = false;
             self.diary = false;
             self.crafting = false;
+            self.loot_window = false;
             self.open_windows = Windows::None;
             self.want_grab = false;
 
@@ -2126,33 +2149,92 @@ impl Hud {
             self.failed_entity_pickups
                 .retain(|_, t| pulse - t.pulse < overitem::PICKUP_FAILED_FADE_OUT_TIME);
 
-            // Render overitem: name, etc.
-            for (entity, pos, item, distance) in (&entities, &pos, &items)
+            // Collect all nearby loot items
+            let mut nearby_loot_ground: Vec<(specs::Entity, comp::Pos, &PickupItem, f32)> = (&entities, &pos, &items)
                 .join()
-                .map(|(entity, pos, item)| (entity, pos, item, pos.0.distance_squared(player_pos)))
-                .filter(|(_, _, _, distance)| distance < &MAX_PICKUP_RANGE.powi(2))
-            {
+                .map(|(entity, pos, item)| (entity, *pos, item, pos.0.distance_squared(player_pos)))
+                .filter(|(_, _, _, distance)| *distance < MAX_PICKUP_RANGE.powi(2))
+                .collect();
+            nearby_loot_ground.sort_by(|a, b| a.3.partial_cmp(&b.3).unwrap_or(std::cmp::Ordering::Equal));
+
+            // Cluster ground items within 1.8m to prevent unreadable stacked/overlapping text labels
+            let mut loot_clusters: Vec<Vec<(specs::Entity, comp::Pos, &PickupItem, f32)>> = Vec::new();
+            for item_data in nearby_loot_ground.iter() {
+                let mut added = false;
+                for cluster in loot_clusters.iter_mut() {
+                    if let Some(first) = cluster.first() {
+                        if first.1.0.distance_squared(item_data.1.0) < 3.24 {
+                            cluster.push(*item_data);
+                            added = true;
+                            break;
+                        }
+                    }
+                }
+                if !added {
+                    loot_clusters.push(vec![*item_data]);
+                }
+            }
+
+            // Render overitem for each cluster (or single item)
+            for cluster in loot_clusters {
                 let overitem_id = overitem_walker.next(
                     &mut self.ids.overitems,
                     &mut ui_widgets.widget_id_generator(),
                 );
 
-                make_overitem(
-                    item,
-                    pos.0 + Vec3::unit_z() * 1.2,
-                    distance,
-                    overitem::OveritemProperties {
-                        active: entity_interactables.contains_key(&entity),
-                        pickup_failed_pulse: self.failed_entity_pickups.get(&entity).cloned(),
-                    },
-                    &self.fonts,
-                    vec![(
-                        Some(GameInput::Interact),
-                        i18n.get_msg("hud-pick_up").to_string(),
-                        overitem::TEXT_COLOR,
-                    )],
-                )
-                .set(overitem_id, ui_widgets);
+                let (_first_entity, first_pos, first_item, min_distance) = cluster[0];
+                let is_active = cluster.iter().any(|(e, _, _, _)| entity_interactables.contains_key(e));
+                let failed_pulse = cluster.iter().find_map(|(e, _, _, _)| self.failed_entity_pickups.get(e).cloned());
+
+                if cluster.len() == 1 {
+                    make_overitem(
+                        first_item,
+                        first_pos.0 + Vec3::unit_z() * 1.2,
+                        min_distance,
+                        overitem::OveritemProperties {
+                            active: is_active,
+                            pickup_failed_pulse: failed_pulse,
+                        },
+                        &self.fonts,
+                        vec![(
+                            Some(GameInput::Interact),
+                            "Botín (Shift+E Recoger)".to_string(),
+                            overitem::TEXT_COLOR,
+                        )],
+                    )
+                    .set(overitem_id, ui_widgets);
+                } else {
+                    let best_quality = cluster
+                        .iter()
+                        .map(|(_, _, item, _)| item.quality())
+                        .max()
+                        .unwrap_or(common::comp::inventory::item::Quality::Common);
+                    let quality_col = get_quality_col(best_quality);
+
+                    let title = format!("💰 Botín ({} objetos)", cluster.len());
+                    overitem::Overitem::new(
+                        title.into(),
+                        quality_col,
+                        min_distance,
+                        &self.fonts,
+                        i18n,
+                        overitem::OveritemProperties {
+                            active: is_active,
+                            pickup_failed_pulse: failed_pulse,
+                        },
+                        pulse,
+                        vec![(
+                            Some(GameInput::Interact),
+                            "Abrir Botín (Shift+E Todo)".to_string(),
+                            overitem::TEXT_COLOR,
+                        )],
+                        &self.imgs,
+                        global_state,
+                    )
+                    .x_y(0.0, 100.0)
+                    .position_ingame(first_pos.0 + Vec3::unit_z() * 1.2)
+                    .set(overitem_id, ui_widgets);
+                }
             }
 
             // Render overitem for interactable blocks
@@ -4204,6 +4286,61 @@ impl Hud {
             }
         }
 
+        // WoW-style Loot Window
+        if self.show.loot_window {
+            let ecs = client.state().ecs();
+            let entities = ecs.entities();
+            let pos = ecs.read_storage::<comp::Pos>();
+            let items = ecs.read_storage::<comp::PickupItem>();
+            let inventories = ecs.read_storage::<comp::Inventory>();
+            let msm = ecs.read_resource::<common::comp::inventory::item::MaterialStatManifest>();
+            let rbm = ecs.read_resource::<common::recipe::RecipeBookManifest>();
+
+            let player_pos = pos.get(client.entity()).map(|p| p.0).unwrap_or(Vec3::zero());
+            let nearby_loot_refs: Vec<(specs::Entity, &comp::PickupItem)> = (&entities, &pos, &items)
+                .join()
+                .map(|(entity, pos, item)| (entity, item, pos.0.distance_squared(player_pos)))
+                .filter(|(_, _, distance)| *distance < common::consts::MAX_PICKUP_RANGE.powi(2))
+                .map(|(entity, item, _)| (entity, item))
+                .collect();
+
+            if nearby_loot_refs.is_empty() {
+                self.show.loot_window = false;
+            } else {
+                let loot_window = loot_window::LootWindow::new(
+                    &nearby_loot_refs,
+                    client,
+                    &info,
+                    &self.imgs,
+                    &self.item_imgs,
+                    &self.rot_imgs,
+                    &self.fonts,
+                    i18n,
+                    &self.item_i18n,
+                    &msm,
+                    &rbm,
+                    inventories.get(client.entity()),
+                    item_tooltip_manager,
+                    self.pulse,
+                );
+                if let Some(event) = loot_window.set(self.ids.loot_window, ui_widgets) {
+                    match event {
+                        loot_window::LootWindowEvent::PickUp(entity) => {
+                            events.push(Event::PickUp(entity));
+                        },
+                        loot_window::LootWindowEvent::PickUpAll => {
+                            for (entity, _) in &nearby_loot_refs {
+                                events.push(Event::PickUp(*entity));
+                            }
+                        },
+                        loot_window::LootWindowEvent::Close => {
+                            self.show.loot_window = false;
+                        },
+                    }
+                }
+            }
+        }
+
         let mut indicator_offset = 40.0;
 
         // Free look indicator
@@ -5255,7 +5392,13 @@ impl Hud {
                     },
                     GameInput::Diary if state => {
                         global_state.profile.tutorial.event_open_diary();
+                        let will_open = !self.show.diary;
                         self.show.toggle_diary();
+                        if will_open {
+                            if let Some(sg) = global_state.settings.interface.xp_bar_skillgroup {
+                                self.show.open_skill_tree(sg);
+                            }
+                        }
                         true
                     },
                     GameInput::Settings if state => {
@@ -5408,6 +5551,19 @@ impl Hud {
 
     pub fn any_window_requires_cursor(&self) -> bool {
         self.show.any_window_requires_cursor()
+    }
+
+    pub fn is_loot_window_open(&self) -> bool {
+        self.show.loot_window
+    }
+
+    pub fn open_loot_window(&mut self) {
+        self.show.loot_window(true);
+    }
+
+    pub fn toggle_loot_window(&mut self) {
+        let current = self.show.loot_window;
+        self.show.loot_window(!current);
     }
 
     pub fn is_mouse_over_ui(&self) -> bool {

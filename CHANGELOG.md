@@ -78,6 +78,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fish no longer walk on land.
 - Panic related to lag spikes
 
+## [0.18.24] - 2026-09-26
+
+### Added
+- **Ventana de Botín Táctica estilo World of Warcraft (Loot Window)**:
+  - Al pulsar 'E' frente a objetos en el suelo, se despliega una ventana emergente que lista todos los objetos caídos en el área con iconos animados, marco y nombre con color de rareza, cantidad, categoría y tooltips interactivos completos al posar el ratón.
+  - Permite despojar de forma selectiva presionando "[ Recoger ]" en el objeto deseado para evitar llenar el inventario de objetos indeseados.
+  - Incluye botón "[ 💰 Despojar Todo ]" para recoger todos los ítems de un solo golpe, botón "[ Cerrar ]" (o 'X'/Escape) y paginación rápida si hay más de 5 ítems en el área.
+  - Cierre automático inteligente si se recogen todos los ítems o si el jugador camina fuera del rango de 5 metros.
+- **Agrupación Inteligente de Loteo 3D en el Suelo (Sin textos encimados)**:
+  - Los ítems caídos dentro de 1.8 metros se consolidan visualmente en una sola etiqueta limpia en el mundo: "💰 Botín (X objetos)", con el resplandor y color del objeto más valioso del montón.
+- **Auto-Loot con Shift+E**:
+  - Al pulsar Shift+E cerca de un montón de objetos, se recogen todos automáticamente al inventario sin abrir la ventana, ideal para ritmo rápido.
+
+### Fixed
+- **Sincronización de nivel de personaje y barra de experiencia con ventana 'P'**:
+  - Se corrigió la discrepancia por la cual la insignia de nivel y la barra de experiencia del retrato (arriba a la izquierda) mostraban un nivel (ej: Nivel 9) mientras que la ventana de habilidades ('P') mostraba otro (ej: 7).
+  - La barra de experiencia del HUD y el retrato ahora se sincronizan por defecto con el árbol de talentos de la clase del personaje en lugar de quedar fijos en el árbol 'General'.
+  - El indicador numérico de nivel en la barra de experiencia de la ventana 'P' ahora calcula correctamente el nivel base en 1 (1 + puntos ganados), coincidiendo de forma idéntica con el nivel del HUD y los nameplates en todo momento.
+  - Al presionar 'P' se preserva la pestaña del árbol de habilidades activo sin restablecerse a 'General'.
+
 ## [0.18.23] - 2026-09-26
 
 ### Changed
@@ -1742,7 +1762,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Note: 0.1.0 was part of the legacy engine.
 
-[unreleased]: https://github.com/kambire/veloren/compare/v0.18.23...HEAD
+[unreleased]: https://github.com/kambire/veloren/compare/v0.18.24...HEAD
+[0.18.24]: https://github.com/kambire/veloren/releases/tag/v0.18.24
 [0.18.23]: https://github.com/kambire/veloren/releases/tag/v0.18.23
 [0.18.22]: https://github.com/kambire/veloren/releases/tag/v0.18.22
 [0.18.21]: https://github.com/kambire/veloren/releases/tag/v0.18.21

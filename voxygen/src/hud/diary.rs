@@ -539,7 +539,30 @@ impl Widget for Diary<'_> {
         match self.show.diary_fields.section {
             DiarySection::SkillTrees => {
                 // Skill Trees
-                let sel_tab = &self.show.diary_fields.skilltreetab;
+                let default_class_skillgroup = common::class::CharacterClass::ALL
+                    .iter()
+                    .map(|c| c.skill_group())
+                    .find(|sg| self.skill_set.skill_group_accessible(*sg))
+                    .unwrap_or_else(|| common::class::CharacterClass::from_inventory(self.inventory).skill_group());
+
+                let tracked_sg = self
+                    .global_state
+                    .settings
+                    .interface
+                    .xp_bar_skillgroup
+                    .unwrap_or(default_class_skillgroup);
+
+                // Si la pestaña actual es la General por defecto y el usuario no la ha fijado explícitamente como barra de XP,
+                // sincronizar al árbol de su clase o al árbol de XP trackeado
+                let active_tab = if self.skill_set.skill_group_accessible(self.show.diary_fields.skilltreetab)
+                    && (self.show.diary_fields.skilltreetab != SelectedSkillTree::General
+                        || self.global_state.settings.interface.xp_bar_skillgroup == Some(SelectedSkillTree::General))
+                {
+                    self.show.diary_fields.skilltreetab
+                } else {
+                    tracked_sg
+                };
+                let sel_tab = &active_tab;
 
                 // Cada clase solo ve el árbol general, el de minería y el de su clase
                 let visible_trees = DiarySkillTree::iter()
@@ -671,7 +694,7 @@ impl Widget for Diary<'_> {
                 let current_exp = self.skill_set.available_experience(*sel_tab) as f64;
                 let max_exp = self.skill_set.skill_point_cost(*sel_tab) as f64;
                 let exp_percentage = current_exp / max_exp;
-                let rank = self.skill_set.earned_sp(*sel_tab);
+                let rank = (1 + self.skill_set.earned_sp(*sel_tab) as u32).min(60);
                 let rank_txt = format!("{}", rank);
                 let exp_txt = format!("{}/{}", current_exp, max_exp);
                 let available_pts = self.skill_set.available_sp(*sel_tab);
@@ -694,7 +717,7 @@ impl Widget for Diary<'_> {
                     .set(state.ids.exp_bar_frame, ui);
                 // Show as Exp bar below skillbar
                 let exp_selected =
-                    self.global_state.settings.interface.xp_bar_skillgroup == Some(*sel_tab);
+                    self.global_state.settings.interface.xp_bar_skillgroup.unwrap_or(default_class_skillgroup) == *sel_tab;
                 if Button::image(if !exp_selected {
                     self.imgs.checkbox
                 } else {

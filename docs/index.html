@@ -58,7 +58,7 @@
           <span class="pulse-dot"></span>
           Fase Alpha Abierta
         </span>
-        <span class="badge badge-version">Parche v0.18.23</span>
+        <span class="badge badge-version">Parche v0.18.24</span>
       </div>
 
       <h1 class="hero-title">
@@ -298,7 +298,8 @@
       <div class="changelog-controls">
         <div class="changelog-filters">
           <button class="changelog-filter-btn active" data-filter="all">Todas las Versiones</button>
-          <button class="changelog-filter-btn" data-filter="v0.18.23">v0.18.23 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.24">v0.18.24 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.23">v0.18.23</button>
           <button class="changelog-filter-btn" data-filter="v0.18.22">v0.18.22</button>
           <button class="changelog-filter-btn" data-filter="v0.18.21">v0.18.21</button>
           <button class="changelog-filter-btn" data-filter="v0.18.20">v0.18.20</button>
@@ -326,8 +327,43 @@
 
       <!-- Timeline de Tarjetas Detalladas -->
       <div class="changelog-timeline" id="changelogTimeline">
+        <!-- v0.18.24 -->
+        <article class="changelog-card latest" data-version="v0.18.24">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-alpha">v0.18.24</span>
+              <h3 class="changelog-version-title">⚔️ Ventana de Botín Táctica estilo WoW y Despojo Selectivo</h3>
+            </div>
+            <span class="changelog-date">26 de Septiembre, 2026</span>
+          </div>
+          
+          <h4 class="changelog-section-title">🎒 Ventana de Botín Táctica (Loot Frame)</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Despojo Selectivo de Objetos:</strong> Al pulsar 'E' frente a objetos en el suelo, se abre una ventana modal interactiva estilo WoW que muestra la lista de todo lo caído a tu alrededor con icono renderizado, marco y nombre con color de rareza, cantidad, categoría y tooltip emergente completo con estadísticas al posar el cursor.</li>
+            <li><strong>Recogida Individual:</strong> Puedes hacer clic en "[ Recoger ]" únicamente en los objetos que realmente deseas llevar, dejando la chatarra en el suelo sin llenar tus bolsas.</li>
+            <li><strong>Despojar Todo y Control Total:</strong> Incluye botón "[ 💰 Despojar Todo ]" para recoger todos los ítems de una sola vez, botón de cierre "[ Cerrar ]" (o '✕'/Escape) y paginación rápida para más de 5 objetos. Se cierra automáticamente si te alejas más de 5 metros o si el botín se agota.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">🌐 Agrupación Inteligente en el Mundo 3D (Sin Textos Encimados)</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Clustering de Loteo en el Suelo:</strong> Se eliminaron los textos amontonados e ilegibles. Múltiples objetos caídos a menos de 1.8 metros ahora se agrupan en una única etiqueta flotante limpia: <code>💰 Botín (X objetos)</code>, con el brillo y color de rareza del objeto más valioso.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">⚡ Auto-Loot Ultrarrápido con Shift+E</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Recogida Inmediata:</strong> Al presionar Shift+E cerca de cualquier botín, se recoge automáticamente todo lo cercano al inventario sin abrir la ventana, ideal para no detener el ritmo de combate.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">📊 Sincronización de Nivel y Barra de Experiencia (Ventana 'P')</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Fin al Desfase de Nivel:</strong> Se corrigió el error donde la insignia de nivel y la barra de EXP del retrato (arriba a la izquierda) mostraban un nivel distinto al de la ventana de habilidades ('P').</li>
+            <li><strong>Árbol de Clase Primario:</strong> El HUD ahora toma automáticamente el árbol de talentos de la clase del personaje como barra de progreso predeterminada en lugar de quedar fijado en el árbol 'General'.</li>
+            <li><strong>Cálculo Unificado Base 1:</strong> El medallón central de nivel en la ventana 'P' ahora calcula correctamente el nivel comenzando en Nivel 1 (1 + puntos ganados), coincidiendo exactamente con el retrato y los nameplates en todo momento.</li>
+          </ul>
+        </article>
+
         <!-- v0.18.23 -->
-        <article class="changelog-card latest" data-version="v0.18.23">
+        <article class="changelog-card" data-version="v0.18.23">
           <div class="changelog-card-header">
             <div class="changelog-version-meta">
               <span class="badge badge-alpha">v0.18.23</span>
@@ -1012,7 +1048,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Descargar AzeriaLauncher.exe
           </a>
-          <span class="download-meta">Versión v0.18.23 • ~2.5 MB • Windows 64-bit</span>
+          <span class="download-meta">Versión v0.18.24 • ~2.5 MB • Windows 64-bit</span>
         </div>
 
         <!-- Cliente Completo ZIP -->
@@ -1063,7 +1099,7 @@
         <div class="footer-brand">
           <h3>WORLD OF <span class="text-gold">AZERIA</span></h3>
           <p>Un proyecto impulsado por la comunidad para ofrecer una experiencia MMORPG profunda, inmersiva y táctica en un mundo abierto vóxel.</p>
-          <div class="badge badge-alpha">Alpha Build v0.18.23</div>
+          <div class="badge badge-alpha">Alpha Build v0.18.24</div>
         </div>
 
         <div class="footer-col">
