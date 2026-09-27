@@ -14,6 +14,15 @@
   - Mayor Control y Eficiencia de Energía:
     * El jugador ya no desperdicia reservas de energía en curaciones repetidas no deseadas, permitiendo un manejo táctico y preciso de los tiempos de curación en combate.
 
+* LANZADOR OFICIAL (AZERIALAUNCHER) - DETECCIÓN Y DESCARGA AUTOMÁTICA DE CLIENTE:
+  - Instalación Directa cuando Falta el Juego:
+    * Cuando el lanzador se ejecuta en una carpeta limpia sin el juego instalado, ahora lo detecta inmediatamente y activa el botón principal en dorado con el texto "DESCARGAR JUEGO".
+    * Al hacer clic, descarga el paquete completo del juego (`WorldOfAzeria-windows.zip`), muestra el progreso de descarga y velocidad en tiempo real, extrae los archivos en la carpeta correspondiente y habilita el botón "JUGAR" al finalizar.
+  - Resiliencia y Enlace Canónico Fallback:
+    * Si la conexión a la API de GitHub falla, no está disponible o se encuentra limitada por tasa (403/Offline), el botón ya no queda inhabilitado en "NO DISPONIBLE". En su lugar, utiliza directamente la URL de descarga canónica de GitHub Releases para permitir la instalación inmediata sin bloqueos.
+  - Claridad de Estado e Interfaz:
+    * El texto de estado informa amigablemente: "Juego no instalado. Haz clic en DESCARGAR JUEGO para comenzar.", y en el panel de información la versión instalada figura como "No instalada" en dorado hasta completarse la instalación.
+
 [v0.18.24] - 2026-09-26
 -------------------------------------------------------------------------------
 * SISTEMA DE VENTANA DE BOTÍN ESTILO WORLD OF WARCRAFT (DESPOJO SELECTIVO & AGRUPACIÓN 3D):

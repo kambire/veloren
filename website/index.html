@@ -345,6 +345,13 @@
             <li><strong>Consumo de Input en el Servidor:</strong> Tanto al iniciar <code>BasicAura</code> como al finalizar la fase de recuperación de cualquier habilidad (<code>end_ability</code>), el comando de activación se retira inmediatamente de la cola de entradas del personaje (<code>queued_inputs</code>). Al regresar a la postura de empuñadura (<code>Wielding</code>), el personaje permanece listo sin repetir la habilidad automáticamente.</li>
             <li><strong>Ahorro y Gestión Táctica de Energía:</strong> Las reservas de energía se conservan intactas para cuando realmente se decida utilizar cada habilidad, permitiendo un combate mucho más ágil y responsivo.</li>
           </ul>
+
+          <h4 class="changelog-section-title">🚀 Lanzador Oficial (AzeriaLauncher) - Instalación Automática</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Detección de Juego Faltante:</strong> Al abrir el lanzador en una carpeta limpia sin el juego instalado, activa automáticamente el botón <code>DESCARGAR JUEGO</code> en dorado con halo pulsante.</li>
+            <li><strong>Instalación Directa con 1 Clic:</strong> Descarga el paquete completo del cliente, muestra el progreso/velocidad en tiempo real y extrae todos los archivos de juego automáticamente, cambiando el botón a <code>JUGAR</code> una vez finalizado.</li>
+            <li><strong>Resiliencia ante Fallos de Conexión:</strong> Si el servidor o la API de GitHub están saturados o sin conexión, el botón no se bloquea; recurre a la descarga canónica directa para garantizar que cualquier jugador nuevo pueda descargar e instalar el juego sin trabas.</li>
+          </ul>
         </article>
 
         <!-- v0.18.24 -->
