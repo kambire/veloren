@@ -10,8 +10,8 @@ BasicAura(
     auras: [
         (
             kind: Regeneration,
-            strength: 2.5,
-            duration: Some(6),
+            strength: 2.0,
+            duration: Some(10),
         ),
     ],
     aura_duration: Some(1.0),

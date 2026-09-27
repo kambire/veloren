@@ -429,16 +429,17 @@ impl ServerEvent for CommandPetEvent {
                             1.0
                         };
 
-                        // Curación instantánea masiva: ~45% de la vida MÁXIMA de la mascota
-                        const INSTANT_FRACTION: f32 = 0.45;
-                        // Curación gradual potente (regeneración): ~35% adicional durante 6 s
-                        const HOT_FRACTION: f32 = 0.35;
-                        const HOT_DURATION: f64 = 6.0;
+                        // Curación instantánea: ~20% de la vida MÁXIMA de la mascota
+                        const INSTANT_FRACTION: f32 = 0.20;
+                        // Curación residual suave (regeneración): 2 HP/s durante 10 s (~20 HP)
+                        const HOT_RATE: f32 = 2.0;
+                        const HOT_DURATION: f64 = 10.0;
 
                         let missing_hp = (pet_max - pet_cur).max(0.0);
                         let instant_heal =
                             (pet_max * INSTANT_FRACTION * heal_mult).min(missing_hp);
-                        let hot_total = pet_max * HOT_FRACTION * heal_mult;
+                        let hot_rate = HOT_RATE * heal_mult;
+                        let hot_total = hot_rate * HOT_DURATION as f32;
 
                         // 1. Drain health from owner
                         let self_damage = comp::HealthChange {
@@ -503,8 +504,8 @@ impl ServerEvent for CommandPetEvent {
                             client.send_fallible(ServerGeneral::server_msg(
                                 comp::ChatType::Meta,
                                 comp::Content::Plain(format!(
-                                    "¡Transfusión Vital! Has transferido {:.0} de salud a tu mascota (+{:.0} al instante, +{:.0} regenerando durante {:.0}s).",
-                                    sacrifice, instant_heal, hot_total, HOT_DURATION
+                                    "¡Transfusión Vital! Has transferido {:.0} de salud a tu mascota (+{:.0} al instante, +{:.1}/s regenerando durante {:.0}s).",
+                                    sacrifice, instant_heal, hot_rate, HOT_DURATION
                                 )),
                             ));
                         }

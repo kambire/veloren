@@ -2,6 +2,15 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.23] - 2026-09-26
+-------------------------------------------------------------------------------
+* REBALANCEO Y EQUILIBRIO DE CURACIÓN RESIDUAL SUAVE (HOT REGULARIZADO):
+  - Curación residual moderada y táctica (1 a 2 HP/s):
+    * Aura Vital (Entrenador): Se conserva el impacto instantáneo de rescate del 20% de salud máxima ("de una"), regularizando la regeneración residual a 2 HP/s durante 10 segundos (~20 HP adicionales).
+    * Sanación del Sacerdote: Se ajusta la regeneración en el tiempo a 2 HP/s durante 10 segundos.
+    * Auras Pasivas Raciales y de Clase: La regeneración de Tenacidad Humana, Baluarte Sagrado (Paladín) y Gracia Divina (Sacerdote) se regulariza a 2 HP/s durante 10 segundos (anteriormente 30-40 HP/s).
+    * Transfusión Vital: Se ajusta la curación instantánea al 20% de salud máxima de la mascota y su regeneración residual a 2 HP/s durante 10 segundos.
+
 [v0.18.22] - 2026-09-26
 -------------------------------------------------------------------------------
 * CORRECCIÓN INTEGRAL DEL ESTADO DERRIBADO (DOWNED/CRAWL) Y RENDICIÓN CON ESPACIO:

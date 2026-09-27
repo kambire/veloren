@@ -78,6 +78,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fish no longer walk on land.
 - Panic related to lag spikes
 
+## [0.18.23] - 2026-09-26
+
+### Changed
+- **Rebalanceo de curación residual suave (HoT)**:
+  - *Aura Vital (Entrenador)*: Conserva el impacto de curación directa del 20% de salud máxima al activarse, regularizando la curación sostenida por ticks a 2 HP/s durante 10 segundos (~20 HP adicionales en lugar de los 45 HP/s anteriores).
+  - *Sanación (Sacerdote)*: Curación residual ajustada a 2 HP/s durante 10 segundos.
+  - *Auras Pasivas*: Tenacidad Humana, Baluarte Sagrado (Paladín) y Gracia Divina (Sacerdote) entregan 2 HP/s de regeneración durante 10 segundos.
+  - *Transfusión Vital*: Curación instantánea del 20% de salud máxima de la mascota y regeneración residual de 2 HP/s durante 10 segundos.
+
 ## [0.18.22] - 2026-09-26
 
 ### Fixed
@@ -1733,7 +1742,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Note: 0.1.0 was part of the legacy engine.
 
-[unreleased]: https://github.com/kambire/veloren/compare/v0.18.22...HEAD
+[unreleased]: https://github.com/kambire/veloren/compare/v0.18.23...HEAD
+[0.18.23]: https://github.com/kambire/veloren/releases/tag/v0.18.23
 [0.18.22]: https://github.com/kambire/veloren/releases/tag/v0.18.22
 [0.18.21]: https://github.com/kambire/veloren/releases/tag/v0.18.21
 [0.18.20]: https://github.com/kambire/veloren/releases/tag/v0.18.20

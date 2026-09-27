@@ -176,9 +176,9 @@ impl<'a> System<'a> for Sys {
                         if health.fraction() < 0.50 && can_proc(&job.own.cooldowns, uid, PassiveKind::HumanTenacity, current_time) {
                             set_cooldown(&mut job.own.cooldowns, uid, PassiveKind::HumanTenacity, current_time, ICD);
 
-                            // Buffs: Tenacity (0.8, 6s) + Regeneration (35.0, 6s)
+                            // Buffs: Tenacity (0.8, 6s) + Regeneration (2.0, 10s)
                             apply_buff(entity, uid, BuffKind::Tenacity, 0.8, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
-                            apply_buff(entity, uid, BuffKind::Regeneration, 35.0, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::Regeneration, 2.0, 10.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
@@ -302,9 +302,9 @@ impl<'a> System<'a> for Sys {
                         if health.fraction() < 0.50 && can_proc(&job.own.cooldowns, uid, PassiveKind::PaladinHolyBulwark, current_time) {
                             set_cooldown(&mut job.own.cooldowns, uid, PassiveKind::PaladinHolyBulwark, current_time, ICD);
 
-                            // Buffs: ProtectingWard (0.6, 6s) + Regeneration (30.0, 6s)
+                            // Buffs: ProtectingWard (0.6, 6s) + Regeneration (2.0, 10s)
                             apply_buff(entity, uid, BuffKind::ProtectingWard, 0.6, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
-                            apply_buff(entity, uid, BuffKind::Regeneration, 30.0, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::Regeneration, 2.0, 10.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
@@ -363,9 +363,9 @@ impl<'a> System<'a> for Sys {
                         if health.fraction() < 0.45 && can_proc(&job.own.cooldowns, uid, PassiveKind::PriestDivineGrace, current_time) {
                             set_cooldown(&mut job.own.cooldowns, uid, PassiveKind::PriestDivineGrace, current_time, ICD);
 
-                            // Buffs: ProtectingWard (0.7, 6s) + Regeneration (40.0, 6s)
+                            // Buffs: ProtectingWard (0.7, 6s) + Regeneration (2.0, 10s)
                             apply_buff(entity, uid, BuffKind::ProtectingWard, 0.7, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
-                            apply_buff(entity, uid, BuffKind::Regeneration, 40.0, 6.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
+                            apply_buff(entity, uid, BuffKind::Regeneration, 2.0, 10.0, current_time, dest_info, mass, entity_buffs, &mut emitters);
                             apply_buff(entity, uid, BuffKind::PassiveCooldown, 1.0, ICD, current_time, dest_info, mass, entity_buffs, &mut emitters);
                         }
                     },
