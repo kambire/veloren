@@ -125,8 +125,6 @@ pub struct SessionState {
     tracks: HashMap<Vec2<i32>, Vec<DebugShapeId>>,
     gizmos: Vec<(DebugShapeId, common::resources::Time, bool)>,
     pub(crate) current_zone_id: Option<common::zone::ZoneId>,
-    pub(crate) auto_charge_kind: Option<InputKind>,
-    pub(crate) auto_charge_start: Option<std::time::Instant>,
     pub(crate) mouse_left_down: bool,
     pub(crate) mouse_right_down: bool,
     pub(crate) mouse_drag_distance: f32,
@@ -208,8 +206,6 @@ impl SessionState {
             lines: Default::default(),
             gizmos: Vec::new(),
             current_zone_id: None,
-            auto_charge_kind: None,
-            auto_charge_start: None,
             mouse_left_down: false,
             mouse_right_down: false,
             mouse_drag_distance: 0.0,
@@ -1810,55 +1806,7 @@ impl PlayState for SessionState {
                 },
             };
 
-            // Auto-charge de habilidades estilo WoW:
-            // Al presionar un poder con casteo/carga (como tecla 2), auto-cargarlo hasta completarlo y liberarlo
-            if let Some(kind) = self.auto_charge_kind {
-                let should_release = {
-                    let client = self.client.borrow();
-                    let char_state = client.current::<comp::CharacterState>();
-                    let reached_full = char_state
-                        .as_ref()
-                        .and_then(|cs| cs.charge_frac())
-                        .is_some_and(|f| f >= 0.95);
-                    let timed_out = self
-                        .auto_charge_start
-                        .is_some_and(|start| start.elapsed().as_millis() > 1100);
-                    let stage_action = char_state.as_ref().is_some_and(|cs| {
-                        cs.stage_section() == Some(common::states::utils::StageSection::Action)
-                    });
-                    reached_full || timed_out || stage_action
-                };
 
-                if should_release {
-                    self.auto_charge_kind = None;
-                    self.auto_charge_start = None;
-                    let target_pos = self.target_entity
-                        .and_then(|t| {
-                            let client = self.client.borrow();
-                            let positions = client.state().read_storage::<comp::Pos>();
-                            let bodies = client.state().read_storage::<comp::Body>();
-                            positions.get(t).map(|p| {
-                                let eye = bodies.get(t).map_or(1.0, |b| b.eye_height(1.0) * 0.7);
-                                p.0 + Vec3::new(0.0, 0.0, eye)
-                            })
-                        });
-                    let select_pos = target_pos.or(default_select_pos);
-                    if let Some(t_pos) = target_pos {
-                        let client = self.client.borrow();
-                        if let Some(player_pos) = client.state().read_storage::<comp::Pos>().get(client.entity()) {
-                            if let Some(dir) = Dir::from_unnormalized(t_pos - player_pos.0) {
-                                self.inputs.look_dir = dir;
-                            }
-                        }
-                    }
-                    self.client.borrow_mut().handle_input(
-                        kind,
-                        false,
-                        select_pos,
-                        self.target_entity,
-                    );
-                }
-            }
 
             let mut outcomes = Vec::new();
 
@@ -2342,25 +2290,12 @@ impl PlayState for SessionState {
                                 }
                             }
                         }
-                        if state {
-                            self.auto_charge_kind = Some(InputKind::Ability(idx));
-                            self.auto_charge_start = Some(std::time::Instant::now());
-                            self.client.borrow_mut().handle_input(
-                                InputKind::Ability(idx),
-                                true,
-                                select_pos,
-                                target,
-                            );
-                        } else {
-                            if self.auto_charge_kind != Some(InputKind::Ability(idx)) {
-                                self.client.borrow_mut().handle_input(
-                                    InputKind::Ability(idx),
-                                    false,
-                                    select_pos,
-                                    target,
-                                );
-                            }
-                        }
+                        self.client.borrow_mut().handle_input(
+                            InputKind::Ability(idx),
+                            state,
+                            select_pos,
+                            target,
+                        );
                     },
                     HudEvent::Primary { state } => {
                         self.walking_speed = false;
@@ -2384,25 +2319,12 @@ impl PlayState for SessionState {
                                 }
                             }
                         }
-                        if state {
-                            self.auto_charge_kind = Some(InputKind::Primary);
-                            self.auto_charge_start = Some(std::time::Instant::now());
-                            self.client.borrow_mut().handle_input(
-                                InputKind::Primary,
-                                true,
-                                select_pos,
-                                target,
-                            );
-                        } else {
-                            if self.auto_charge_kind != Some(InputKind::Primary) {
-                                self.client.borrow_mut().handle_input(
-                                    InputKind::Primary,
-                                    false,
-                                    select_pos,
-                                    target,
-                                );
-                            }
-                        }
+                        self.client.borrow_mut().handle_input(
+                            InputKind::Primary,
+                            state,
+                            select_pos,
+                            target,
+                        );
                     },
                     HudEvent::Secondary { state } => {
                         self.walking_speed = false;
@@ -2426,25 +2348,12 @@ impl PlayState for SessionState {
                                 }
                             }
                         }
-                        if state {
-                            self.auto_charge_kind = Some(InputKind::Secondary);
-                            self.auto_charge_start = Some(std::time::Instant::now());
-                            self.client.borrow_mut().handle_input(
-                                InputKind::Secondary,
-                                true,
-                                select_pos,
-                                target,
-                            );
-                        } else {
-                            if self.auto_charge_kind != Some(InputKind::Secondary) {
-                                self.client.borrow_mut().handle_input(
-                                    InputKind::Secondary,
-                                    false,
-                                    select_pos,
-                                    target,
-                                );
-                            }
-                        }
+                        self.client.borrow_mut().handle_input(
+                            InputKind::Secondary,
+                            state,
+                            select_pos,
+                            target,
+                        );
                     },
 
                     HudEvent::RequestSiteInfo(id) => {

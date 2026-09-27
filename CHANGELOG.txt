@@ -2,6 +2,13 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.21] - 2026-09-26
+-------------------------------------------------------------------------------
+* CORRECCIÓN DE DISPARO INFINITO Y COLA DE HABILIDADES (BOTÓN 1 / ATAQUE BÁSICO):
+  - Solución al bucle de disparo infinito: Se eliminó el bloqueo en el cliente de Voxygen que interceptaba y retenía la tecla/botón pulsado evitando enviar el evento de soltado (`state: false`). Esto hacía que el servidor mantuviera la habilidad activa en bucle continuo al pulsar repetidas veces.
+  - Ejecución precisa por pulsación: Al pulsar el botón 1 (Ataque Primario / Orbe de Poder del Entrenador), se ejecuta un único disparo sin apilarse ni entrar en bucle infinito.
+  - Respuesta y liberación instantánea: Se asegura el envío inmediato de soltado en ataques primarios, secundarios y habilidades de la barra de acción.
+
 [v0.18.20] - 2026-09-26
 -------------------------------------------------------------------------------
 * HOTFIX CRÍTICO DE ESTABILIDAD ECS (MaskedStorage[CharacterClass]):
