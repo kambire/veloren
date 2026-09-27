@@ -83,6 +83,22 @@ fn capture(path: &str, state_name: &str) {
             total: 812 * 1024 * 1024,
             speed: 9.4 * 1024.0 * 1024.0,
         },
+        "no-instalado" => {
+            st.game_binary = None;
+            st.local_version = String::new();
+            st.remote_version = "v0.18.25".to_string();
+            UpdateStatus::UpdateAvailable {
+                remote_tag: "v0.18.25".to_string(),
+                download_url: Some(net::LATEST_DOWNLOAD_URL.to_string()),
+                total_bytes: 425 * 1024 * 1024,
+            }
+        },
+        "no-instalado-offline" => {
+            st.game_binary = None;
+            st.local_version = String::new();
+            st.remote_version = "Sin conexión".to_string();
+            UpdateStatus::Offline
+        },
         "sin-conexion" => {
             st.remote_version = "Sin conexión".to_string();
             UpdateStatus::Offline
@@ -215,6 +231,21 @@ mod win {
             Hit::Play => {
                 let st = window.state.lock().unwrap();
                 match &st.status {
+                    UpdateStatus::Downloading { .. } | UpdateStatus::Extracting => return None,
+                    _ if st.game_binary.is_none() => {
+                        let (url, tag) = match &st.status {
+                            UpdateStatus::UpdateAvailable {
+                                remote_tag,
+                                download_url: Some(url),
+                                ..
+                            } => (url.clone(), remote_tag.clone()),
+                            UpdateStatus::UpdateAvailable { remote_tag, .. } => {
+                                (net::LATEST_DOWNLOAD_URL.to_string(), remote_tag.clone())
+                            },
+                            _ => (net::LATEST_DOWNLOAD_URL.to_string(), "latest".to_string()),
+                        };
+                        Action::Update { url, tag }
+                    },
                     UpdateStatus::UpdateAvailable {
                         remote_tag,
                         download_url: Some(url),
@@ -223,7 +254,6 @@ mod win {
                         url: url.clone(),
                         tag: remote_tag.clone(),
                     },
-                    UpdateStatus::Downloading { .. } | UpdateStatus::Extracting => return None,
                     _ if st.game_binary.is_some() => Action::LaunchAndClose,
                     _ => return None,
                 }

@@ -12,6 +12,8 @@ use std::{
 };
 
 pub const GITHUB_REPO: &str = "kambire/veloren";
+pub const LATEST_DOWNLOAD_URL: &str =
+    "https://github.com/kambire/veloren/releases/latest/download/WorldOfAzeria-windows.zip";
 const VERSION_FILE: &str = "version.json";
 const USER_AGENT: &str = "WorldOfAzeria-Launcher/2.0";
 pub const GAME_EXECUTABLE: &str = if cfg!(target_os = "windows") {
@@ -129,8 +131,8 @@ pub fn load_local_version(dir: &Path) -> LocalVersion {
         .ok()
         .and_then(|content| serde_json::from_str::<LocalVersion>(&content).ok())
         .unwrap_or_else(|| LocalVersion {
-            version: "0.18.0".to_string(),
-            tag: "v0.18.0".to_string(),
+            version: String::new(),
+            tag: String::new(),
             updated_at: String::new(),
         })
 }
@@ -168,6 +170,7 @@ fn agent(read_timeout: Duration) -> ureq::Agent {
     ureq::AgentBuilder::new()
         .timeout_connect(Duration::from_secs(8))
         .timeout_read(read_timeout)
+        .redirects(10)
         .build()
 }
 
@@ -215,18 +218,31 @@ pub fn check_github(state: &Shared) {
             let Ok(release) = res.into_json::<GitHubRelease>() else {
                 let mut st = state.lock().unwrap();
                 st.remote_version = "Desconocida".to_string();
-                st.status = UpdateStatus::Error("Respuesta de GitHub no válida".to_string());
+                if st.game_binary.is_none() {
+                    st.status = UpdateStatus::UpdateAvailable {
+                        remote_tag: "latest".to_string(),
+                        download_url: Some(LATEST_DOWNLOAD_URL.to_string()),
+                        total_bytes: 0,
+                    };
+                } else {
+                    st.status = UpdateStatus::Error("Respuesta de GitHub no válida".to_string());
+                }
                 return;
             };
             let mut st = state.lock().unwrap();
             st.remote_version = release.tag_name.clone();
             let binary_missing = st.game_binary.is_none();
-            if binary_missing || (!st.local_version.is_empty() && is_version_newer(&release.tag_name, &st.local_version)) {
+            let newer = !st.local_version.is_empty() && is_version_newer(&release.tag_name, &st.local_version);
+            if binary_missing || newer {
                 let zip_asset = release.assets.iter().find(|a| a.name.ends_with(".zip"));
+                let download_url = zip_asset
+                    .map(|a| a.browser_download_url.clone())
+                    .or_else(|| Some(LATEST_DOWNLOAD_URL.to_string()));
+                let total_bytes = zip_asset.map_or(0, |a| a.size);
                 st.status = UpdateStatus::UpdateAvailable {
                     remote_tag: release.tag_name.clone(),
-                    download_url: zip_asset.map(|a| a.browser_download_url.clone()),
-                    total_bytes: zip_asset.map_or(0, |a| a.size),
+                    download_url,
+                    total_bytes,
                 };
             } else {
                 st.status = UpdateStatus::UpToDate;
@@ -242,14 +258,30 @@ pub fn check_github(state: &Shared) {
             let mut st = state.lock().unwrap();
             st.remote_version = match sha {
                 Some(sha) => format!("master ({sha})"),
-                None => st.local_version.clone(),
+                None => if st.local_version.is_empty() { "latest".to_string() } else { st.local_version.clone() },
             };
-            st.status = UpdateStatus::UpToDate;
+            if st.game_binary.is_none() {
+                st.status = UpdateStatus::UpdateAvailable {
+                    remote_tag: "latest".to_string(),
+                    download_url: Some(LATEST_DOWNLOAD_URL.to_string()),
+                    total_bytes: 0,
+                };
+            } else {
+                st.status = UpdateStatus::UpToDate;
+            }
         },
         Err(_) => {
             let mut st = state.lock().unwrap();
             st.remote_version = "Sin conexión".to_string();
-            st.status = UpdateStatus::Offline;
+            if st.game_binary.is_none() {
+                st.status = UpdateStatus::UpdateAvailable {
+                    remote_tag: "latest".to_string(),
+                    download_url: Some(LATEST_DOWNLOAD_URL.to_string()),
+                    total_bytes: 0,
+                };
+            } else {
+                st.status = UpdateStatus::Offline;
+            }
         },
     }
 }

@@ -334,8 +334,18 @@ fn info_panel(res: &Resources, pm: &mut Pixmap, st: &AppState) {
         UpdateStatus::Error(_) => ("Con errores", RED),
         _ => ("En línea", GREEN),
     };
+    let installed_text = if st.game_binary.is_none() || st.local_version.is_empty() {
+        "No instalada"
+    } else {
+        &st.local_version
+    };
+    let installed_color = if st.game_binary.is_none() {
+        GOLD
+    } else {
+        TEXT
+    };
     let rows: [(&str, &str, [u8; 4]); 4] = [
-        ("Versión instalada", &st.local_version, TEXT),
+        ("Versión instalada", installed_text, installed_color),
         ("Última versión", &st.remote_version, TEXT),
         ("Servidor de actualizaciones", connection, connection_color),
         ("Mundo", "Azeria · 4 continentes", TEXT),
@@ -359,16 +369,25 @@ fn info_panel(res: &Resources, pm: &mut Pixmap, st: &AppState) {
 fn status_and_progress(res: &Resources, pm: &mut Pixmap, st: &AppState, time: f32) {
     let no_game = st.game_binary.is_none();
     let (text, color): (String, [u8; 4]) = match &st.status {
-        UpdateStatus::Checking => ("Buscando actualizaciones...".into(), BLUE),
+        UpdateStatus::Downloading { .. } => ("Descargando archivos del juego...".into(), GOLD),
+        UpdateStatus::Extracting => ("Instalando archivos del juego...".into(), GOLD),
+        UpdateStatus::UpdateAvailable { remote_tag, .. } if no_game => {
+            ("Juego no instalado. Haz clic en DESCARGAR JUEGO para comenzar.".into(), GOLD)
+        },
         UpdateStatus::UpdateAvailable { remote_tag, .. } => {
             (format!("Nueva versión disponible: {remote_tag}"), GOLD)
         },
-        UpdateStatus::Downloading { .. } => ("Descargando actualización...".into(), GOLD),
-        UpdateStatus::Extracting => ("Instalando archivos del juego...".into(), GOLD),
+        UpdateStatus::Checking if no_game => {
+            ("Juego no instalado. Buscando versión en el servidor...".into(), BLUE)
+        },
+        UpdateStatus::Checking => ("Buscando actualizaciones...".into(), BLUE),
+        UpdateStatus::Error(err) if no_game => {
+            ("Juego no instalado. Haz clic en DESCARGAR JUEGO para comenzar.".into(), GOLD)
+        },
         UpdateStatus::Error(err) => (format!("Error: {err}"), RED),
         _ if no_game => (
-            "No se encontró el juego en esta carpeta.".into(),
-            RED,
+            "Juego no instalado. Haz clic en DESCARGAR JUEGO para comenzar.".into(),
+            GOLD,
         ),
         UpdateStatus::Offline => (
             "Sin conexión con el servidor de actualizaciones. Puedes jugar igualmente.".into(),
@@ -436,6 +455,7 @@ fn status_and_progress(res: &Resources, pm: &mut Pixmap, st: &AppState, time: f3
                 UpdateStatus::Downloading { .. } | UpdateStatus::Extracting => {
                     (1.0, gold_fill(PROG_X, PROG_X + PROG_W))
                 },
+                _ if no_game => (0.0, solid([0, 0, 0, 0])),
                 UpdateStatus::Error(_) => (1.0, solid([185, 28, 28, 200])),
                 UpdateStatus::UpdateAvailable { .. } => (0.0, solid([0, 0, 0, 0])),
                 UpdateStatus::Offline => (1.0, solid([147, 164, 189, 90])),
@@ -496,10 +516,6 @@ fn play_button(res: &Resources, pm: &mut Pixmap, st: &AppState, pointer: Pointer
     let pressed = hovered && pointer.pressed == Some(Hit::Play);
 
     let (label, sublabel, enabled) = match &st.status {
-        UpdateStatus::UpdateAvailable {
-            download_url: Some(_),
-            ..
-        } => ("ACTUALIZAR", String::new(), true),
         UpdateStatus::Downloading {
             downloaded, total, ..
         } => {
@@ -511,7 +527,11 @@ fn play_button(res: &Resources, pm: &mut Pixmap, st: &AppState, pointer: Pointer
             ("DESCARGANDO", pct, false)
         },
         UpdateStatus::Extracting => ("INSTALANDO", String::new(), false),
-        _ if st.game_binary.is_none() => ("NO DISPONIBLE", String::new(), false),
+        _ if st.game_binary.is_none() => ("DESCARGAR JUEGO", String::new(), true),
+        UpdateStatus::UpdateAvailable {
+            download_url: Some(_),
+            ..
+        } => ("ACTUALIZAR", String::new(), true),
         _ => ("JUGAR", String::new(), true),
     };
 
@@ -579,7 +599,13 @@ fn play_button(res: &Resources, pm: &mut Pixmap, st: &AppState, pointer: Pointer
     );
 
     let text_color = if enabled { [43, 24, 5, 255] } else { [180, 188, 204, 255] };
-    let size = if label.len() > 8 { 22.0 } else { 32.0 };
+    let size = if label.len() > 12 {
+        18.0
+    } else if label.len() > 8 {
+        22.0
+    } else {
+        32.0
+    };
     let (cx, cy) = (x + w / 2.0, y + h / 2.0);
     if sublabel.is_empty() {
         draw_text_centered(pm, &res.title_font, size, cx, cy + size * 0.36, text_color, label);
