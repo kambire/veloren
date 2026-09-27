@@ -179,6 +179,26 @@ fn github_get(agent: &ureq::Agent, url: &str) -> Result<ureq::Response, ureq::Er
         .call()
 }
 
+fn parse_version(v: &str) -> Vec<u32> {
+    v.trim_start_matches(|c: char| !c.is_ascii_digit())
+        .split('.')
+        .filter_map(|s| {
+            let num_str: String = s.chars().take_while(|c| c.is_ascii_digit()).collect();
+            num_str.parse::<u32>().ok()
+        })
+        .collect()
+}
+
+pub fn is_version_newer(remote: &str, local: &str) -> bool {
+    let r = parse_version(remote);
+    let l = parse_version(local);
+    if r.is_empty() || l.is_empty() {
+        remote != local
+    } else {
+        r > l
+    }
+}
+
 /// Comprueba si hay una versión nueva publicada en GitHub
 pub fn check_github(state: &Shared) {
     {
@@ -200,7 +220,8 @@ pub fn check_github(state: &Shared) {
             };
             let mut st = state.lock().unwrap();
             st.remote_version = release.tag_name.clone();
-            if !st.local_version.is_empty() && st.local_version != release.tag_name {
+            let binary_missing = st.game_binary.is_none();
+            if binary_missing || (!st.local_version.is_empty() && is_version_newer(&release.tag_name, &st.local_version)) {
                 let zip_asset = release.assets.iter().find(|a| a.name.ends_with(".zip"));
                 st.status = UpdateStatus::UpdateAvailable {
                     remote_tag: release.tag_name.clone(),
