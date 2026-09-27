@@ -78,6 +78,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fish no longer walk on land.
 - Panic related to lag spikes
 
+## [0.18.22] - 2026-09-26
+
+### Fixed
+- **Estado derribado (Downed/Crawl) y curación infinita**: Se corrigió el error por el cual las auras pasivas raciales y de clase (Tenacidad Humana, Regeneración, Vínculo Feral, Baluarte Sagrado) así como las auras benéficas activas continuaban curando y otorgando buffs a jugadores derribados en el suelo.
+- **Rendición con Espacio (GiveUp)**: `KillEvent` ahora emite de forma directa y garantizada `DestroyEvent` en el servidor, eliminando al personaje al instante y dando paso a la pantalla de muerte y reaparición sin quedar atascado.
+- **Respuesta de tecla Espacio**: Se redujo el tiempo de mantener presionado Espacio (`GIVE_UP_HOLD_TIME`) de 2.0s a 1.0s para una respuesta ágil y satisfactoria.
+
+## [0.18.21] - 2026-09-26
+
+### Fixed
+- **Disparo infinito en botón 1 / Ataque Básico**: Se eliminó el bloqueo en el cliente de Voxygen que interceptaba y retenía la tecla/botón pulsado evitando enviar el evento de soltado (`state: false`). Al presionar repetidamente el botón 1, se ejecuta un único disparo sin encolarse ni entrar en bucle infinito.
+
+## [0.18.20] - 2026-09-26
+
+### Fixed
+- **Hotfix crítico de estabilidad ECS**: Se añadió el registro del componente `CharacterClass` en el mundo Specs y se optimizó la deducción de clase basada directamente en el inventario del jugador en `passive.rs`.
+
+## [0.18.19] - 2026-09-26
+
+### Added
+- **Feedback visual inmersivo**: Scrolling Combat Text (SCT) avanzado con curaciones en verde esmeralda y críticos gigantes dorados con exclamación. Alerta cinematográfica de salud crítica (Low HP Red Vignette) con latido cardíaco pulsante bajo el 30% de salud.
+- **Maestría del Entrenador (Mascotas)**: Atajo rápido 'V' (Stay/Follow), comando táctico `/pet` para control total en combate y Furia Bestial (+35% velocidad y daño) al ordenar atacar a la mascota.
+- **Interfaz y Calidad de Vida**: Nameplates estilo WoW sobre enemigos hostiles a 40 metros y radar de entidades en minimapa (rojo para monstruos, dorado titánico para Jefes de Mundo, verde para mascotas/grupo, amarillo para neutrales).
+- **Jefes de Mundo (World Bosses)**: Anuncio global al despertar y ser derrotados, con tablas de botín garantizado de oro y armas legendarias.
+
+## [0.18.18] - 2026-09-26
+
+### Added
+- **Temporizadores visibles estilo OmniCC**: Números de cuenta regresiva en segundos sobre los iconos de la barra de Buffs/Debuffs con esquema de color dinámico (dorado >5s, rojo <=5s).
+- **Debuff de Enfriamiento Pasivo (`PassiveCooldown`)**: Icono visual para monitorear el tiempo de reutilización interno (ICD) de cada pasiva racial y de clase.
+
+## [0.18.17] - 2026-09-26
+
+### Added
+- **Sistema de Auras Pasivas Tácticas por Raza y Clase**: Implementación integral en `common/systems/src/passive.rs` con activación condicional automática y enfriamiento interno (ICD) para las 6 razas jugables y 7 clases.
+
+## [0.18.16] - 2026-09-26
+
+### Added
+- **Nuevo poder para el Entrenador: "Bola de Poder" (Power Orb)**: Reemplazo del canalizado por un proyectil directo veloz (85 m/s) que detona en área (3.5m) causando daño espiritual y restaurando energía, con libertad de movimiento al castear.
+
+## [0.18.15] - 2026-09-26
+
+### Added
+- **Curación Híbrida Instantánea + Sostenida (Aura Vital)**: Curación de impacto directo del 20% de salud máxima al activar el aura, seguida de regeneración continua por ticks.
+
+## [0.18.14] - 2026-09-26
+
+### Changed
+- **Potenciación masiva de sanación del Entrenador**: Aumento de potencia en Aura Vital y Transfusión Vital para recuperar rápidamente a la mascota y al grupo en combate.
+
+## [0.18.13] - 2026-09-25
+
+### Changed
+- **Modo Día Perpetuo y Atardecer Dorado**: Eliminada la ceguera de la noche oscura; el sol orbita manteniendo luz continua con transiciones suaves entre mañana, mediodía y atardecer dorado.
+
+## [0.18.12] - 2026-09-25
+
+### Added
+- **Marco de unidad de mascota estilo WoW (Pet Unit Frame)**: Medallón de retrato, barras numéricas de salud y energía (Pet Focus) situado bajo el marco del jugador.
+
+### Fixed
+- **Interacción y clics en botones de mascota**: Eliminada la superposición transparente de BuffsBar que bloqueaba clics. Eliminadas barras flotantes redundantes del centro inferior.
+
+## [0.18.11] - 2026-09-25
+
+### Added
+- **Click-to-cast en HUD**: Activación y auto-carga de habilidades al hacer clic directo con el ratón en la barra de acción.
+
 ## [0.18.0] - 2026-01-23
 
 ### Added
@@ -1664,7 +1733,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Note: 0.1.0 was part of the legacy engine.
 
-[unreleased]: https://gitlab.com/veloren/veloren/compare?from=v0.18.0&to=master
+[unreleased]: https://github.com/kambire/veloren/compare/v0.18.22...HEAD
+[0.18.22]: https://github.com/kambire/veloren/releases/tag/v0.18.22
+[0.18.21]: https://github.com/kambire/veloren/releases/tag/v0.18.21
+[0.18.20]: https://github.com/kambire/veloren/releases/tag/v0.18.20
+[0.18.19]: https://github.com/kambire/veloren/releases/tag/v0.18.19
+[0.18.18]: https://github.com/kambire/veloren/releases/tag/v0.18.18
+[0.18.17]: https://github.com/kambire/veloren/releases/tag/v0.18.17
+[0.18.16]: https://github.com/kambire/veloren/releases/tag/v0.18.16
+[0.18.15]: https://github.com/kambire/veloren/releases/tag/v0.18.15
+[0.18.14]: https://github.com/kambire/veloren/releases/tag/v0.18.14
+[0.18.13]: https://github.com/kambire/veloren/releases/tag/v0.18.13
+[0.18.12]: https://github.com/kambire/veloren/releases/tag/v0.18.12
+[0.18.11]: https://github.com/kambire/veloren/releases/tag/v0.18.11
 [0.18.0]: https://gitlab.com/veloren/veloren/compare?from=v0.17.0&to=v0.18.0
 [0.17.0]: https://gitlab.com/veloren/veloren/compare?from=v0.16.0&to=v0.17.0
 [0.16.0]: https://gitlab.com/veloren/veloren/compare?from=v0.15.0&to=v0.16.0
