@@ -1892,6 +1892,9 @@ impl AbilityInfo {
 }
 
 pub fn end_ability(data: &JoinData<'_>, update: &mut StateUpdate) {
+    if let Some(info) = data.character.ability_info() {
+        update.removed_inputs.push(info.input);
+    }
     if data.character.is_wield() || data.character.was_wielded() {
         update.character = CharacterState::Wielding(wielding::Data {
             is_sneaking: data.character.is_stealthy(),

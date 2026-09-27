@@ -3537,12 +3537,22 @@ impl Hud {
                             &mut self.hotbar,
                             inventories.get(entity),
                         );
+                        Self::handle_hotbar_slot(
+                            slot,
+                            false,
+                            &mut events,
+                            &mut self.slot_manager,
+                            &mut self.hotbar,
+                            inventories.get(entity),
+                        );
                     },
                     skillbar::Event::UsePrimaryAbility => {
                         events.push(Event::Primary { state: true });
+                        events.push(Event::Primary { state: false });
                     },
                     skillbar::Event::UseSecondaryAbility => {
                         events.push(Event::Secondary { state: true });
+                        events.push(Event::Secondary { state: false });
                     },
                 }
             }
@@ -5165,13 +5175,19 @@ impl Hud {
                     }
                 },
                 hotbar::SlotContents::Ability(idx) => {
-                    events.push(Event::Ability { idx, state })
+                    if !state || just_pressed {
+                        events.push(Event::Ability { idx, state });
+                    }
                 },
                 hotbar::SlotContents::PrimaryAbility => {
-                    events.push(Event::Primary { state });
+                    if !state || just_pressed {
+                        events.push(Event::Primary { state });
+                    }
                 },
                 hotbar::SlotContents::SecondaryAbility => {
-                    events.push(Event::Secondary { state });
+                    if !state || just_pressed {
+                        events.push(Event::Secondary { state });
+                    }
                 },
             });
         }

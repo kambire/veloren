@@ -58,7 +58,7 @@
           <span class="pulse-dot"></span>
           Fase Alpha Abierta
         </span>
-        <span class="badge badge-version">Parche v0.18.24</span>
+        <span class="badge badge-version">Parche v0.18.25</span>
       </div>
 
       <h1 class="hero-title">
@@ -298,7 +298,8 @@
       <div class="changelog-controls">
         <div class="changelog-filters">
           <button class="changelog-filter-btn active" data-filter="all">Todas las Versiones</button>
-          <button class="changelog-filter-btn" data-filter="v0.18.24">v0.18.24 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.25">v0.18.25 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.24">v0.18.24</button>
           <button class="changelog-filter-btn" data-filter="v0.18.23">v0.18.23</button>
           <button class="changelog-filter-btn" data-filter="v0.18.22">v0.18.22</button>
           <button class="changelog-filter-btn" data-filter="v0.18.21">v0.18.21</button>
@@ -327,8 +328,27 @@
 
       <!-- Timeline de Tarjetas Detalladas -->
       <div class="changelog-timeline" id="changelogTimeline">
+        <!-- v0.18.25 -->
+        <article class="changelog-card latest" data-version="v0.18.25">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-alpha">v0.18.25</span>
+              <h3 class="changelog-version-title">🛡️ Corrección de Encolado y Bucle Infinito de Habilidades (Botón 2 / Curación)</h3>
+            </div>
+            <span class="changelog-date">26 de Septiembre, 2026</span>
+          </div>
+          
+          <h4 class="changelog-section-title">⚡ Control Preciso de Combate y Lanzamiento Único</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Fin al Bucle de Curación Involuntario:</strong> Se corrigió el problema por el cual presionar repetidamente el Botón 2 (Cargar Vida / Aura Vital del Entrenador) acumulaba pulsaciones en el servidor, haciendo que el personaje ejecutara la habilidad una y otra vez en bucle hasta agotar toda la energía.</li>
+            <li><strong>Emisión Limpia de Entrada (Pulsar y Soltar):</strong> Las casillas de la barra de habilidades y accesos rápidos ahora envían tanto el evento de activación (<code>state: true</code>) como de soltado (<code>state: false</code>) al hacer clic con el ratón, garantizando que ninguna habilidad quede atascada como "presionada".</li>
+            <li><strong>Consumo de Input en el Servidor:</strong> Tanto al iniciar <code>BasicAura</code> como al finalizar la fase de recuperación de cualquier habilidad (<code>end_ability</code>), el comando de activación se retira inmediatamente de la cola de entradas del personaje (<code>queued_inputs</code>). Al regresar a la postura de empuñadura (<code>Wielding</code>), el personaje permanece listo sin repetir la habilidad automáticamente.</li>
+            <li><strong>Ahorro y Gestión Táctica de Energía:</strong> Las reservas de energía se conservan intactas para cuando realmente se decida utilizar cada habilidad, permitiendo un combate mucho más ágil y responsivo.</li>
+          </ul>
+        </article>
+
         <!-- v0.18.24 -->
-        <article class="changelog-card latest" data-version="v0.18.24">
+        <article class="changelog-card" data-version="v0.18.24">
           <div class="changelog-card-header">
             <div class="changelog-version-meta">
               <span class="badge badge-alpha">v0.18.24</span>
@@ -1048,7 +1068,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Descargar AzeriaLauncher.exe
           </a>
-          <span class="download-meta">Versión v0.18.24 • ~2.5 MB • Windows 64-bit</span>
+          <span class="download-meta">Versión v0.18.25 • ~2.5 MB • Windows 64-bit</span>
         </div>
 
         <!-- Cliente Completo ZIP -->
@@ -1099,7 +1119,7 @@
         <div class="footer-brand">
           <h3>WORLD OF <span class="text-gold">AZERIA</span></h3>
           <p>Un proyecto impulsado por la comunidad para ofrecer una experiencia MMORPG profunda, inmersiva y táctica en un mundo abierto vóxel.</p>
-          <div class="badge badge-alpha">Alpha Build v0.18.24</div>
+          <div class="badge badge-alpha">Alpha Build v0.18.25</div>
         </div>
 
         <div class="footer-col">

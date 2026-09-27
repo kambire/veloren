@@ -78,6 +78,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fish no longer walk on land.
 - Panic related to lag spikes
 
+## [0.18.25] - 2026-09-26
+
+### Fixed
+- **Corrección de encolado y bucle infinito de habilidades (Botón 2 / Aura Vital del Entrenador)**:
+  - Eliminado el problema donde presionar repetidamente el botón 2 o hacer clic en la casilla de la barra de acción dejaba las pulsaciones acumuladas en el servidor, provocando que el personaje continuara lanzando la curación en bucle hasta agotar toda la energía.
+  - El cliente ahora emite un ciclo completo de pulsación y soltado (`state: true` y `state: false`) al pulsar o hacer clic en habilidades del HUD y filtra repeticiones continuas del teclado.
+  - En el servidor, `BasicAura` y el fin de estado en `end_ability` consumen y eliminan el input de activación de `queued_inputs`, garantizando una ejecución única y deliberada por pulsación sin re-lanzamientos automáticos al regresar a `Wielding`.
+
 ## [0.18.24] - 2026-09-26
 
 ### Added
@@ -1762,7 +1770,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Note: 0.1.0 was part of the legacy engine.
 
-[unreleased]: https://github.com/kambire/veloren/compare/v0.18.24...HEAD
+[unreleased]: https://github.com/kambire/veloren/compare/v0.18.25...HEAD
+[0.18.25]: https://github.com/kambire/veloren/releases/tag/v0.18.25
 [0.18.24]: https://github.com/kambire/veloren/releases/tag/v0.18.24
 [0.18.23]: https://github.com/kambire/veloren/releases/tag/v0.18.23
 [0.18.22]: https://github.com/kambire/veloren/releases/tag/v0.18.22

@@ -63,6 +63,7 @@ impl CharacterBehavior for Data {
 
         match self.stage_section {
             StageSection::Buildup => {
+                update.removed_inputs.push(self.static_data.ability_info.input);
                 if self.timer < self.static_data.buildup_duration {
                     // Build up
                     update.character = CharacterState::BasicAura(Data {
@@ -140,11 +141,13 @@ impl CharacterBehavior for Data {
                     });
                 } else {
                     // Done
+                    update.removed_inputs.push(self.static_data.ability_info.input);
                     end_ability(data, &mut update);
                 }
             },
             _ => {
                 // If it somehow ends up in an incorrect stage section
+                update.removed_inputs.push(self.static_data.ability_info.input);
                 end_ability(data, &mut update);
             },
         }

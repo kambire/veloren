@@ -2,6 +2,18 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.25] - 2026-09-26
+-------------------------------------------------------------------------------
+* CORRECCIÓN DE ENCOLADO Y REPETICIÓN EN BUCLE DE HABILIDADES Y CURACIÓN (BOTÓN 2 / AURA VITAL):
+  - Solución al Bucle de Repetición y Apilamiento de Pulsaciones:
+    * Se eliminó el problema que hacía que al presionar el Botón 2 (Cargar Vida / Aura Vital del Entrenador) varias veces seguidas, las pulsaciones quedaran acumuladas/encoladas en el servidor, provocando que el personaje continuara lanzando la curación una y otra vez sin parar hasta vaciar toda la energía.
+    * Liberación Inmediata de Habilidad (Single Cast per Press):
+      - En el cliente de Voxygen: al hacer clic en las casillas de la barra de habilidades o botones de ataque con el ratón, se emite tanto el evento de inicio (`state: true`) como el de soltado (`state: false`), garantizando que la entrada nunca quede atrapada como "mantenida".
+      - Filtrado de repetición del teclado: se evita que el sistema operativo inunde el servidor con eventos continuos de pulsación repetida al presionar la tecla del hotbar.
+      - Consumo del Input en el Servidor (`BasicAura` y `end_ability`): al comenzar el lanzamiento del aura de curación y al finalizar su recuperación, el input de activación se elimina de `queued_inputs`, asegurando que no se encadene un nuevo lanzamiento involuntario al volver a la postura de empuñadura (`Wielding`). Cada uso requiere ahora una pulsación voluntaria y deliberada.
+  - Mayor Control y Eficiencia de Energía:
+    * El jugador ya no desperdicia reservas de energía en curaciones repetidas no deseadas, permitiendo un manejo táctico y preciso de los tiempos de curación en combate.
+
 [v0.18.24] - 2026-09-26
 -------------------------------------------------------------------------------
 * SISTEMA DE VENTANA DE BOTÍN ESTILO WORLD OF WARCRAFT (DESPOJO SELECTIVO & AGRUPACIÓN 3D):
