@@ -97,7 +97,11 @@ impl<'a> System<'a> for Sys {
         )
             .join()
         {
-            if health.is_dead {
+            let char_state = read_data.char_states.get(entity);
+            if health.is_dead
+                || matches!(char_state, Some(CharacterState::Crawl))
+                || common::comp::is_downed(Some(health), char_state)
+            {
                 continue;
             }
 
@@ -108,7 +112,6 @@ impl<'a> System<'a> for Sys {
             };
             let mass = read_data.masses.get(entity);
             let entity_buffs = read_data.buffs.get(entity);
-            let char_state = read_data.char_states.get(entity);
             let energy = read_data.energies.get(entity);
             let poise = read_data.poises.get(entity);
             let combo = read_data.combos.get(entity);
@@ -245,7 +248,13 @@ impl<'a> System<'a> for Sys {
                                 .join()
                             {
                                 if let Alignment::Owned(owner) = pet_alignment {
-                                    if *owner == uid && *pet_uid != uid && !pet_health.is_dead {
+                                    let pet_char_state = read_data.char_states.get(pet_entity);
+                                    if *owner == uid
+                                        && *pet_uid != uid
+                                        && !pet_health.is_dead
+                                        && !matches!(pet_char_state, Some(CharacterState::Crawl))
+                                        && !common::comp::is_downed(Some(pet_health), pet_char_state)
+                                    {
                                         let pet_heal = pet_health.maximum() * 0.15;
                                         apply_heal(pet_entity, *pet_uid, pet_heal, current_time, &mut emitters);
 

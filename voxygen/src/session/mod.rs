@@ -1014,6 +1014,9 @@ impl PlayState for SessionState {
                                     comp::is_downed(
                                         client.current().as_ref(),
                                         client.current().as_ref(),
+                                    ) || matches!(
+                                        client.current::<comp::CharacterState>(),
+                                        Some(comp::CharacterState::Crawl),
                                     )
                                 });
                             },
@@ -1639,8 +1642,9 @@ impl PlayState for SessionState {
                 use crate::key_state::GIVE_UP_HOLD_TIME;
                 *timer += dt;
 
-                if *timer > GIVE_UP_HOLD_TIME {
+                if *timer >= GIVE_UP_HOLD_TIME {
                     self.client.borrow_mut().give_up();
+                    self.key_state.give_up = None;
                 }
             }
 

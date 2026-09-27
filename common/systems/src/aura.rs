@@ -276,8 +276,11 @@ fn activate_aura(
             // from an aura, where the buff is of the same kind,
             // and is of at least the same strength
             // and of at least the same duration.
-            // If no such buff is present, adds the buff.
-            let emit_buff = !target_buffs.buffs.iter().any(|(_, buff)| {
+            let is_target_downed = common::comp::is_downed(Some(health), read_data.char_states.get(target))
+                || matches!(read_data.char_states.get(target), Some(CharacterState::Crawl));
+            let can_receive_buff = !is_target_downed || category.as_ref().is_some_and(|c| matches!(c, BuffCategory::PersistOnDowned));
+
+            let emit_buff = can_receive_buff && !target_buffs.buffs.iter().any(|(_, buff)| {
                 buff.cat_ids
                     .iter()
                     .any(|cat_id| matches!(cat_id, BuffCategory::FromActiveAura(uid, aura_key) if *aura_key == key && *uid == applier_uid))
@@ -288,7 +291,7 @@ fn activate_aura(
                 // Curación instantánea masiva al aplicar el aura de curación ("de una"):
                 // Restaura inmediatamente el 20% de la salud máxima del objetivo,
                 // seguido luego de la regeneración sostenida por ticks.
-                if aura.frontend_specifier == Some(Specifier::HealingAura) && !health.is_dead {
+                if aura.frontend_specifier == Some(Specifier::HealingAura) && !health.is_dead && !is_target_downed {
                     let instant_amount = health.maximum() * 0.20;
                     if instant_amount > 0.0 {
                         let damage_contributor = match source {

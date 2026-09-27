@@ -1,6 +1,6 @@
 use common::{
     comp::{
-        Body, BuffChange, Collider, ControlEvent, Controller, Health, Pos, Scale,
+        Body, BuffChange, CharacterState, Collider, ControlEvent, Controller, Health, Pos, Scale,
         UnresolvedChatMsg,
         ability::Stance,
         agent::{Sound, SoundKind},
@@ -53,6 +53,7 @@ pub struct ReadData<'a> {
     colliders: ReadStorage<'a, Collider>,
     uids: ReadStorage<'a, Uid>,
     healths: ReadStorage<'a, Health>,
+    char_states: ReadStorage<'a, CharacterState>,
 }
 
 #[derive(Default)]
@@ -138,10 +139,17 @@ impl<'a> System<'a> for Sys {
                             emitters.emit(event::GroupManipEvent(entity, manip))
                         },
                         ControlEvent::GiveUp => {
+                            let is_downed = common::comp::is_downed(
+                                read_data.healths.get(entity),
+                                read_data.char_states.get(entity),
+                            ) || read_data
+                                .char_states
+                                .get(entity)
+                                .is_some_and(|cs| matches!(cs, CharacterState::Crawl));
                             if read_data
                                 .healths
                                 .get(entity)
-                                .is_some_and(|h| h.has_consumed_death_protection())
+                                .is_some_and(|h| !h.is_dead && (h.has_consumed_death_protection() || is_downed))
                             {
                                 emitters.emit(event::KillEvent { entity });
                             }

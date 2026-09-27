@@ -1,6 +1,6 @@
 use vek::Vec2;
 
-pub const GIVE_UP_HOLD_TIME: f32 = 2.0;
+pub const GIVE_UP_HOLD_TIME: f32 = 1.0;
 
 pub struct KeyState {
     pub right: bool,

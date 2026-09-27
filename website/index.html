@@ -58,7 +58,7 @@
           <span class="pulse-dot"></span>
           Fase Alpha Abierta
         </span>
-        <span class="badge badge-version">Parche v0.18.21</span>
+        <span class="badge badge-version">Parche v0.18.22</span>
       </div>
 
       <h1 class="hero-title">
@@ -291,14 +291,15 @@
       <div class="section-header">
         <span class="section-tag">Historial de Actualizaciones</span>
         <h2 class="section-title">Registro de Cambios Oficial</h2>
-        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.21.</p>
+        <p class="section-description">Consulta el historial completo de cambios, mejoras tácticas y notas de versión de World of Azeria desde la v0.18.0 hasta la v0.18.22.</p>
       </div>
 
       <!-- Controles de Filtro y Búsqueda -->
       <div class="changelog-controls">
         <div class="changelog-filters">
           <button class="changelog-filter-btn active" data-filter="all">Todas las Versiones</button>
-          <button class="changelog-filter-btn" data-filter="v0.18.21">v0.18.21 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.22">v0.18.22 (Actual)</button>
+          <button class="changelog-filter-btn" data-filter="v0.18.21">v0.18.21</button>
           <button class="changelog-filter-btn" data-filter="v0.18.20">v0.18.20</button>
           <button class="changelog-filter-btn" data-filter="v0.18.19">v0.18.19</button>
           <button class="changelog-filter-btn" data-filter="v0.18.18">v0.18.18</button>
@@ -324,8 +325,30 @@
 
       <!-- Timeline de Tarjetas Detalladas -->
       <div class="changelog-timeline" id="changelogTimeline">
+        <!-- v0.18.22 -->
+        <article class="changelog-card latest" data-version="v0.18.22">
+          <div class="changelog-card-header">
+            <div class="changelog-version-meta">
+              <span class="badge badge-alpha">v0.18.22</span>
+              <h3 class="changelog-version-title">💀 Corrección de Estado Derribado (Crawl) y Rendición con Espacio</h3>
+            </div>
+            <span class="changelog-date">26 de Septiembre, 2026</span>
+          </div>
+          
+          <h4 class="changelog-section-title">🛑 Supresión de Curación en Jugadores Incapacitados</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Bloqueo de Curación y Pasivas en Crawl:</strong> Las auras pasivas raciales y de clase (Tenacidad Humana, Regeneración, Vínculo Feral, Baluarte Sagrado) así como las auras benéficas activas ya no curan ni otorgan ventajas al personaje mientras se encuentra derribado en el suelo. Se eliminan los ticks infinitos de curación al caer derrotado.</li>
+          </ul>
+
+          <h4 class="changelog-section-title">⚡ Rendición con Espacio Rápida y Confiable</h4>
+          <ul class="changelog-sublist">
+            <li><strong>Muerte Directa al Rendirse:</strong> El evento de rendición (<code>GiveUp</code>) ahora emite directamente la destrucción y muerte formal del personaje en el servidor, garantizando la transición inmediata a la pantalla de reaparición sin quedar atrapado en el suelo.</li>
+            <li><strong>Respuesta de Tecla Optimizada:</strong> Se reduce el tiempo de mantener pulsado Espacio de 2.0s a 1.0s para una respuesta ágil y satisfactoria.</li>
+          </ul>
+        </article>
+
         <!-- v0.18.21 -->
-        <article class="changelog-card latest" data-version="v0.18.21">
+        <article class="changelog-card" data-version="v0.18.21">
           <div class="changelog-card-header">
             <div class="changelog-version-meta">
               <span class="badge badge-alpha">v0.18.21</span>
@@ -969,7 +992,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Descargar AzeriaLauncher.exe
           </a>
-          <span class="download-meta">Versión v0.18.21 • ~2.5 MB • Windows 64-bit</span>
+          <span class="download-meta">Versión v0.18.22 • ~2.5 MB • Windows 64-bit</span>
         </div>
 
         <!-- Cliente Completo ZIP -->
@@ -1020,7 +1043,7 @@
         <div class="footer-brand">
           <h3>WORLD OF <span class="text-gold">AZERIA</span></h3>
           <p>Un proyecto impulsado por la comunidad para ofrecer una experiencia MMORPG profunda, inmersiva y táctica en un mundo abierto vóxel.</p>
-          <div class="badge badge-alpha">Alpha Build v0.18.21</div>
+          <div class="badge badge-alpha">Alpha Build v0.18.22</div>
         </div>
 
         <div class="footer-col">

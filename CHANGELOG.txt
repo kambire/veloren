@@ -2,6 +2,15 @@
                      WORLD OF AZERIA - REGISTRO DE CAMBIOS (CHANGELOG)
 ===============================================================================
 
+[v0.18.22] - 2026-09-26
+-------------------------------------------------------------------------------
+* CORRECCIÓN INTEGRAL DEL ESTADO DERRIBADO (DOWNED/CRAWL) Y RENDICIÓN CON ESPACIO:
+  - Supresión de curación y pasivas en estado derribado: Se corrigió el error por el cual las auras pasivas raciales y de clase (como Tenacidad Humana, Regeneración, Vínculo Feral del Entrenador, Baluarte Sagrado del Paladín, etc.) y auras benéficas continuaban curando y otorgando buffs a jugadores derribados en el suelo (estado Crawl).
+  - Corrección de la rendición con Espacio (GiveUp):
+    * Se aseguró que la orden de rendición ('Espacio') procese correctamente el estado Crawl / derribado tanto en el cliente como en el servidor.
+    * `KillEvent` ahora emite de forma directa y garantizada `DestroyEvent` en el servidor, eliminando al personaje al instante y dando paso a la pantalla de muerte y reaparición sin quedar atascado.
+    * Se optimizó el tiempo requerido para mantener presionado Espacio (`GIVE_UP_HOLD_TIME`) de 2.0s a 1.0s para una respuesta mucho más ágil y cómoda para el jugador.
+
 [v0.18.21] - 2026-09-26
 -------------------------------------------------------------------------------
 * CORRECCIÓN DE DISPARO INFINITO Y COLA DE HABILIDADES (BOTÓN 1 / ATAQUE BÁSICO):

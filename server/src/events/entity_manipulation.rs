@@ -91,7 +91,13 @@ pub(super) fn register_event_systems(builder: &mut DispatcherBuilder) {
     event_dispatch::<HelpDownedEvent>(builder, &[]);
     event_dispatch::<DownedEvent>(builder, &[&event_sys_name::<HealthChangeEvent>()]);
     event_dispatch::<KnockbackEvent>(builder, &[]);
-    event_dispatch::<DestroyEvent>(builder, &[&event_sys_name::<HealthChangeEvent>()]);
+    event_dispatch::<DestroyEvent>(
+        builder,
+        &[
+            &event_sys_name::<HealthChangeEvent>(),
+            &event_sys_name::<KillEvent>(),
+        ],
+    );
     event_dispatch::<LandOnGroundEvent>(builder, &[]);
     event_dispatch::<RespawnEvent>(builder, &[]);
     event_dispatch::<ExplosionEvent>(builder, &[]);
@@ -333,12 +339,20 @@ impl ServerEvent for HealthChangeEvent {
 }
 
 impl ServerEvent for KillEvent {
-    type SystemData<'a> = WriteStorage<'a, comp::Health>;
+    type SystemData<'a> = (
+        WriteStorage<'a, comp::Health>,
+        Read<'a, EventBus<DestroyEvent>>,
+    );
 
-    fn handle(events: impl ExactSizeIterator<Item = Self>, mut healths: Self::SystemData<'_>) {
+    fn handle(events: impl ExactSizeIterator<Item = Self>, (mut healths, destroy_bus): Self::SystemData<'_>) {
+        let mut destroy_emitter = destroy_bus.emitter();
         for ev in events {
             if let Some(mut health) = healths.get_mut(ev.entity) {
                 health.kill();
+                destroy_emitter.emit(DestroyEvent {
+                    entity: ev.entity,
+                    cause: health.last_change,
+                });
             }
         }
     }

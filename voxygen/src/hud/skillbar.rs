@@ -2287,7 +2287,12 @@ impl Widget for Skillbar<'_> {
             self.show_death_message(state, ui);
         }
         // Give up message
-        else if comp::is_downed(Some(self.health), self.client.current().as_ref()) {
+        else if comp::is_downed(Some(self.health), self.client.current().as_ref())
+            || matches!(
+                self.client.current::<comp::CharacterState>(),
+                Some(comp::CharacterState::Crawl)
+            )
+        {
             self.show_give_up_message(state, ui);
         }
         // Riding / sitting on boat seat prompt

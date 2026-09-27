@@ -3,7 +3,7 @@ use common::{
     class::NON_TAMER_PET_DAMAGE,
     combat::{self, DamageContributor},
     comp::{
-        Alignment, Energy, Group, Health, HealthChange, Inventory, LightEmitter, Mass,
+        Alignment, CharacterState, Energy, Group, Health, HealthChange, Inventory, LightEmitter, Mass,
         ModifierKind, PhysicsState, Player, Pos, Stats,
         agent::{Sound, SoundKind},
         aura::{Auras, EnteredAuras},
@@ -74,6 +74,7 @@ pub struct ReadData<'a> {
     players: ReadStorage<'a, Player>,
     masses: ReadStorage<'a, Mass>,
     skill_sets: ReadStorage<'a, SkillSet>,
+    char_states: ReadStorage<'a, CharacterState>,
 }
 
 #[derive(Default)]
@@ -662,6 +663,15 @@ fn execute_effect(
                     ModifierKind::Additive => amount,
                     ModifierKind::Multiplicative => health.maximum() * amount,
                 };
+                if amount > 0.0
+                    && (health.is_dead
+                        || read_data
+                            .char_states
+                            .get(entity)
+                            .is_some_and(|cs| matches!(cs, CharacterState::Crawl)))
+                {
+                    return;
+                }
                 let damage_contributor = by.and_then(|uid| {
                     read_data.id_maps.uid_entity(uid).map(|entity| {
                         DamageContributor::new(uid, read_data.groups.get(entity).cloned())

@@ -1947,7 +1947,12 @@ impl Client {
     }
 
     pub fn give_up(&mut self) {
-        if comp::is_downed(self.current().as_ref(), self.current().as_ref()) {
+        if comp::is_downed(self.current().as_ref(), self.current().as_ref())
+            || matches!(
+                self.current::<comp::CharacterState>(),
+                Some(comp::CharacterState::Crawl)
+            )
+        {
             self.send_msg(ClientGeneral::ControlEvent(ControlEvent::GiveUp));
         }
     }
